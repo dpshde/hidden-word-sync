@@ -1,8 +1,9 @@
 import { bindings, defineConfig } from "cf/config";
 
-// Before the first deploy: `cf d1 create hidden-word`, put its id below, and add `accountId`.
+// To deploy to another account: `cf d1 create --name hidden-word`, and put its id and your account id below.
 // Observability is off: the server should keep as little about its users as it can.
 export default defineConfig({
+	accountId: "91ff2c2b757414041aeaa00896a8a43f",
 	worker: {
 		name: "hidden-word",
 		compatibilityDate: "2026-09-01",
@@ -17,7 +18,7 @@ export default defineConfig({
 		env: {
 			DB: bindings.d1({
 				name: "hidden-word",
-				id: "00000000-0000-4000-8000-000000000000",
+				id: "4e60d989-d13b-4884-ad5c-1366f4c73f00",
 			}),
 			ASSETS: bindings.assets(),
 		},
