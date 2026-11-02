@@ -28,3 +28,7 @@ The sync key is treated as a password, and the library name as its username.
 ## Update 2026-11-02
 
 In the first live test, 1Password in Chrome did not offer to save. The form set the key by script (no input events) and cancelled the submission, so 1Password saw neither typing nor a sign-up. Now the app dispatches `input` and `change` events after filling the key, and lets the form really submit as a `GET` to `/` that reloads into the new library. A `formdata` handler empties the submission, so the request carries no fields; the key reaches the new page through localStorage. The `PasswordCredential` call was dropped, since the real submission is what Chrome's own manager needs too.
+
+## Update 2026-11-02, later
+
+With those changes 1Password still didn't offer to save. The new-library screen now also shows 1Password's own save button; see [Offer 1Password's save button](offer-1password-s-save-button.md). This record's "without integration code" still holds for every other password manager.

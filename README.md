@@ -7,7 +7,7 @@ Bible highlights that follow you between apps and devices. Your library lives on
 - `public/sync.js`: the reference client. Plain JavaScript with WebCrypto and `fetch`, no dependencies, so it runs in browsers, Bun, Node 20+, Deno and Workers. It merges records, syncs through servers (`serverTransport`) and folders (`folderTransport`), and writes library files.
 - `public/passage.js`: reads what people type or paste ("jn 3.16", "Psalm 23", a bible.com link) with [grab-bcv](https://github.com/dpshde/grab-bcv), bundled into `public/vendor/` by `bun run vendor`. `public/refs.js` labels and sorts canonical references (`JHN.3.16`).
 - `src/worker.ts`: the server, a Cloudflare Worker with D1.
-- `public/`: a minimal web app: create a library (and save its key to your password manager), unlock it, add, recolor and delete highlights, name colors or add your own, choose how it syncs, export and import (including bible-rs exports). `/unlock` lets other apps ask for a library, and `/save?ref=John+3:16&color=blue` saves a verse from any link.
+- `public/`: a minimal web app: create a library (and save its key to your password manager, with 1Password's save button when the extension is there), unlock it, add, recolor and delete highlights, name colors or add your own, choose how it syncs, export and import (including bible-rs exports). `/unlock` lets other apps ask for a library, and `/save?ref=John+3:16&color=blue` saves a verse from any link.
 
 ## Develop
 

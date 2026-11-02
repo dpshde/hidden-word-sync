@@ -248,6 +248,7 @@ The sync key is a password, and the library name is its username. When an app cr
   - After putting a generated key in the field, dispatch `input` and `change` events on both fields, as typing would. Extensions such as 1Password track fields by these events, and may not notice a value that appears without them.
   - Let the submission navigate (for example a `GET` to the app's own page) instead of cancelling it. The key MUST NOT leave the device: remove every entry in the form's `formdata` event, so the request carries nothing. Keep what the new page needs to open the library in local storage.
 - Native apps use the platform equivalents (Associated Domains with `textContentType` `.username` / `.newPassword` / `.password` on Apple platforms, `autofillHints` on Android).
+- Web apps SHOULD also show [1Password's save button](https://www.1password.dev/web/add-1password-button-website) (`@1password/save-button`) with a save request holding the name (`autocomplete: "username"`) and the key (`autocomplete: "new-password"`). It hands the key to the 1Password extension directly, without relying on form detection. Hide it while it stays disabled, which means the extension isn't installed.
 
 The library name is only a label: it is not part of the key, and two people may both call theirs "Personal".
 

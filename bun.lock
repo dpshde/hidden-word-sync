@@ -5,6 +5,7 @@
     "": {
       "name": "hidden-word",
       "devDependencies": {
+        "@1password/save-button": "1.3.0",
         "@cloudflare/workers-types": "^4.20250927.0",
         "@types/bun": "^1.3.0",
         "cf": "1.0.0-beta.12",
@@ -16,6 +17,8 @@
     },
   },
   "packages": {
+    "@1password/save-button": ["@1password/save-button@1.3.0", "", {}, "sha512-jyVhFEwZEigiWimyjnPlOdEepiIZbPuCc4YpkWrghi5nwl5IYT3dk1yxL2drz/JrleUpBoaYDJUAZw0CX9ZU7Q=="],
+
     "@cloudflare/build-output-utils": ["@cloudflare/build-output-utils@0.8.5", "", { "dependencies": { "@cloudflare/config": "0.23.0" } }, "sha512-xnwcDCyBSErZeOj5eUy1gTrmVjwIY51TZ0Pz9W7mZqLGA3IkIckud7dNtFdGhKSXL2szfxBRbGM4R4qFE4SoPA=="],
 
     "@cloudflare/codemods": ["@cloudflare/codemods@0.4.0", "", { "bin": { "cloudflare-codemods": "dist/bin.mjs" } }, "sha512-qeRpKNXtvqhTtagx/5cLmDaFx/voBhWJ1S6SdFdBkE3OtgcPVz+Q8MtIG26zltW9Z0Icsu2FGBxV5RFmuHI/Bg=="],

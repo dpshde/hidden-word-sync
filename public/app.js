@@ -5,6 +5,7 @@ import {
 import { labelRef, compareRefs } from "./refs.js";
 import { readPassage } from "./passage.js";
 import { createPasskeyPrf, getPasskeyPrf, passkeysAvailable, cancelled } from "./passkey.js";
+import { activateOPButton, encodeOPSaveRequest } from "./vendor/onepassword-save-button.js";
 import { foldersAvailable, pickFolder, saveFolder, loadFolder, forgetFolder, mayUse, folderDir } from "./folder.js";
 
 const $ = (sel) => document.querySelector(sel);
@@ -132,6 +133,7 @@ $("#create").addEventListener("click", async () => {
     input.dispatchEvent(new Event("change", { bubbles: true }));
   }
   show("created");
+  offerOnePassword();
 });
 
 $("#reveal").addEventListener("click", () => {
@@ -144,6 +146,54 @@ $("#copy").addEventListener("click", async () => {
   await navigator.clipboard.writeText($("#save-form").password.value);
   $("#copy").textContent = "Copied";
   setTimeout(() => ($("#copy").textContent = "Copy"), 1500);
+});
+
+// The form-submit save below relies on each password manager spotting a sign-up, which 1Password
+// does unreliably. Its own Save button hands it the item directly. Only the 1Password extension
+// enables the button, so a button still disabled after a moment means no extension: hide it.
+let opReady = false;
+let opWatch = null;
+let opTimer = 0;
+
+function opSaveRequest() {
+  const form = $("#save-form");
+  const name = form.username.value.trim() || "Personal";
+  return encodeOPSaveRequest({
+    title: `Hidden Word: ${name}`,
+    fields: [
+      { autocomplete: "username", value: name },
+      { autocomplete: "new-password", value: form.password.value },
+    ],
+    notes: `Sync key for the Hidden Word library “${name}”. Unlock at ${location.origin}`,
+  });
+}
+
+function offerOnePassword() {
+  const slot = $("#onepassword");
+  opWatch?.disconnect();
+  const button = document.createElement("onepassword-save-button");
+  button.setAttribute("data-onepassword-type", "login");
+  button.setAttribute("padding", "none");
+  if (matchMedia("(prefers-color-scheme: dark)").matches) button.setAttribute("data-theme", "dark");
+  button.setAttribute("value", opSaveRequest());
+  slot.replaceChildren(button);
+  slot.hidden = false;
+  const inner = button.shadowRoot?.querySelector("[data-onepassword-save-button]");
+  if (!inner) return (slot.hidden = true);
+  opWatch = new MutationObserver(() => {
+    if (inner.disabled) return;
+    opReady = true;
+    slot.hidden = false;
+  });
+  opWatch.observe(inner, { attributes: true, attributeFilter: ["disabled"] });
+  clearTimeout(opTimer);
+  opTimer = setTimeout(() => (slot.hidden = !opReady && inner.disabled), 2000);
+  activateOPButton();
+}
+
+// The element copies its value to the inner button once, so a renamed library updates that button.
+$("#new-username").addEventListener("input", () => {
+  $("#onepassword onepassword-save-button")?.shadowRoot?.querySelector("[data-onepassword-save-button]")?.setAttribute("value", opSaveRequest());
 });
 
 // Password managers (1Password, Chrome, Safari) offer to save a sign-up when its form is really
