@@ -12,12 +12,16 @@ export const passkeysAvailable = () => typeof PublicKeyCredential !== "undefined
 
 export const cancelled = (error) => error?.name === "NotAllowedError" || error?.name === "AbortError";
 
+// Naming the relying party (it defaults to this anyway) lets password managers link the passkey
+// to this site and to the login saved moments earlier. Passkeys made without it used the same id.
+const rpId = location.hostname;
+
 /** Creates a passkey and returns its PRF output. */
 export async function createPasskeyPrf(name) {
   const salt = await prfSalt();
   const cred = await navigator.credentials.create({
     publicKey: {
-      rp: { name: "Hidden Word" },
+      rp: { id: rpId, name: "Hidden Word" },
       user: { id: randomBytes(16), name, displayName: name },
       challenge: randomBytes(32),
       pubKeyCredParams: [
@@ -38,6 +42,7 @@ export async function getPasskeyPrf(credentialId) {
   const salt = await prfSalt();
   const assertion = await navigator.credentials.get({
     publicKey: {
+      rpId,
       challenge: randomBytes(32),
       userVerification: "required",
       allowCredentials: credentialId ? [{ type: "public-key", id: credentialId }] : [],

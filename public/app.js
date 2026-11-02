@@ -227,7 +227,7 @@ function continueWhenOnePasswordCloses() {
   const go = () => {
     if (open()) return;
     stop();
-    if (!$("#created").hidden) $("#save-form").requestSubmit();
+    if (!$("#created").hidden) setTimeout(() => $("#save-form").requestSubmit(), 1000);
   };
   opClosing.observe(document.documentElement, { childList: true, subtree: true });
 }
