@@ -1,0 +1,19 @@
+[tools]
+bun = "1.4.2"
+node = "22.23.3"
+# Pin the beta. An unpinned `cf` install resolves to an unrelated 0.x package.
+"npm:cf" = "1.0.0-beta.12"
+
+[env]
+_.path = ["{{config_root}}/node_modules/.bin"]
+CF_SEND_TELEMETRY = "false"
+
+[tasks.install]
+run = "mise exec -- bun install"
+
+[tasks.dev]
+description = "Local server with D1 at http://localhost:8787"
+run = ["mise exec -- bun run migrate:local", "mise exec -- cf dev"]
+
+[tasks.check]
+run = ["mise exec -- bun run check", "mise exec -- bun test"]

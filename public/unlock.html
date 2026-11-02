@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Connect an app · Hidden Word</title>
+  <link rel="stylesheet" href="/style.css">
+  <script type="module" src="/unlock.js"></script>
+</head>
+<body>
+<main>
+  <section id="bad" hidden>
+    <h1>Can't connect</h1>
+    <p class="lede">This link needs an app name and a valid address to return to.</p>
+  </section>
+
+  <section id="pick" hidden>
+    <h1>Connect <span class="app-name"></span></h1>
+    <p class="lede">Unlock the library you want it to use.</p>
+    <button type="button" id="use-session" hidden></button>
+    <form id="unlock-form" autocomplete="on">
+      <label>Library <input name="username" autocomplete="username" value="Personal" required></label>
+      <label>Sync key <input name="password" type="password" autocomplete="current-password" required spellcheck="false"></label>
+      <button type="submit">Unlock</button>
+      <p class="error" role="alert"></p>
+    </form>
+    <button type="button" id="passkey-unlock" class="quiet" hidden>Unlock with passkey</button>
+  </section>
+
+  <section id="consent" hidden>
+    <h1>Give <span class="app-name"></span> access to “<span id="consent-lib"></span>”?</h1>
+    <p class="lede">It will be able to read, change, and delete everything in this library. You'll return to <strong id="consent-dest"></strong>.</p>
+    <div class="row">
+      <button type="button" id="allow">Allow</button>
+      <button type="button" id="deny" class="quiet">Cancel</button>
+    </div>
+  </section>
+</main>
+</body>
+</html>

@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Hidden Word</title>
+  <link rel="stylesheet" href="/style.css">
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+<main>
+  <section id="start" hidden>
+    <h1>Hidden Word</h1>
+    <p class="lede">Your highlights, on your devices, in any app.</p>
+
+    <form id="unlock-form" autocomplete="on">
+      <label>Library <input name="username" autocomplete="username" value="Personal" required></label>
+      <label>Sync key <input name="password" type="password" autocomplete="current-password" placeholder="XXXX-XXXX-…" required spellcheck="false" autocapitalize="characters"></label>
+      <button type="submit">Unlock</button>
+      <p class="error" role="alert"></p>
+    </form>
+
+    <div class="row">
+      <button id="passkey-unlock" class="quiet" type="button" hidden>Unlock with passkey</button>
+      <button id="create" class="quiet" type="button">New library</button>
+    </div>
+    <p class="error" id="start-error" role="alert"></p>
+  </section>
+
+  <section id="created" hidden>
+    <h1>Save your sync key</h1>
+    <p class="lede">It's the only way into this library, and nobody can reset it. Save it in your password manager on the next step.</p>
+    <form id="save-form" autocomplete="on">
+      <label>Library <input name="username" autocomplete="username" value="Personal" required></label>
+      <label>Sync key <input name="password" type="password" autocomplete="new-password" required spellcheck="false"></label>
+      <div class="row">
+        <button type="button" class="quiet" id="reveal">Show</button>
+        <button type="button" class="quiet" id="copy">Copy</button>
+      </div>
+      <button type="submit">Save to password manager</button>
+    </form>
+  </section>
+
+  <section id="main" hidden>
+    <header>
+      <strong id="lib-name"></strong>
+      <button type="button" id="status" class="link"></button>
+      <details id="menu">
+        <summary aria-label="Menu">•••</summary>
+        <div>
+          <button type="button" id="open-sync">Sync</button>
+          <button type="button" id="open-colors">Colors</button>
+          <button type="button" id="add-passkey">Add passkey</button>
+          <button type="button" id="show-key">Show sync key</button>
+          <button type="button" id="export">Export</button>
+          <button type="button" id="import">Import</button>
+          <button type="button" id="lock">Lock</button>
+          <button type="button" id="erase" class="danger">Erase library</button>
+        </div>
+      </details>
+    </header>
+    <p id="flash" role="status"></p>
+    <input id="import-file" type="file" accept=".jsonl,.json,application/json,application/x-ndjson" hidden>
+
+    <form id="add" autocomplete="off">
+      <input id="ref" placeholder="John 3:16" aria-label="Verse" required>
+      <fieldset class="swatches" aria-label="Color"></fieldset>
+      <button type="submit">Highlight</button>
+      <p class="error" role="alert"></p>
+    </form>
+
+    <div id="filters" role="group" aria-label="Show"></div>
+    <ul id="list"></ul>
+    <p id="empty" class="quiet-text">No highlights yet.</p>
+  </section>
+
+  <section id="colors" hidden>
+    <h1>Colors</h1>
+    <p class="lede">Name a color to use it as a category. Other apps show your own colors as you made them, or as yellow.</p>
+    <ul id="color-list"></ul>
+    <form id="add-color" autocomplete="off">
+      <input type="color" name="hex" value="#3a7bd5" aria-label="New color">
+      <input name="name" placeholder="Name, like Prayer" aria-label="Name" required>
+      <button type="submit" class="quiet">Add</button>
+    </form>
+    <button type="button" class="back">Done</button>
+  </section>
+
+  <section id="sync" hidden>
+    <h1>Sync</h1>
+    <p class="lede">Your library is always on this device first. Choose how it reaches your others. Any mix works, and so does none.</p>
+    <label class="check"><input type="checkbox" id="use-server"> <span>Through this site<small>Encrypted on this device. The server can't read it.</small></span></label>
+    <div class="check folder">
+      <span>Through a folder<small id="folder-text"></small></span>
+      <div class="row">
+        <button type="button" class="quiet" id="choose-folder">Choose folder</button>
+        <button type="button" class="quiet" id="stop-folder" hidden>Stop</button>
+      </div>
+    </div>
+    <p class="quiet-text" id="no-folders" hidden>This browser can't sync a folder. Use Export and Import to move a file by hand.</p>
+    <button type="button" class="back">Done</button>
+  </section>
+</main>
+</body>
+</html>

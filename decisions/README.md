@@ -1,0 +1,23 @@
+# Decisions
+
+Architecture decision records for Hidden Word, in the [Michael Nygard format](https://github.com/architecture-decision-record/architecture-decision-record/tree/main/locales/en-001/templates/decision-record-template-by-michael-nygard): status, context, decision, consequences. Each file holds one decision and is named with an imperative phrase, following the [architecture-decision-record](https://github.com/architecture-decision-record/architecture-decision-record) conventions.
+
+To change a decision, write a new record and mark the old one `Superseded by …`. Facts that arrive later can be added to a record under a dated "Update" heading.
+
+| Decision | Status | Date |
+|---|---|---|
+| [Keep the library on the device first](keep-the-library-on-the-device-first.md) | Accepted | 2026-11-02 |
+| [Identify passages with USFM references](identify-passages-with-usfm-references.md) | Accepted | 2026-11-02 |
+| [Store libraries as readable JSON Lines](store-libraries-as-readable-json-lines.md) | Accepted | 2026-11-02 |
+| [Resolve conflicts with one merge rule](resolve-conflicts-with-one-merge-rule.md) | Accepted | 2026-11-02 |
+| [Sync through a folder of plain files](sync-through-a-folder-of-plain-files.md) | Accepted | 2026-11-02 |
+| [Sync through a server that can't read the library](sync-through-a-server-that-cannot-read-the-library.md) | Accepted | 2026-11-02 |
+| [Detect server data loss with an epoch](detect-server-data-loss-with-an-epoch.md) | Accepted | 2026-11-02 |
+| [Unlock with a sync key kept in the password manager](unlock-with-a-sync-key-kept-in-the-password-manager.md) | Accepted | 2026-11-02 |
+| [Connect apps with an unlock redirect](connect-apps-with-an-unlock-redirect.md) | Accepted | 2026-11-02 |
+| [Use colors as categories instead of bookmarks](use-colors-as-categories-instead-of-bookmarks.md) | Accepted | 2026-11-02 |
+| [Derive route.bible links instead of storing them](derive-route-bible-links-instead-of-storing-them.md) | Accepted | 2026-11-02 |
+| [Host the server on Cloudflare Workers and D1](host-the-server-on-cloudflare-workers-and-d1.md) | Accepted | 2026-11-02 |
+| [Build the web app without a framework](build-the-web-app-without-a-framework.md) | Accepted | 2026-11-02 |
+| [Typecheck with tsrs](typecheck-with-tsrs.md) | Accepted | 2026-11-02 |
+| [Leave bible-rs out of the first clients](leave-bible-rs-out-of-the-first-clients.md) | Accepted | 2026-11-02 |
