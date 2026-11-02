@@ -32,3 +32,7 @@ In the first live test, 1Password in Chrome did not offer to save. The form set 
 ## Update 2026-11-02, later
 
 With those changes 1Password still didn't offer to save. The new-library screen now also shows 1Password's own save button; see [Offer 1Password's save button](offer-1password-s-save-button.md). This record's "without integration code" still holds for every other password manager.
+
+## Update 2026-11-02, passkey on creation
+
+Creating a library now offers a passkey in the same step. With the key saved (by 1Password's button, or by copying it), Continue first opens the passkey prompt, since WebAuthn needs a click to start, and then submits the form by itself, so the person lands in the library without another click and the password manager can still offer to save on arrival. A declined or failed passkey doesn't stop anything; the library says what happened, and "Add passkey" in the menu tries again.

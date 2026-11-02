@@ -4,7 +4,7 @@ import {
 } from "./sync.js";
 import { labelRef, compareRefs } from "./refs.js";
 import { readPassage } from "./passage.js";
-import { createPasskeyPrf, getPasskeyPrf, passkeysAvailable, cancelled } from "./passkey.js";
+import { createPasskeyPrf, getPasskeyPrf, passkeysAvailable, cancelled, NoPrf } from "./passkey.js";
 import { activateOPButton, encodeOPSaveRequest } from "./vendor/onepassword-save-button.js";
 import { foldersAvailable, pickFolder, saveFolder, loadFolder, forgetFolder, mayUse, folderDir } from "./folder.js";
 
@@ -126,6 +126,8 @@ $("#create").addEventListener("click", async () => {
   form.password.value = await formatKey(newKey());
   form.password.type = "password";
   $("#reveal").textContent = "Show";
+  passkeyOffered = false;
+  Object.assign(form.querySelector('button[type="submit"]'), { disabled: false, textContent: "Continue" });
   // Password managers such as 1Password only save what they saw entered; a value set by script
   // raises no events, so announce it as if it were typed.
   for (const input of [form.username, form.password]) {
@@ -196,13 +198,38 @@ $("#new-username").addEventListener("input", () => {
   $("#onepassword onepassword-save-button")?.shadowRoot?.querySelector("[data-onepassword-save-button]")?.setAttribute("value", opSaveRequest());
 });
 
+/** Creates a passkey that unlocks this key, and says how it went: "passkey", "skipped", "no-prf" or an error message. */
+async function passkeyFor(keyText, name) {
+  try {
+    await saveSlot({ prf: await createPasskeyPrf(name), keyText, name });
+    return "passkey";
+  } catch (error) {
+    if (error instanceof NoPrf) return "no-prf";
+    return cancelled(error) ? "skipped" : String(error.message);
+  }
+}
+
 // Password managers (1Password, Chrome, Safari) offer to save a sign-up when its form is really
 // submitted and the page navigates. So the form submits, as a GET to "/", and the page reloads into
 // the new library. The formdata handler empties the submission, so the key never leaves the device.
-$("#save-form").addEventListener("submit", (e) => {
+// Before that, the Continue click (creating a passkey needs one) offers a passkey; once that's done,
+// with or without one, the form submits by itself.
+let passkeyOffered = false;
+$("#save-form").addEventListener("submit", async (e) => {
   const form = e.target;
-  localStorage.setItem(SESSION, JSON.stringify({ key: form.password.value, name: form.username.value.trim() || "Personal" }));
-  sessionStorage.setItem(CREATED, "1");
+  const name = form.username.value.trim() || "Personal";
+  if (passkeysAvailable() && !passkeyOffered) {
+    e.preventDefault();
+    passkeyOffered = true;
+    const button = form.querySelector('button[type="submit"]');
+    button.disabled = true;
+    button.textContent = "Adding a passkey…";
+    sessionStorage.setItem(CREATED, await passkeyFor(form.password.value, name));
+    form.requestSubmit();
+    return;
+  }
+  localStorage.setItem(SESSION, JSON.stringify({ key: form.password.value, name }));
+  if (!sessionStorage.getItem(CREATED)) sessionStorage.setItem(CREATED, "skipped");
 });
 $("#save-form").addEventListener("formdata", (e) => {
   for (const name of [...e.formData.keys()]) e.formData.delete(name);
@@ -585,6 +612,13 @@ addEventListener("online", () => library?.sync());
 addEventListener("focus", () => library?.sync());
 setInterval(() => document.visibilityState === "visible" && library?.sync(), 30_000);
 
+function createdMessage(passkey) {
+  if (passkey === "passkey") return "Library ready. Your passkey unlocks it in any browser on this site.";
+  if (passkey === "skipped") return "Library ready. Add a passkey from the menu to unlock other browsers without typing.";
+  if (passkey === "no-prf") return "Library ready. That passkey can't unlock libraries (it has no PRF support), so use your sync key.";
+  return `Library ready, but the passkey wasn't added (${passkey.replace(/\.$/, "")}). Try again from the menu.`;
+}
+
 async function boot() {
   if (passkeysAvailable()) $("#passkey-unlock").hidden = false;
   const request = takeSaveLink();
@@ -606,10 +640,11 @@ async function boot() {
   if (session) {
     try {
       await enter(session.key, session.name);
-      if (sessionStorage.getItem(CREATED)) {
+      const created = sessionStorage.getItem(CREATED);
+      if (created) {
         sessionStorage.removeItem(CREATED);
         // A verse saved from a link has already said so, with its Undo.
-        if (!$("#flash").hasChildNodes()) flash("Library ready. Add a passkey from the menu to unlock other browsers without typing.");
+        if (!$("#flash").hasChildNodes()) flash(createdMessage(created));
       }
       return;
     } catch {

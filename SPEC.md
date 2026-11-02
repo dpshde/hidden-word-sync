@@ -264,6 +264,8 @@ Routes, with the `slot-auth` token: `PUT /v1/slot/{slot}` with `{"wrapped": "…
 
 The server never verifies the passkey's signature: the PRF output is the secret. Passkeys are bound to the website that created them, so they are a convenience on that site. The sync key in a password manager is what works everywhere.
 
+When creating a library, an app SHOULD offer a passkey right after the key is saved, in the same step: the click that leaves the save step creates the passkey (WebAuthn needs that click), then the app goes on into the library whether a passkey was made, declined or failed. It never blocks on the passkey.
+
 ### 7.3 Connecting an app
 
 A Hidden Word site can hand a library's key to another app, in the style of an OAuth consent screen. The app opens `https://<site>/unlock?app=<display name>&callback=<url>`. The site asks the person to unlock a library, then asks "Give <app> access to <library>?". On Allow it sends the browser to `<callback>#k=<key>&name=<name>`, or `<callback>#error=denied` on Cancel. Fragments never reach servers.
