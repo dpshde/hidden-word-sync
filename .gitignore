@@ -9,3 +9,6 @@ node_modules/
 *.db
 .env
 .env.*
+
+# Exported agent session transcripts
+pi-session-*.html
