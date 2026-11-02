@@ -67,6 +67,18 @@ async function device(keyText: string, transports: unknown[] = [], store = memor
   return Library.open({ keyText, store, transports: transports as never[] });
 }
 
+describe("save links", () => {
+  test("/save serves the web app, which does the saving", async () => {
+    const { env } = setup();
+    const seen: string[] = [];
+    const ASSETS = { fetch: async (r: Request) => (seen.push(new URL(r.url).pathname + new URL(r.url).search), new Response("app")) } as unknown as Fetcher;
+    const res = await handle(new Request("http://local/save?ref=John+3:16&color=blue"), { ...env, ASSETS });
+    expect(await res.text()).toBe("app");
+    expect(seen).toEqual(["/"]);
+    expect((await handle(new Request("http://local/save", { method: "POST" }), { ...env, ASSETS })).status).toBe(404);
+  });
+});
+
 describe("server", () => {
   test("first write claims a library; other tokens are refused", async () => {
     const { fetch } = setup();

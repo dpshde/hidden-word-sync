@@ -1,5 +1,5 @@
 // Canonical references: USFM book codes, KJV versification, the 66-book Protestant canon.
-// `parseRef` turns what people type ("John 3:16", "jn 3.16", "1 Cor 13:4-7") into a canonical ref.
+// Reading what people type is passage.js's job (grab-bcv); this file only handles canonical refs.
 
 export const BOOKS = [
   ["GEN", "Genesis", 50], ["EXO", "Exodus", 40], ["LEV", "Leviticus", 27], ["NUM", "Numbers", 36],
@@ -22,14 +22,6 @@ export const BOOKS = [
 ];
 
 const INDEX = new Map(BOOKS.map(([code], i) => [code, i]));
-const squash = (s) => s.toLowerCase().replace(/[\s.]/g, "");
-const NAMES = BOOKS.map(([code, name]) => [squash(name), code]);
-// Common short forms that are not a unique prefix of a book's name.
-const ALIASES = {
-  jn: "JHN", mt: "MAT", mk: "MRK", lk: "LUK", ps: "PSA", pss: "PSA", phil: "PHP", philem: "PHM", phlm: "PHM",
-  jas: "JAS", sos: "SNG",
-  song: "SNG", songofsongs: "SNG", revelations: "REV", "1jn": "1JN", "2jn": "2JN", "3jn": "3JN",
-};
 const MAX_VERSE = 176;
 const REF = /^([1-3A-Z][A-Z0-9]{2})\.(\d{1,3})(?:\.(\d{1,3})(?:-(\d{1,3}))?)?$/;
 
@@ -46,41 +38,6 @@ export function splitRef(ref) {
   if (verse !== null && (verse < 1 || verse > MAX_VERSE)) return null;
   if (end !== null && (end <= verse || end > MAX_VERSE)) return null;
   return { code: m[1], book, chapter, verse, end };
-}
-
-export function bookCode(text) {
-  let t = text.trim().toLowerCase().replace(/^(iii|ii|i)\s+/, (r) => `${r.trim().length} `);
-  t = squash(t);
-  if (!t) return null;
-  if (INDEX.has(t.toUpperCase())) return t.toUpperCase();
-  if (ALIASES[t]) return ALIASES[t];
-  const exact = NAMES.find(([name]) => name === t);
-  if (exact) return exact[1];
-  const prefixed = NAMES.filter(([name]) => name.startsWith(t));
-  return t.length >= 2 && prefixed.length === 1 ? prefixed[0][1] : null;
-}
-
-/** "John 3:16" → "JHN.3.16". Also takes canonical refs. Null when it can't tell. */
-export function parseRef(input) {
-  const text = String(input);
-  const m = /^\s*(.+?)\s*(\d{1,3})(?:\s*[:.]\s*(\d{1,3})(?:\s*[-–—]\s*(\d{1,3}))?)?\s*$/.exec(text);
-  const code = m && bookCode(m[1]);
-  if (!code) return singleChapter(text);
-  // Books of one chapter are cited by verse alone: "Jude 3" is Jude 1:3.
-  if (m[3] === undefined && Number(m[2]) > 1 && BOOKS[INDEX.get(code)][2] === 1) return singleChapter(text);
-  let ref = `${code}.${Number(m[2])}`;
-  if (m[3] !== undefined) ref += `.${Number(m[3])}`;
-  if (m[4] !== undefined && Number(m[4]) !== Number(m[3])) ref += `-${Number(m[4])}`;
-  return splitRef(ref) ? ref : null;
-}
-
-function singleChapter(text) {
-  const m = /^\s*(.+?)\s*(\d{1,3})(?:\s*[-–—]\s*(\d{1,3}))?\s*$/.exec(text);
-  const code = m && bookCode(m[1]);
-  if (!code || BOOKS[INDEX.get(code)][2] !== 1) return null;
-  let ref = `${code}.1.${Number(m[2])}`;
-  if (m[3] !== undefined && Number(m[3]) !== Number(m[2])) ref += `-${Number(m[3])}`;
-  return splitRef(ref) ? ref : null;
 }
 
 /** "JHN.3.16-18" → "John 3:16–18". */

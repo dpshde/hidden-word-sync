@@ -3,6 +3,7 @@
 
 export interface Env {
   DB: D1Database;
+  ASSETS?: Fetcher;
 }
 
 type Item = { seq: number; id: string; blob: string };
@@ -53,7 +54,12 @@ export default {
 } satisfies ExportedHandler<Env>;
 
 export async function handle(request: Request, env: Env): Promise<Response> {
-  const parts = new URL(request.url).pathname.split("/");
+  const url = new URL(request.url);
+  // /save?ref=…&color=… is the web app's: it saves into the library unlocked in the browser.
+  if (url.pathname === "/save" && env.ASSETS && (request.method === "GET" || request.method === "HEAD")) {
+    return env.ASSETS.fetch(new Request(new URL("/", url), request));
+  }
+  const parts = url.pathname.split("/");
   if (parts[1] !== "v1") return fail(404, "not found");
   if (request.method === "OPTIONS") return empty();
   if (parts.length !== 4 || !HEX32.test(parts[3])) return fail(404, "not found");

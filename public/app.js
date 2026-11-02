@@ -2,12 +2,15 @@ import {
   COLORS, Library, KeyError, newKey, formatKey, now, palette, topColor, parseJsonl, fromBibleRs, saveSlot, openSlot,
   serverTransport, folderTransport,
 } from "./sync.js";
-import { parseRef, labelRef, compareRefs, expandVerses } from "./refs.js";
+import { labelRef, compareRefs } from "./refs.js";
+import { readPassage } from "./passage.js";
 import { createPasskeyPrf, getPasskeyPrf, passkeysAvailable, cancelled } from "./passkey.js";
 import { foldersAvailable, pickFolder, saveFolder, loadFolder, forgetFolder, mayUse, folderDir } from "./folder.js";
 
 const $ = (sel) => document.querySelector(sel);
 const SESSION = "hidden-word:session";
+const CREATED = "hidden-word:created";
+const SAVE_LINK = "hidden-word:save-link";
 const store = {
   load: (lib) => JSON.parse(localStorage.getItem(`hidden-word:${lib}`) ?? "null"),
   save: (lib, state) => localStorage.setItem(`hidden-word:${lib}`, JSON.stringify(state)),
@@ -29,10 +32,22 @@ function show(id) {
   for (const section of document.querySelectorAll("main > section")) section.hidden = section.id !== id;
 }
 
-function flash(text) {
-  $("#flash").textContent = text;
+/** Shows a passing message, with an optional button such as `{ label: "Undo", run }`. */
+function flash(text, action) {
+  const el = $("#flash");
+  el.replaceChildren(text);
+  if (action) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = action.label;
+    button.addEventListener("click", async () => {
+      el.replaceChildren();
+      await action.run();
+    });
+    el.append(" ", button);
+  }
   clearTimeout(flashTimer);
-  flashTimer = setTimeout(() => ($("#flash").textContent = ""), 6000);
+  flashTimer = setTimeout(() => el.replaceChildren(), action ? 15_000 : 6000);
 }
 
 const errorIn = (form, text) => (form.querySelector(".error").textContent = text);
@@ -54,6 +69,7 @@ async function enter(keyText, name) {
   library.onChange(render);
   show("main");
   render();
+  await saveFromLink();
   await connect();
 }
 
@@ -105,9 +121,16 @@ $("#passkey-unlock").addEventListener("click", async () => {
 });
 
 $("#create").addEventListener("click", async () => {
-  $("#save-form").password.value = await formatKey(newKey());
-  $("#save-form").password.type = "password";
+  const form = $("#save-form");
+  form.password.value = await formatKey(newKey());
+  form.password.type = "password";
   $("#reveal").textContent = "Show";
+  // Password managers such as 1Password only save what they saw entered; a value set by script
+  // raises no events, so announce it as if it were typed.
+  for (const input of [form.username, form.password]) {
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  }
   show("created");
 });
 
@@ -123,30 +146,16 @@ $("#copy").addEventListener("click", async () => {
   setTimeout(() => ($("#copy").textContent = "Copy"), 1500);
 });
 
-/**
- * Asks the password manager to save the new key. Chromium browsers show their save prompt for
- * PasswordCredential. Elsewhere (1Password, Safari, Firefox), the submit of a real form with
- * username + new-password fields, followed by the form going away, is what they watch for.
- */
-async function offerToSave(name, key) {
-  if (typeof globalThis.PasswordCredential !== "function") return;
-  try {
-    await navigator.credentials.store(new PasswordCredential({ id: name, password: key, name: `Hidden Word: ${name}` }));
-  } catch {
-    // Saving is the password manager's call; the form submit below still reaches the others.
-  }
-}
-
-$("#save-form").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const form = new FormData(e.target);
-  const name = form.get("username").trim() || "Personal";
-  const key = form.get("password");
-  await offerToSave(name, key);
-  history.pushState(null, "", location.pathname);
-  await enter(key, name);
-  e.target.password.value = "";
-  flash("Library ready. Add a passkey from the menu to unlock other browsers without typing.");
+// Password managers (1Password, Chrome, Safari) offer to save a sign-up when its form is really
+// submitted and the page navigates. So the form submits, as a GET to "/", and the page reloads into
+// the new library. The formdata handler empties the submission, so the key never leaves the device.
+$("#save-form").addEventListener("submit", (e) => {
+  const form = e.target;
+  localStorage.setItem(SESSION, JSON.stringify({ key: form.password.value, name: form.username.value.trim() || "Personal" }));
+  sessionStorage.setItem(CREATED, "1");
+});
+$("#save-form").addEventListener("formdata", (e) => {
+  for (const name of [...e.formData.keys()]) e.formData.delete(name);
 });
 
 // ---- highlights
@@ -179,27 +188,63 @@ function renderSwatches() {
   if (!$("#add").querySelector("input:checked")) $("#add").querySelector("input").checked = true;
 }
 
-$("#add").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const form = e.target;
-  const ref = parseRef($("#ref").value);
-  if (!ref) return errorIn(form, "Try a reference like John 3:16.");
-  const verses = expandVerses(ref);
-  if (!verses.length) return errorIn(form, "Pick a verse, like John 3:16.");
-  errorIn(form, "");
-  const color = new FormData(form).get("color");
+/**
+ * Highlights whole verses in one color. A verse already highlighted keeps when it was first. Returns
+ * a function that puts back what the verses were before.
+ */
+async function highlight(verses, color) {
   const t = now();
-  // Highlighting here covers the whole verse. A verse already highlighted keeps when it was first.
+  const before = verses.map((v) => library.find("highlight", v));
   await library.putMany(
-    verses.map((v) => {
-      const prev = library.find("highlight", v);
+    verses.map((v, i) => {
+      const prev = before[i];
       const created = prev ? Math.min(...prev.highlights.map((h) => h.created ?? t)) : t;
       const part = created === t ? { color, created } : { color, created, edited: t };
       return { ...(prev ?? {}), kind: "highlight", ref: v, highlights: [part] };
     }),
   );
+  return () => library.putMany(verses.map((v, i) => before[i] ?? { kind: "highlight", ref: v, deleted: true }));
+}
+
+$("#add").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const form = e.target;
+  const found = readPassage($("#ref").value);
+  if (found.error) return errorIn(form, found.error);
+  errorIn(form, "");
+  await highlight(found.verses, new FormData(form).get("color"));
   $("#ref").value = "";
 });
+
+// ---- saving from a link: /save?ref=John+3:16&color=blue
+
+/** Keeps a /save link's request until a library is open, even across unlocking or creating one. */
+function takeSaveLink() {
+  if (location.pathname !== "/save") return null;
+  const query = new URLSearchParams(location.search);
+  const request = { ref: query.get("ref") ?? "", color: query.get("color") ?? "" };
+  sessionStorage.setItem(SAVE_LINK, JSON.stringify(request));
+  history.replaceState(null, "", "/");
+  return request;
+}
+
+/** A color by id or by name ("blue", "Prayer"), else yellow. */
+function colorFor(wanted) {
+  const w = wanted.trim().toLowerCase();
+  return colors.find((c) => c.id === w) ?? colors.find((c) => colorName(c).toLowerCase() === w) ?? colors[0];
+}
+
+async function saveFromLink() {
+  const request = JSON.parse(sessionStorage.getItem(SAVE_LINK) ?? "null");
+  if (!request) return;
+  sessionStorage.removeItem(SAVE_LINK);
+  $("#start-note").hidden = true;
+  const found = readPassage(request.ref);
+  if (found.error) return flash(`Nothing saved. ${found.error}`);
+  const color = colorFor(request.color);
+  const undo = await highlight(found.verses, color.id);
+  flash(`Saved ${found.label} in ${colorName(color)}.`, { label: "Undo", run: undo });
+}
 
 function statusText() {
   const waiting = library.waiting();
@@ -492,6 +537,14 @@ setInterval(() => document.visibilityState === "visible" && library?.sync(), 30_
 
 async function boot() {
   if (passkeysAvailable()) $("#passkey-unlock").hidden = false;
+  const request = takeSaveLink();
+  if (request) {
+    const found = readPassage(request.ref);
+    $("#start-note").textContent = found.error ? "Unlock your library to save this verse." : `Unlock your library to save ${found.label}.`;
+    $("#start-note").hidden = false;
+  }
+  // The new-library form submits to "/?"; tidy the address it leaves behind.
+  if (location.href.endsWith("?")) history.replaceState(null, "", location.pathname);
   // A link like /#k=XXXX-…&name=Personal fills in the unlock form. The fragment never reaches the server.
   const link = new URLSearchParams(location.hash.slice(1));
   if (link.get("k")) {
@@ -502,7 +555,13 @@ async function boot() {
   const session = JSON.parse(localStorage.getItem(SESSION) ?? "null");
   if (session) {
     try {
-      return await enter(session.key, session.name);
+      await enter(session.key, session.name);
+      if (sessionStorage.getItem(CREATED)) {
+        sessionStorage.removeItem(CREATED);
+        // A verse saved from a link has already said so, with its Undo.
+        if (!$("#flash").hasChildNodes()) flash("Library ready. Add a passkey from the menu to unlock other browsers without typing.");
+      }
+      return;
     } catch {
       localStorage.removeItem(SESSION);
     }

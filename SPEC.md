@@ -236,7 +236,7 @@ Erasing a library removes it from the transports and the device doing the erasin
 
 The sync key is a password, and the library name is its username. When an app creates a library it MUST offer to save the key in the person's password manager before going on:
 
-- On the web, show a real `<form>` with the name and key, and submit it:
+- On the web, show a real `<form>` with the name and key, and have the person submit it:
 
 ```html
 <input name="username" autocomplete="username" value="Personal">
@@ -244,7 +244,9 @@ The sync key is a password, and the library name is its username. When an app cr
 <input name="password" type="password" autocomplete="current-password"> <!-- unlocking -->
 ```
 
-  Where the Credential Management API exists, also call `navigator.credentials.store(new PasswordCredential({id: name, password: key}))`, which makes Chromium browsers show their save prompt. Browser extensions such as 1Password watch the form submit. After submitting, remove the form from the page (or navigate), which is how Safari and Chrome recognize a successful sign-up.
+  Password managers offer to save a sign-up when they see the fields filled in and the form submitted with a page load after it. So:
+  - After putting a generated key in the field, dispatch `input` and `change` events on both fields, as typing would. Extensions such as 1Password track fields by these events, and may not notice a value that appears without them.
+  - Let the submission navigate (for example a `GET` to the app's own page) instead of cancelling it. The key MUST NOT leave the device: remove every entry in the form's `formdata` event, so the request carries nothing. Keep what the new page needs to open the library in local storage.
 - Native apps use the platform equivalents (Associated Domains with `textContentType` `.username` / `.newPassword` / `.password` on Apple platforms, `autofillHints` on Android).
 
 The library name is only a label: it is not part of the key, and two people may both call theirs "Personal".
@@ -269,6 +271,20 @@ A Hidden Word site can hand a library's key to another app, in the style of an O
 
 A site MAY accept `/#k=<key>&name=<name>` to prefill its own unlock form.
 
+### 7.4 Saving from a link
+
+A Hidden Word site MAY save a highlight from a plain link, so any app, bookmarklet or share sheet can send a verse with one `GET`:
+
+```
+https://<site>/save?ref=John+3:16&color=blue
+```
+
+- `ref` is whatever the person or app has: a reference in any common form (`John 3:16`, `jn 3.16`, `JHN.3.16-18`, `Psalm 23`) or a link from a Bible app or site (bible.com, BibleGateway, route.bible). It covers every verse it names.
+- `color` is optional: a color id, or a name the library gave a color (`Prayer`). Anything else means `yellow`.
+- The site saves into the library already unlocked in that browser, at once and on the device first (section 6), and says what it saved with a way to undo it. If no library is unlocked, it asks the person to unlock or create one, and saves afterward.
+- The link carries no key and reaches no library by itself. A site MUST NOT save for a library the browser hasn't unlocked, and SHOULD forbid framing (`frame-ancestors 'none'`) so the save is always visible.
+
+The reference web app parses `ref` with [grab-bcv](https://github.com/dpshde/grab-bcv).
 ## 8. Linking
 
 A reference is enough to link to a passage; records don't store links. To open a passage in the reader's preferred Bible app, apps MAY use route.bible, which uses the same book codes: `https://route.bible/` followed by the lowercased `ref`, for example `https://route.bible/jhn.3.16`.
@@ -300,3 +316,4 @@ Losing the sync key and every passkey means losing access to the server copy. Th
 - Colors can be named and added (section 1.4). Bookmarks are gone.
 - Files have an optional header line.
 - Rules that protect people's data (section 6), and route.bible links (section 8).
+- Password-manager saving uses a real form submission that sends nothing (section 7.1). Saving from a link (section 7.4).

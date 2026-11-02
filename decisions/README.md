@@ -21,3 +21,5 @@ To change a decision, write a new record and mark the old one `Superseded by …
 | [Build the web app without a framework](build-the-web-app-without-a-framework.md) | Accepted | 2026-11-02 |
 | [Typecheck with tsrs](typecheck-with-tsrs.md) | Accepted | 2026-11-02 |
 | [Leave bible-rs out of the first clients](leave-bible-rs-out-of-the-first-clients.md) | Accepted | 2026-11-02 |
+| [Parse references with grab-bcv](parse-references-with-grab-bcv.md) | Accepted | 2026-11-02 |
+| [Save highlights from a GET link](save-highlights-from-a-get-link.md) | Accepted | 2026-11-02 |

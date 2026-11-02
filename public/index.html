@@ -13,10 +13,11 @@
   <section id="start" hidden>
     <h1>Hidden Word</h1>
     <p class="lede">Your highlights, on your devices, in any app.</p>
+    <p class="note" id="start-note" role="status" hidden></p>
 
     <form id="unlock-form" autocomplete="on">
-      <label>Library <input name="username" autocomplete="username" value="Personal" required></label>
-      <label>Sync key <input name="password" type="password" autocomplete="current-password" placeholder="XXXX-XXXX-…" required spellcheck="false" autocapitalize="characters"></label>
+      <label>Library <input id="username" name="username" autocomplete="username" value="Personal" required></label>
+      <label>Sync key <input id="password" name="password" type="password" autocomplete="current-password" placeholder="XXXX-XXXX-…" required spellcheck="false" autocapitalize="characters"></label>
       <button type="submit">Unlock</button>
       <p class="error" role="alert"></p>
     </form>
@@ -31,9 +32,9 @@
   <section id="created" hidden>
     <h1>Save your sync key</h1>
     <p class="lede">It's the only way into this library, and nobody can reset it. Save it in your password manager on the next step.</p>
-    <form id="save-form" autocomplete="on">
-      <label>Library <input name="username" autocomplete="username" value="Personal" required></label>
-      <label>Sync key <input name="password" type="password" autocomplete="new-password" required spellcheck="false"></label>
+    <form id="save-form" method="get" action="/" autocomplete="on">
+      <label>Library <input id="new-username" name="username" autocomplete="username" value="Personal" required></label>
+      <label>Sync key <input id="new-password" name="password" type="password" autocomplete="new-password" required spellcheck="false"></label>
       <div class="row">
         <button type="button" class="quiet" id="reveal">Show</button>
         <button type="button" class="quiet" id="copy">Copy</button>
@@ -64,7 +65,7 @@
     <input id="import-file" type="file" accept=".jsonl,.json,application/json,application/x-ndjson" hidden>
 
     <form id="add" autocomplete="off">
-      <input id="ref" placeholder="John 3:16" aria-label="Verse" required>
+      <input id="ref" placeholder="John 3:16" aria-label="Verse or passage" required>
       <fieldset class="swatches" aria-label="Color"></fieldset>
       <button type="submit">Highlight</button>
       <p class="error" role="alert"></p>

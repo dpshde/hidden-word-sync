@@ -4,7 +4,8 @@ import {
   KeyError, checkRecord, compareVersions, decryptRecord, deriveKeys, encryptRecord, formatKey, fromB64url, fromBibleRs,
   hex, itemId, newKey, pad, palette, parseJsonl, parseKey, slotKeys, topColor,
 } from "../public/sync.js";
-import { bookCode, compareRefs, expandVerses, labelRef, parseRef } from "../public/refs.js";
+import { compareRefs, expandVerses, labelRef } from "../public/refs.js";
+import { MAX_VERSES, readPassage } from "../public/passage.js";
 import vectors from "./vectors.json";
 
 const bytes = (h: string) => Uint8Array.from(h.match(/../g)!.map((x) => parseInt(x, 16)));
@@ -169,28 +170,51 @@ describe("records", () => {
 });
 
 describe("references", () => {
+  const first = (input: string) => readPassage(input).verses?.[0];
+
   test.each([
-    ["John 3:16", "JHN.3.16"],
-    ["jn 3.16", "JHN.3.16"],
-    ["JHN.3.16", "JHN.3.16"],
-    ["1 Cor 13:4-7", "1CO.13.4-7"],
-    ["I John 4:8", "1JN.4.8"],
-    ["1jn 4:8", "1JN.4.8"],
-    ["Psalm 23", "PSA.23"],
-    ["ps 119:11", "PSA.119.11"],
-    ["Song of Songs 2:4", "SNG.2.4"],
-    ["Phil 4:13", "PHP.4.13"],
-    ["Jude 3", "JUD.1.3"],
-    ["Jude 3-5", "JUD.1.3-5"],
-    ["Phlm 1:4", "PHM.1.4"],
-    ["Jude 1", "JUD.1"],
-    ["John 3:16-16", "JHN.3.16"],
-  ])("%s → %s", (input, ref) => {
-    expect(parseRef(input)).toBe(ref);
+    ["John 3:16", "JHN.3.16", "John 3:16"],
+    ["jn 3.16", "JHN.3.16", "John 3:16"],
+    ["JHN.3.16", "JHN.3.16", "John 3:16"],
+    ["I John 4:8", "1JN.4.8", "1 John 4:8"],
+    ["1jn 4:8", "1JN.4.8", "1 John 4:8"],
+    ["ps 119:11", "PSA.119.11", "Psalm 119:11"],
+    ["Song of Songs 2:4", "SNG.2.4", "Song of Solomon 2:4"],
+    ["sos 1:1", "SNG.1.1", "Song of Solomon 1:1"],
+    ["Phil 4:13", "PHP.4.13", "Philippians 4:13"],
+    ["Phlm 1:4", "PHM.1.4", "Philemon 1:4"],
+    ["Phlm 6", "PHM.1.6", "Philemon 1:6"],
+    ["jas 1:5", "JAS.1.5", "James 1:5"],
+    ["Jude 3", "JUD.1.3", "Jude 1:3"],
+    ["John 3:16-16", "JHN.3.16", "John 3:16"],
+    ["https://www.bible.com/bible/111/JHN.3.16", "JHN.3.16", "John 3:16"],
+    ["https://www.biblegateway.com/passage/?search=Romans+8%3A28&version=NIV", "ROM.8.28", "Romans 8:28"],
+  ])("%s → %s", (input, ref, label) => {
+    expect(readPassage(input)).toEqual({ verses: [ref], label });
   });
 
-  test.each(["Jo 3:16", "John 22:1", "Hezekiah 1:1", "John", "John 3:18-16", ""])("rejects %s", (input) => {
-    expect(parseRef(input)).toBeNull();
+  test("ranges, chapters and links cover every verse", () => {
+    expect(readPassage("1 Cor 13:4-7").verses).toEqual(["1CO.13.4", "1CO.13.5", "1CO.13.6", "1CO.13.7"]);
+    expect(readPassage("Jude 3-5")).toEqual({ verses: ["JUD.1.3", "JUD.1.4", "JUD.1.5"], label: "Jude 1:3–5" });
+    expect(readPassage("Psalm 23")).toMatchObject({ label: "Psalm 23" });
+    expect(readPassage("Psalm 23").verses).toHaveLength(6);
+    expect(readPassage("John 3:36-4:2")).toEqual({ verses: ["JHN.3.36", "JHN.4.1", "JHN.4.2"], label: "John 3:36–4:2" });
+    expect(readPassage("Mal 4:6-Matt 1:1")).toEqual({ verses: ["MAL.4.6", "MAT.1.1"], label: "Malachi 4:6–Matthew 1:1" });
+    expect(readPassage("https://route.bible/jhn.3.16-18").verses).toEqual(["JHN.3.16", "JHN.3.17", "JHN.3.18"]);
+    expect(first("Read Romans 8:28 today")).toBe("ROM.8.28");
+  });
+
+  test.each([
+    ["Jo 3:16", "Try a reference like John 3:16."],
+    ["John 22:1", "John has 21 chapters."],
+    ["John 3:99", "John 3 has 36 verses."],
+    ["Hezekiah 1:1", "Try a reference like John 3:16."],
+    ["John", "Try a reference like John 3:16."],
+    ["John 3:18-16", "That range runs backwards."],
+    ["", "Type a reference, like John 3:16."],
+    ["Gen 1-Rev 22", `That's more than ${MAX_VERSES} verses. Try a shorter passage.`],
+  ])("rejects %s", (input, error) => {
+    expect(readPassage(input)).toEqual({ error });
   });
 
   test("labels, order and ranges", () => {
@@ -198,6 +222,5 @@ describe("references", () => {
     expect(labelRef("1CO.13.4-7")).toBe("1 Corinthians 13:4–7");
     expect(["REV.1.1", "JHN.3.16", "GEN.1.1", "JHN.3.2"].sort(compareRefs)).toEqual(["GEN.1.1", "JHN.3.2", "JHN.3.16", "REV.1.1"]);
     expect(expandVerses("JHN.3.16-18")).toEqual(["JHN.3.16", "JHN.3.17", "JHN.3.18"]);
-    expect(bookCode("isaiah")).toBe("ISA");
   });
 });
