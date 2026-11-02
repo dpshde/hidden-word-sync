@@ -57,6 +57,11 @@ header { display: flex; align-items: center; gap: .75rem; margin-bottom: 1.5rem;
 #continue-row > button { flex: 1; }
 #onepassword { flex: none; zoom: 1.2; } /* match the 32px button beside it */
 .note { margin: -.75rem 0 1.5rem; padding: .625rem .75rem; border: 1px solid var(--line); border-radius: .5rem; font-size: .875rem; }
+.offer { margin: 0 0 1rem; padding: .75rem; border: 1px solid var(--line); border-radius: .5rem; font-size: .875rem; }
+.offer p { margin: 0 0 .625rem; }
+.offer .row { align-items: center; }
+.offer button.quiet { padding: .375rem .75rem; }
+.offer button.link { flex: none; padding: .375rem .25rem; }
 
 details { position: relative; }
 summary { list-style: none; cursor: pointer; padding: .25rem .5rem; border-radius: .5rem; color: var(--muted); letter-spacing: .1em; }

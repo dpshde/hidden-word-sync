@@ -65,6 +65,13 @@
       </details>
     </header>
     <p id="flash" role="status"></p>
+    <div id="passkey-offer" class="offer" hidden>
+      <p>Add a passkey to unlock this library without typing the key in other browsers on this site.</p>
+      <div class="row">
+        <button type="button" class="quiet" id="offer-passkey">Add a passkey</button>
+        <button type="button" class="link" id="skip-passkey">Not now</button>
+      </div>
+    </div>
     <input id="import-file" type="file" accept=".jsonl,.json,application/json,application/x-ndjson" hidden>
 
     <form id="add" autocomplete="off">

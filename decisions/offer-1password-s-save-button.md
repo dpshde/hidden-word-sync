@@ -33,3 +33,7 @@ The new-library screen shows 1Password's button above the form, filled with the 
 ## Update 2026-11-02, going on by itself
 
 After saving with the button, people expected to go on without pressing Continue. 1Password's extension (8.12) doesn't tell the page that an item was saved. It does show its save dialog in a `<com-1password-modal>` element that it adds to the page and removes when the dialog closes (its notification element follows the same pattern, so the app watches both). After a click on the button, the app watches for that element to be added and then removed, and goes on as Continue would: the passkey prompt, then the library. The click on Save inside the dialog counts as a click on the page too, which lets the passkey prompt open. The page can't tell a save from a dismissal, so dismissing the dialog also goes on; the key is still under "Show sync key" in the menu. This relies on the extension's markup, not a documented interface, so if a 1Password update changes it, Continue still works.
+
+## Update 2026-11-02, no passkey before going on
+
+Closing 1Password's dialog now goes straight into the library, a second later so 1Password has finished writing the item. The passkey is offered on the library screen instead (see [the passkey update](unlock-with-a-sync-key-kept-in-the-password-manager.md#update-2026-11-02-passkey-after-creation)): iOS only offers to save a password for a submission the person started themselves, and running the passkey prompt first made Continue's submission a scripted one.
