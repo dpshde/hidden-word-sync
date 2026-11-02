@@ -127,6 +127,8 @@ $("#create").addEventListener("click", async () => {
   form.password.type = "password";
   $("#reveal").textContent = "Show";
   passkeyOffered = false;
+  opClosing?.disconnect();
+  opClosing = null;
   Object.assign(form.querySelector('button[type="submit"]'), { disabled: false, textContent: "Continue" });
   // Password managers such as 1Password only save what they saw entered; a value set by script
   // raises no events, so announce it as if it were typed.
@@ -190,7 +192,42 @@ function offerOnePassword() {
   opWatch.observe(inner, { attributes: true, attributeFilter: ["disabled"] });
   clearTimeout(opTimer);
   opTimer = setTimeout(() => (slot.hidden = !opReady && inner.disabled), 2000);
+  button.addEventListener("click", (e) => {
+    if (!inner.disabled && e.composedPath().includes(inner)) continueWhenOnePasswordCloses();
+  });
   activateOPButton();
+}
+
+// 1Password shows its save dialog in a <com-1password-notification> element it adds to the page, and
+// removes the element when the dialog closes. That closing is the cue to go on (passkey, then the
+// library) without a Continue click. The click on Save inside the dialog also counts as a click on
+// this page, which is what lets the passkey prompt open. The page can't tell a save from a dismissal.
+let opClosing = null;
+
+function continueWhenOnePasswordCloses() {
+  if (opClosing) return;
+  const DIALOG = "com-1password-notification";
+  let opened = !!document.querySelector(DIALOG);
+  let settle = 0;
+  opClosing = new MutationObserver((records) => {
+    if ($("#created").hidden) return stop();
+    for (const r of records) {
+      if ([...r.addedNodes].some((n) => n.nodeName === DIALOG.toUpperCase())) opened = true;
+    }
+    clearTimeout(settle);
+    // 1Password sometimes moves the element between parents; only a removal that lasts counts.
+    if (opened && !document.querySelector(DIALOG)) settle = setTimeout(go, 150);
+  });
+  const stop = () => {
+    opClosing?.disconnect();
+    opClosing = null;
+  };
+  const go = () => {
+    if (document.querySelector(DIALOG)) return;
+    stop();
+    if (!$("#created").hidden) $("#save-form").requestSubmit();
+  };
+  opClosing.observe(document.documentElement, { childList: true, subtree: true });
 }
 
 // The element copies its value to the inner button once, so a renamed library updates that button.

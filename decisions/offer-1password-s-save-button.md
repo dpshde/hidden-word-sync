@@ -29,3 +29,7 @@ The new-library screen shows 1Password's button above the form, filled with the 
 - Updating the button means bumping the version and running `bun run vendor`; the script refuses to update the CSP if the button's styles stop being one fixed block.
 - The button's info icon links to 1Password's sign-up page. That link only shows with the extension installed.
 - Whether the extension enables the button on this site can only be checked by hand.
+
+## Update 2026-11-02, going on by itself
+
+After saving with the button, people expected to go on without pressing Continue. 1Password's extension (8.12) doesn't tell the page that an item was saved. It does show its save dialog in a `<com-1password-notification>` element that it adds to the page and removes when the dialog closes. After a click on the button, the app watches for that element to be added and then removed, and goes on as Continue would: the passkey prompt, then the library. The click on Save inside the dialog counts as a click on the page too, which lets the passkey prompt open. The page can't tell a save from a dismissal, so dismissing the dialog also goes on; the key is still under "Show sync key" in the menu. This relies on the extension's markup, not a documented interface, so if a 1Password update changes it, Continue still works.
