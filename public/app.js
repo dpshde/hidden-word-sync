@@ -167,6 +167,8 @@ function opSaveRequest() {
     fields: [
       { autocomplete: "username", value: name },
       { autocomplete: "new-password", value: form.password.value },
+      // Undocumented in the save button's API; trying it so the item gets this site as its website.
+      { autocomplete: "url", value: location.origin },
     ],
     notes: `Sync key for the Hidden Word library “${name}”. Unlock at ${location.origin}`,
   });
