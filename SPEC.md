@@ -264,7 +264,7 @@ Routes, with the `slot-auth` token: `PUT /v1/slot/{slot}` with `{"wrapped": "…
 
 The server never verifies the passkey's signature: the PRF output is the secret. Passkeys are bound to the website that created them, so they are a convenience on that site. The sync key in a password manager is what works everywhere.
 
-When creating a library, an app SHOULD offer a passkey right after the key is saved, in the same step: the click that leaves the save step creates the passkey (WebAuthn needs that click), then the app goes on into the library whether a passkey was made, declined or failed. It never blocks on the passkey. With 1Password's save button, closing 1Password's save dialog can be that step, so no further click is needed: the extension shows the dialog in a `com-1password-notification` element and removes it on close, and the click inside the dialog lets the passkey prompt open.
+When creating a library, an app SHOULD offer a passkey right after the key is saved, in the same step: the click that leaves the save step creates the passkey (WebAuthn needs that click), then the app goes on into the library whether a passkey was made, declined or failed. It never blocks on the passkey. With 1Password's save button, closing 1Password's save dialog can be that step, so no further click is needed: the extension shows the dialog in a `com-1password-modal` element (or `com-1password-notification`, same pattern) and removes it on close, and the click inside the dialog lets the passkey prompt open.
 
 ### 7.3 Connecting an app
 

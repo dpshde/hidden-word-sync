@@ -198,32 +198,34 @@ function offerOnePassword() {
   activateOPButton();
 }
 
-// 1Password shows its save dialog in a <com-1password-notification> element it adds to the page, and
-// removes the element when the dialog closes. That closing is the cue to go on (passkey, then the
-// library) without a Continue click. The click on Save inside the dialog also counts as a click on
-// this page, which is what lets the passkey prompt open. The page can't tell a save from a dismissal.
+// 1Password shows its save dialog in a <com-1password-modal> element it adds to the page, and
+// removes the element when the dialog closes. (Its notification element uses the same pattern, so
+// watch both.) That closing is the cue to go on (passkey, then the library) without a Continue
+// click. The click on Save inside the dialog also counts as a click on this page, which is what
+// lets the passkey prompt open. The page can't tell a save from a dismissal.
 let opClosing = null;
 
 function continueWhenOnePasswordCloses() {
   if (opClosing) return;
-  const DIALOG = "com-1password-notification";
-  let opened = !!document.querySelector(DIALOG);
+  const DIALOGS = ["COM-1PASSWORD-MODAL", "COM-1PASSWORD-NOTIFICATION"];
+  const open = () => DIALOGS.some((name) => document.querySelector(name));
+  let opened = open();
   let settle = 0;
   opClosing = new MutationObserver((records) => {
     if ($("#created").hidden) return stop();
     for (const r of records) {
-      if ([...r.addedNodes].some((n) => n.nodeName === DIALOG.toUpperCase())) opened = true;
+      if ([...r.addedNodes].some((n) => DIALOGS.includes(n.nodeName))) opened = true;
     }
     clearTimeout(settle);
     // 1Password sometimes moves the element between parents; only a removal that lasts counts.
-    if (opened && !document.querySelector(DIALOG)) settle = setTimeout(go, 150);
+    if (opened && !open()) settle = setTimeout(go, 150);
   });
   const stop = () => {
     opClosing?.disconnect();
     opClosing = null;
   };
   const go = () => {
-    if (document.querySelector(DIALOG)) return;
+    if (open()) return;
     stop();
     if (!$("#created").hidden) $("#save-form").requestSubmit();
   };
