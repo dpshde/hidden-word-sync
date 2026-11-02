@@ -32,7 +32,6 @@
   <section id="created" hidden>
     <h1>Save your sync key</h1>
     <p class="lede">It's the only way into this library, and nobody can reset it. Save it in your password manager now.</p>
-    <div id="onepassword" hidden></div>
     <form id="save-form" method="get" action="/" autocomplete="on">
       <label>Library <input id="new-username" name="username" autocomplete="username" value="Personal" required></label>
       <label>Sync key <input id="new-password" name="password" type="password" autocomplete="new-password" required spellcheck="false"></label>
@@ -40,7 +39,10 @@
         <button type="button" class="quiet" id="reveal">Show</button>
         <button type="button" class="quiet" id="copy">Copy</button>
       </div>
-      <button type="submit">Continue</button>
+      <div class="row" id="continue-row">
+        <button type="submit">Continue</button>
+        <div id="onepassword" hidden></div>
+      </div>
     </form>
   </section>
 

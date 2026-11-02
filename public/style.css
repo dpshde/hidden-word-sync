@@ -53,7 +53,9 @@ header { display: flex; align-items: center; gap: .75rem; margin-bottom: 1.5rem;
 #flash { font-size: .875rem; color: var(--muted); margin: 0 0 1rem; overflow-wrap: anywhere; }
 #flash:empty { display: none; }
 #flash button { background: none; color: var(--fg); padding: 0; font-size: inherit; text-decoration: underline; text-underline-offset: .2em; }
-#onepassword { margin: -.5rem 0 1.25rem; }
+#continue-row { align-items: center; flex-wrap: nowrap; }
+#continue-row > button { flex: 1; }
+#onepassword { flex: none; zoom: 1.2; } /* match the 32px button beside it */
 .note { margin: -.75rem 0 1.5rem; padding: .625rem .75rem; border: 1px solid var(--line); border-radius: .5rem; font-size: .875rem; }
 
 details { position: relative; }
