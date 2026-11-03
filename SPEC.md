@@ -1,4 +1,4 @@
-# Hidden Word, version 1.0
+# Hidden Word, version 1.1
 
 > Thy word have I hid in mine heart, that I might not sin against thee. (Psalm 119:11)
 
@@ -6,7 +6,7 @@ Hidden Word is a small format for Bible highlights and notes, and two ways to ke
 
 The spec has layers. Each one works without the ones after it.
 
-1. **Records**: what a highlight, note or color looks like as JSON.
+1. **Records**: what a highlight, note, color or the library's name looks like as JSON.
 2. **Files**: a library as one readable JSON Lines file.
 3. **Merging**: one rule that decides which version of a record wins, everywhere.
 4. **Folder sync**: devices share a folder of plain files. No server.
@@ -23,8 +23,8 @@ A record is a JSON object. Every record has:
 
 | Field | Type | Meaning |
 |---|---|---|
-| `kind` | string | `highlight`, `note`, `color`, or an app's own kind starting with `x-` |
-| `ref` | string | What the record is about: a canonical reference (1.1), or for `color`, a color id |
+| `kind` | string | `highlight`, `note`, `color`, `library`, or an app's own kind starting with `x-` |
+| `ref` | string | What the record is about: a canonical reference (1.1), for `color` a color id, for `library` the setting's name |
 | `updated` | integer | When the record last changed, in Unix seconds (see section 3) |
 | `deleted` | `true` | Optional. The record was deleted |
 
@@ -101,6 +101,24 @@ Colors double as categories. Six are built in: `yellow`, `green`, `blue`, `pink`
 
 New ids SHOULD be random (`c-` and a few random characters) so two devices never pick the same one. A highlight whose color is unknown or deleted shows as yellow. An app that deletes a color SHOULD first recolor its highlights.
 
+### 1.5 The library's name
+
+A library's name for people ("Personal", "Family devotions") is a record too, so it reaches every device and app like everything else, encrypted on a server like everything else:
+
+```json
+{"kind":"library","ref":"name","updated":1793000000,"name":"Family devotions"}
+```
+
+| Field | Type | Meaning |
+|---|---|---|
+| `ref` | string | `name`. Other refs are reserved for later library-wide settings |
+| `name` | string | The library's name: not empty, not only spaces |
+
+- Show this name when the library has it. Renaming the library writes this record (section 3, Writing).
+- Until it arrives, an app may show a name of its own, such as the one typed to unlock (7.1) or kept in a passkey's slot (7.2). That name is only a label: it MUST NOT be written as a newer `library` record, or unlocking on a new device would rename the library.
+- An app that has a name for a library with no `library name` record MAY write one with `updated` 0, after it has synced with every transport it uses, so the record from any other device has had the chance to arrive. Any rename beats it, and two such records settle by the tie rule.
+- Apps that don't show names keep the record like any other (section 1), and never show it as a highlight or note.
+
 ## 2. Files
 
 A library file is UTF-8 JSON Lines (`.jsonl`, media type `application/x-ndjson`), one JSON object per line, readable by people and by any JSON parser. Blank lines are ignored.
@@ -111,7 +129,7 @@ The first line MAY be a header, which has no `kind`:
 {"hidden-word":2,"library":"2f4856b70a85a635e64ca60c047e27fb","device":"q8Zr0aXv5Tg","name":"Personal"}
 ```
 
-`library` is the library id (5.2), `device` names the device that wrote the file, and `name` is the library's name for people. Every other line is a record. Readers skip lines that aren't records.
+`library` is the library id (5.2), `device` names the device that wrote the file, and `name` is the library's name for people: its `library name` record (1.5) when it has one. Every other line is a record, the `library name` record included, so an import brings the name with it. Readers skip lines that aren't records.
 
 When importing a file, each record is merged into the library by the rule in section 3, as if it had arrived from another device. Within one file, a later line with the same identity replaces an earlier one. A record without `updated` is treated as written at the moment of import.
 
@@ -261,7 +279,7 @@ A passkey with the WebAuthn PRF extension can unlock a library without typing th
 
 Routes, with the `slot-auth` token: `PUT /v1/slot/{slot}` with `{"wrapped": "…"}` (the first write claims the slot; 204), `GET /v1/slot/{slot}` (`{"wrapped": "…"}`, or 404), `DELETE /v1/slot/{slot}` (204).
 
-The server never verifies the passkey's signature: the PRF output is the secret. Passkeys are bound to the website that created them, so they are a convenience on that site. The sync key in a password manager is what works everywhere.
+A slot's `name` is what the library was called when the passkey was added. Once the library has synced, its `library name` record (1.5) wins. The server never verifies the passkey's signature: the PRF output is the secret. Passkeys are bound to the website that created them, so they are a convenience on that site. The sync key in a password manager is what works everywhere.
 
 When creating a library, an app SHOULD offer a passkey once the key is saved, as a separate, optional step that never blocks getting into the library. The step that saves the key MUST NOT wait on the passkey: password managers, and iOS in particular, only offer to save a password when the form is submitted directly by the person's tap, so a submission made after a passkey prompt by script gets no save offer. The reference app submits the form on Continue and then shows "Add a passkey" (and "Not now") on the library screen.
 
@@ -324,7 +342,7 @@ The `conformance/` folder checks an implementation against this spec. Passing it
 
 ## 11. Versioning
 
-This is version 1.0. Every 1.x version keeps these working the same way:
+This is version 1.1. Every 1.x version keeps these working the same way:
 
 - Records (section 1), the merge rule (3) and the writing rule for `updated`.
 - Library files and their header, `"hidden-word": 2` (2), and folder sync's layout (4).
@@ -339,6 +357,13 @@ This is version 1.0. Every 1.x version keeps these working the same way:
 **Deprecation.** A feature to be removed is first marked deprecated here, in a 1.x version, and keeps working for the rest of 1.x. It's removed only in 2.0.
 
 Not covered: the reference web app's screens and storage, and the reference Worker's extras (`/mcp`, `/config.json`, `/api/client-error`).
+
+## Changes from 1.0
+
+Compatible (section 11): a 1.0 client or server is a 1.1 one.
+
+- The library's name syncs as a record, `{"kind":"library","ref":"name","name":…}` (section 1.5). A file's header `name` follows it, and passkey slot names give way to it (2, 7.2). A 1.0 app keeps the record as a kind it doesn't know.
+- Client fixtures for it in `conformance/fixtures.json`.
 
 ## Changes from 0.2
 

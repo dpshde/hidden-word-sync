@@ -103,6 +103,11 @@ describe("records", () => {
     expect(checkRecord({ kind: "highlight", ref: "JHN.3.16", deleted: true })).toBeNull();
     expect(checkRecord({ kind: "x-margin.outline", ref: "anything" })).toBeNull();
     expect(checkRecord({ kind: "comment", ref: "JHN.3.16" })).not.toBeNull();
+    expect(checkRecord({ kind: "library", ref: "name", name: "Personal" })).toBeNull();
+    expect(checkRecord({ kind: "library", ref: "name", name: " " })).not.toBeNull();
+    expect(checkRecord({ kind: "library", ref: "name" })).not.toBeNull();
+    expect(checkRecord({ kind: "library", ref: "color", name: "x" })).not.toBeNull();
+    expect(checkRecord({ kind: "library", ref: "name", deleted: true })).toBeNull();
   });
 
   test("the newest coloured part decides the colour; unknown colours show yellow", () => {
