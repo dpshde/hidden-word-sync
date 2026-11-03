@@ -2,7 +2,7 @@ import {
   COLORS, Library, KeyError, newKey, formatKey, now, palette, topColor, parseJsonl, fromBibleRs, saveSlot, openSlot,
   serverTransport, folderTransport,
 } from "./sync.js";
-import { labelRef, compareRefs } from "./refs.js";
+import { labelRef, compareRefs, groupRuns } from "./refs.js";
 import { readPassage } from "./passage.js";
 import { createPasskeyPrf, getPasskeyPrf, passkeysAvailable, cancelled } from "./passkey.js";
 import { activateOPButton, encodeOPSaveRequest } from "./vendor/onepassword-save-button.js";
@@ -367,7 +367,7 @@ function render() {
 
   const shown = filter ? rows.filter((r) => topColor(r, ids) === filter) : rows;
   $("#empty").hidden = rows.length > 0;
-  $("#list").replaceChildren(...shown.map(row));
+  $("#list").replaceChildren(...groupRuns(shown, (r) => topColor(r, ids)).map(row));
   if (!$("#colors").hidden) renderColors();
 }
 
@@ -398,30 +398,32 @@ function renderFilters(counts) {
   $("#filters").replaceChildren(...chips);
 }
 
-function row(record) {
+/** One list row: a single highlight, or a run of back-to-back verses in one color (see groupRuns). */
+function row({ ref: runRef, records }) {
   const ids = colors.map((c) => c.id);
+  const record = records[0];
   const li = document.createElement("li");
   const head = document.createElement("button");
   head.type = "button";
   head.className = "row-head";
-  head.setAttribute("aria-expanded", String(editing === record.ref));
+  head.setAttribute("aria-expanded", String(editing === runRef));
   const dot = document.createElement("span");
   dot.className = "dot";
   paint(dot, topColor(record, ids));
   const ref = document.createElement("span");
   ref.className = "ref";
-  ref.textContent = labelRef(record.ref);
+  ref.textContent = labelRef(runRef);
   const quote = document.createElement("span");
   quote.className = "quote";
-  quote.textContent = record.highlights.map((h) => h.quote).filter(Boolean).join(" … ");
+  quote.textContent = records.flatMap((r) => r.highlights.map((h) => h.quote)).filter(Boolean).join(" … ");
   head.append(dot, ref, quote);
   head.addEventListener("click", () => {
-    editing = editing === record.ref ? null : record.ref;
+    editing = editing === runRef ? null : runRef;
     render();
   });
   li.append(head);
 
-  if (editing === record.ref) {
+  if (editing === runRef) {
     const tools = document.createElement("div");
     tools.className = "tools";
     for (const c of colors) {
@@ -434,12 +436,12 @@ function row(record) {
       b.setAttribute("aria-pressed", String(topColor(record, ids) === c.id));
       b.addEventListener("click", () => {
         const t = now();
-        library.put({ ...record, highlights: record.highlights.map((h) => ({ ...h, color: c.id, edited: t })) });
+        library.putMany(records.map((r) => ({ ...r, highlights: r.highlights.map((h) => ({ ...h, color: c.id, edited: t })) })));
       });
       tools.append(b);
     }
     const open = document.createElement("a");
-    open.href = `https://route.bible/${record.ref.toLowerCase()}`;
+    open.href = `https://route.bible/${record.ref.toLowerCase()}`; // the run's first verse
     open.target = "_blank";
     open.rel = "noopener";
     open.textContent = "Open";
@@ -450,7 +452,7 @@ function row(record) {
     del.textContent = "Delete";
     del.addEventListener("click", () => {
       editing = null;
-      library.remove("highlight", record.ref);
+      library.putMany(records.map((r) => ({ kind: "highlight", ref: r.ref, deleted: true })));
     });
     tools.append(open, del);
     li.append(tools);

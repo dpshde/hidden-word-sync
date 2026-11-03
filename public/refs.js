@@ -66,3 +66,28 @@ export function expandVerses(ref) {
   for (let v = r.verse; v <= (r.end ?? r.verse); v++) out.push(`${r.code}.${r.chapter}.${v}`);
   return out;
 }
+
+/**
+ * Groups sorted records into runs of back-to-back single verses in one chapter that share a key
+ * (their color), so Romans 5:3, 5:4 and 5:5 read as Romans 5:3–5. Storage stays one record per
+ * verse; this is only how the list shows them. Returns [{ ref, records }], ref being the run's label ref.
+ */
+export function groupRuns(records, keyOf) {
+  const runs = [];
+  for (const record of records) {
+    const r = splitRef(record.ref);
+    const last = runs.at(-1);
+    const prev = last && splitRef(last.records.at(-1).ref);
+    const joins =
+      r && prev && r.verse !== null && r.end === null && prev.verse !== null && prev.end === null &&
+      r.book === prev.book && r.chapter === prev.chapter && r.verse === prev.verse + 1 &&
+      keyOf(record) === last.key;
+    if (joins) last.records.push(record);
+    else runs.push({ key: keyOf(record), records: [record] });
+  }
+  return runs.map(({ records: rs }) => {
+    if (rs.length === 1) return { ref: rs[0].ref, records: rs };
+    const first = splitRef(rs[0].ref);
+    return { ref: `${first.code}.${first.chapter}.${first.verse}-${first.verse + rs.length - 1}`, records: rs };
+  });
+}
