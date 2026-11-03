@@ -72,6 +72,20 @@ details > div button:hover { background: var(--line); }
 
 #add { grid-template-columns: 1fr auto auto; align-items: center; }
 #add .error { grid-column: 1 / -1; }
+/* scripture-inline's <si-passage-input> reads these tokens inside its shadow root. Its --accent is the
+   highlighted suggestion, so it gets the line color here rather than ours (which fills buttons). */
+#ref {
+  min-width: 0;
+  --input: var(--line); --border: var(--line); --ring: var(--fg); --radius: .75rem;
+  --popover: var(--bg); --popover-foreground: var(--fg);
+  --accent: var(--line); --accent-foreground: var(--fg); --muted-foreground: var(--muted);
+  --destructive: var(--danger);
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+#ref::part(input) { height: auto; padding: .6rem .75rem; font-size: 1rem; line-height: 1.5; border-radius: .5rem; box-shadow: none; }
+/* The field is narrow on a phone, beside the colors; its suggestions get room to read on one line. */
+#ref::part(listbox) { right: auto; width: max-content; min-width: 100%; max-width: min(20rem, calc(100vw - 2.5rem)); box-shadow: 0 8px 24px rgb(0 0 0 / .12); }
+#ref::part(option) { white-space: nowrap; }
 .swatches { display: flex; gap: .25rem; border: 0; margin: 0; padding: 0; }
 .dot { width: 1.25rem; height: 1.25rem; border-radius: 50%; padding: 0; display: inline-block; flex: none; background: var(--yellow); border: 2px solid transparent; }
 .dot[data-color="green"] { background: var(--green); }

@@ -4,6 +4,7 @@ import {
 } from "./sync.js";
 import { labelRef, compareRefs, groupRuns } from "./refs.js";
 import { readPassage } from "./passage.js";
+import { definePassageInput } from "./vendor/scripture-inline.js";
 import { createPasskeyPrf, getPasskeyPrf, passkeysAvailable, cancelled } from "./passkey.js";
 import { foldersAvailable, pickFolder, saveFolder, loadFolder, forgetFolder, mayUse, folderDir } from "./folder.js";
 
@@ -237,14 +238,31 @@ async function highlight(verses, color) {
   return () => library.putMany(verses.map((v, i) => before[i] ?? { kind: "highlight", ref: v, deleted: true }));
 }
 
+// The reference field is scripture-inline's <si-passage-input>: book, chapter and verse suggestions
+// as people type. Its value is a USFM id like ROM.5.3-5 once it reads a passage.
+definePassageInput();
+const refField = $("#ref");
+/** What's in the field: its passage id when it read one, else the typed text, which readPassage reads more
+ * loosely (the field won't take passages across chapters, like Genesis 1–2, but Hidden Word does). */
+function refText() {
+  const typed = refField.shadowRoot?.querySelector("input")?.value ?? "";
+  return refField.value && refField.validity.valid ? refField.value : typed;
+}
+// Enter that settles a passage highlights it; Enter that only fills in a book name keeps typing.
+// The field's own handler runs first (it's on the inner input), so its list shows what Enter did.
+refField.addEventListener("keydown", (e) => {
+  if (e.key !== "Enter" || e.isComposing) return;
+  if (refField.shadowRoot?.querySelector("[role=listbox]")?.hidden !== false) $("#add").requestSubmit();
+});
+
 $("#add").addEventListener("submit", async (e) => {
   e.preventDefault();
   const form = e.target;
-  const found = readPassage($("#ref").value);
+  const found = readPassage(refText());
   if (found.error) return errorIn(form, found.error);
   errorIn(form, "");
   await highlight(found.verses, new FormData(form).get("color"));
-  $("#ref").value = "";
+  refField.value = "";
 });
 
 // ---- saving from a link: /save?ref=John+3:16&color=blue

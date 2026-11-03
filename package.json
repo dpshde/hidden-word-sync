@@ -14,8 +14,8 @@
     "vendor": "bun scripts/vendor.js"
   },
   "devDependencies": {
-    "@1password/save-button": "1.3.0",
     "@cloudflare/workers-types": "^4.20250927.0",
+    "@faith-tools/scripture-inline": "0.3.1",
     "@types/bun": "^1.3.0",
     "cf": "1.0.0-beta.12",
     "grab-bcv": "0.1.7",
