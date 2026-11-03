@@ -77,6 +77,16 @@ describe("save links", () => {
     expect(seen).toEqual(["/"]);
     expect((await handle(new Request("http://local/save", { method: "POST" }), { ...env, ASSETS })).status).toBe(404);
   });
+
+  test("/config.json serves the YouVersion app key when the secret is set, and null when not", async () => {
+    const { env } = setup();
+    const off = await handle(new Request("http://local/config.json"), env);
+    expect(off.status).toBe(200);
+    expect(await off.json()).toEqual({ yvpPublicAppKey: null });
+    const on = await handle(new Request("http://local/config.json"), { ...env, YVP_PUBLIC_APP_KEY: "k-123" });
+    expect(await on.json()).toEqual({ yvpPublicAppKey: "k-123" });
+    expect(on.headers.get("cache-control")).toBe("no-store");
+  });
 });
 
 describe("server", () => {

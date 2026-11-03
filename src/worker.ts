@@ -4,6 +4,8 @@
 export interface Env {
   DB: D1Database;
   ASSETS?: Fetcher;
+  /** YouVersion Platform public app key, for verse text in the web app. A Worker secret, so it stays out of git. */
+  YVP_PUBLIC_APP_KEY?: string;
 }
 
 type Item = { seq: number; id: string; blob: string };
@@ -58,6 +60,11 @@ export async function handle(request: Request, env: Env): Promise<Response> {
   // /save?ref=…&color=… is the web app's: it saves into the library unlocked in the browser.
   if (url.pathname === "/save" && env.ASSETS && (request.method === "GET" || request.method === "HEAD")) {
     return env.ASSETS.fetch(new Request(new URL("/", url), request));
+  }
+  // Web app settings that shouldn't live in a public repo. The key is public by design (it reaches the
+  // browser either way); serving it from here keeps it out of git. No key: the app shows no verse text.
+  if (url.pathname === "/config.json" && (request.method === "GET" || request.method === "HEAD")) {
+    return json({ yvpPublicAppKey: env.YVP_PUBLIC_APP_KEY || null });
   }
   const parts = url.pathname.split("/");
   if (parts[1] !== "v1") return fail(404, "not found");

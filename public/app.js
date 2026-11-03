@@ -4,7 +4,7 @@ import {
 } from "./sync.js";
 import { labelRef, compareRefs, groupRuns } from "./refs.js";
 import { readPassage } from "./passage.js";
-import { definePassageInput } from "./vendor/scripture-inline.js";
+import { definePassageInput, defineScripturePassage } from "./vendor/scripture-inline.js";
 import { createPasskeyPrf, getPasskeyPrf, passkeysAvailable, cancelled } from "./passkey.js";
 import { foldersAvailable, pickFolder, saveFolder, loadFolder, forgetFolder, mayUse, folderDir } from "./folder.js";
 
@@ -346,6 +346,7 @@ function renderFilters(counts) {
 
 const ICONS = {
   open: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>',
+  text: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>',
   trash: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
 };
 
@@ -416,9 +417,64 @@ function row({ ref: runRef, records }) {
 
   const line = document.createElement("div");
   line.className = "row";
-  line.append(dot, link, open, del);
+  line.append(dot, link);
+  if (verseText.key) line.append(textButton(li, runRef));
+  line.append(open, del);
   li.append(line);
+  if (verseText.open === runRef) showText(li, runRef);
   return li;
+}
+
+// ---- verse text: a row's passage from YouVersion (BSB), shown under the row when its book icon is tapped.
+// One at a time, and only on request, so YouVersion hears only about passages someone opens. The app key
+// comes from the server's /config.json (a Worker secret, kept out of the public repo); without one the
+// icon doesn't show.
+
+const verseText = { key: null, open: null, passages: new Map() };
+
+async function loadConfig() {
+  try {
+    const res = await fetch("/config.json", { cache: "no-store" });
+    const { yvpPublicAppKey } = res.ok ? await res.json() : {};
+    if (!yvpPublicAppKey) return;
+    defineScripturePassage({ yvpPublicAppKey });
+    verseText.key = yvpPublicAppKey;
+    render();
+  } catch {
+    // Offline or no server: no verse text.
+  }
+}
+
+function textButton(li, runRef) {
+  const b = iconButton("button", "text", `Show the text of ${labelRef(runRef)}`);
+  b.classList.add("text");
+  b.setAttribute("aria-expanded", String(verseText.open === runRef));
+  b.addEventListener("click", () => {
+    const wasOpen = verseText.open === runRef;
+    for (const other of document.querySelectorAll("#list .verse-text")) other.remove();
+    for (const other of document.querySelectorAll("#list button.text")) other.setAttribute("aria-expanded", "false");
+    verseText.open = wasOpen ? null : runRef;
+    if (!wasOpen) (showText(li, runRef), b.setAttribute("aria-expanded", "true"));
+  });
+  return b;
+}
+
+/** Puts the run's passage under its row. Elements are kept per run, so a re-render doesn't refetch. */
+function showText(li, runRef) {
+  let el = verseText.passages.get(runRef);
+  if (!el) {
+    el = document.createElement("si-passage");
+    el.className = "verse-text";
+    el.id = `text-${runRef.replace(/\W/g, "-")}`;
+    el.setAttribute("yvp-bible-version-id", "3034"); // Berean Standard Bible
+    el.setAttribute("passage-id", runRef);
+    el.setAttribute("reference", "none");
+    el.setAttribute("theme", "auto");
+    el.setAttribute("headings", "hide");
+    verseText.passages.set(runRef, el);
+  }
+  li.querySelector("button.text")?.setAttribute("aria-controls", el.id);
+  li.append(el);
 }
 
 /** The shared color popover, anchored under the dot that opened it. Picking a color recolors the whole run. */
@@ -666,6 +722,7 @@ addEventListener("focus", () => library?.sync());
 setInterval(() => document.visibilityState === "visible" && library?.sync(), 30_000);
 
 async function boot() {
+  loadConfig();
   if (passkeysAvailable()) $("#passkey-unlock").hidden = false;
   const request = takeSaveLink();
   if (request) {

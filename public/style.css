@@ -156,3 +156,17 @@ input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 50%; }
 .check.folder > span { flex: 1 1 14rem; }
 .key-box { display: flex; align-items: center; gap: .75rem; padding: .75rem 1rem; margin: 0 0 1rem; border: 1px solid var(--line, #ddd); border-radius: .5rem; }
 .key-box code { flex: 1; font-size: 1rem; letter-spacing: .02em; overflow-wrap: anywhere; user-select: all; }
+
+/* A row's passage text (scripture-inline's <si-passage>), under the row, in the app's quiet text style. */
+.verse-text {
+  display: block;
+  padding: 0 .5rem .875rem 1.75rem;
+  --scripture-font-size: .9375rem;
+  --scripture-line-height: 1.6;
+  --scripture-font-family: ui-serif, Georgia, "Times New Roman", serif;
+  --scripture-max-width: none;
+  --yv-foreground: var(--fg);
+  --yv-muted-foreground: var(--muted);
+  --yv-background: transparent;
+}
+.icon.text[aria-expanded="true"] { color: var(--fg); }
