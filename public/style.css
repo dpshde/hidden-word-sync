@@ -5,7 +5,8 @@
   --line: #e7e4dc;
   --accent: #1d1c1a;
   --danger: #b3261e;
-  --danger-soft: #d98080;
+  --danger-soft: #d07474;
+  --on-danger: #fff;
   --yellow: #f5d547;
   --green: #8fd18b;
   --blue: #8cc4f2;
@@ -26,6 +27,7 @@
     --accent: #ecebe6;
     --danger: #f28b82;
     --danger-soft: #eea0a0;
+    --on-danger: #161614;
   }
 }
 
@@ -123,7 +125,8 @@ label.dot:has(input:focus-visible) { outline: 2px solid var(--accent); outline-o
 .icon:hover, .icon:focus-visible { color: var(--fg); }
 .icon.trash { color: var(--danger-soft); }
 .icon.trash:hover, .icon.trash:focus-visible { color: var(--danger); }
-.icon[data-confirm], .icon.trash[data-confirm]:is(:hover, :focus-visible) { color: #fff; background: var(--danger); padding: 0 .75rem; }
+/* Armed Delete: white on deep red in light mode (6.5:1), near-black on soft red in dark mode (7.6:1). */
+.icon[data-confirm], .icon.trash[data-confirm]:is(:hover, :focus-visible) { color: var(--on-danger); background: var(--danger); padding: 0 .75rem; }
 #danger { margin-top: 2.5rem; }
 #danger summary { letter-spacing: 0; padding: .25rem 0; font-size: .875rem; }
 #danger p { margin: .5rem 0 .75rem; font-size: .875rem; }
