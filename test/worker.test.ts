@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { MIGRATIONS, d1 } from "./d1";
 import { Database } from "bun:sqlite";
+import * as entry from "../src/worker";
 import { LIMITS, handle, pageLimit } from "../src/worker";
 import {
   Library, deriveKeys, encryptRecord, folderTransport, formatKey, memoryDir, memoryStore, newKey, openSlot, parseKey,
@@ -53,6 +54,53 @@ describe("save links", () => {
     const on = await handle(new Request("http://local/config.json"), { ...env, YVP_PUBLIC_APP_KEY: "k-123" });
     expect(await on.json()).toEqual({ yvpPublicAppKey: "k-123" });
     expect(on.headers.get("cache-control")).toBe("no-store");
+  });
+});
+
+describe("canonical address", () => {
+  const OLD = "https://hidden-word.dpshade.workers.dev";
+  const CANONICAL_ORIGIN = "https://vault.selah.tools";
+  const assets = () => ({ fetch: async () => new Response("page") }) as unknown as Fetcher;
+
+  test("the Worker module exports only functions and objects, which workerd accepts as entrypoints", () => {
+    for (const [name, value] of Object.entries(entry)) expect([name, typeof value]).toEqual([name, typeof value === "function" ? "function" : "object"]);
+  });
+
+  test("pages on the old workers.dev address redirect to vault.selah.tools, same path and query", async () => {
+    const { env } = setup();
+    for (const path of ["/", "/unlock?app=x&callback=https%3A%2F%2Fa.test", "/save?ref=JHN.3.16&color=blue", "/app.js"]) {
+      for (const method of ["GET", "HEAD"]) {
+        const res = await handle(new Request(OLD + path, { method }), { ...env, ASSETS: assets() });
+        expect(res.status).toBe(308);
+        expect(res.headers.get("location")).toBe(CANONICAL_ORIGIN + path);
+      }
+    }
+  });
+
+  test("API paths keep answering on the old address, and only GET and HEAD redirect", async () => {
+    const { env } = setup();
+    const lib = "0".repeat(32);
+    expect((await handle(new Request(`${OLD}/v1/lib/${lib}`), env)).status).toBe(401);
+    expect((await handle(new Request(`${OLD}/v1/lib/${lib}`, { method: "OPTIONS" }), env)).status).toBe(204);
+    expect((await handle(new Request(`${OLD}/mcp`), env)).status).toBe(405);
+    const rpc = {
+      method: "POST",
+      headers: { "content-type": "application/json", accept: "application/json, text/event-stream" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list", params: {} }),
+    };
+    expect((await handle(new Request(`${OLD}/mcp`, rpc), env)).status).toBe(401);
+    expect((await handle(new Request(`${OLD}/config.json`), env)).status).toBe(200);
+    expect((await handle(new Request(`${OLD}/api/client-error`, { method: "POST", body: "{}" }), env)).status).not.toBe(308);
+    expect((await handle(new Request(`${OLD}/`, { method: "POST" }), env)).status).toBe(404);
+  });
+
+  test("vault.selah.tools and the sync.selah.tools alias serve pages directly", async () => {
+    const { env } = setup();
+    for (const host of ["https://vault.selah.tools", "https://sync.selah.tools"]) {
+      const res = await handle(new Request(`${host}/unlock`), { ...env, ASSETS: assets() });
+      expect(res.status).toBe(200);
+      expect(await res.text()).toBe("page");
+    }
   });
 });
 

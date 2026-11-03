@@ -2,6 +2,8 @@
 
 Bible highlights that follow you between apps and devices. Your library lives on each device first, and reaches the others through a shared folder of plain files, a server that can't read it, both, or neither.
 
+The hosted app and server is at **https://vault.selah.tools**. `sync.selah.tools` serves the same Worker as an alias. The old `hidden-word.dpshade.workers.dev` address sends browsers to vault.selah.tools (a 308, same path and query), and keeps answering `/v1`, `/mcp`, `/api/` and `/config.json` so existing clients keep working. Passkeys belong to the address they were made on, so add one again on vault.selah.tools.
+
 - [SPEC.md](SPEC.md): the format and protocol. Start here to add Hidden Word to an app.
 - [decisions/](decisions/README.md): why it is built this way, one architecture decision record per choice.
 - `public/sync.js`: the reference client. Plain JavaScript with WebCrypto and `fetch`, no dependencies, so it runs in browsers, Bun, Node 20+, Deno and Workers. It merges records, syncs through servers (`serverTransport`) and folders (`folderTransport`), and writes library files.
@@ -12,13 +14,13 @@ Bible highlights that follow you between apps and devices. Your library lives on
 
 ## Connect an AI assistant (MCP)
 
-The Worker serves a remote MCP server (Streamable HTTP) at `https://hidden-word.dpshade.workers.dev/mcp`. It opens your library with your sync key, sent on every request as `Authorization: Bearer <sync key>` (or `X-Hidden-Word-Key: <sync key>`). Tools: `list_highlights`, `find_highlights`, `add_highlight`, `set_highlight_color`, `delete_highlight`, `list_colors`, `get_library_info`, `get_passage_link`. Changes reach your other devices on their next sync.
+The Worker serves a remote MCP server (Streamable HTTP) at `https://vault.selah.tools/mcp`. It opens your library with your sync key, sent on every request as `Authorization: Bearer <sync key>` (or `X-Hidden-Word-Key: <sync key>`). Tools: `list_highlights`, `find_highlights`, `add_highlight`, `set_highlight_color`, `delete_highlight`, `list_colors`, `get_library_info`, `get_passage_link`. Changes reach your other devices on their next sync.
 
 ```json
 {
   "mcpServers": {
     "hidden-word": {
-      "url": "https://hidden-word.dpshade.workers.dev/mcp",
+      "url": "https://vault.selah.tools/mcp",
       "headers": { "Authorization": "Bearer XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX" }
     }
   }
@@ -49,6 +51,8 @@ cf d1 create hidden-word                 # put the id in cloudflare.config.ts, a
 cf d1 migrations apply <database-id> --dir migrations
 bun run deploy
 ```
+
+The custom domains (`vault.selah.tools`, `sync.selah.tools`) are Worker custom domains in the Cloudflare dashboard, not in this config. The pages (`/`, `/unlock`) run the Worker first (`assets.runWorkerFirst` in `cloudflare.config.ts`) so it can redirect the old workers.dev address; a fork on its own workers.dev name isn't redirected.
 
 CI runs `bun test` and `bun run check` on every push to `main` and every pull request (`.github/workflows/ci.yml`). Deploys stay manual.
 
