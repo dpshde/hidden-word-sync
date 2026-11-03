@@ -7,6 +7,7 @@ import { readPassage } from "./passage.js";
 import { MODES, groupList, startsOpen } from "./groups.js";
 import { definePassageInput, defineScripturePassage } from "./vendor/scripture-inline.js";
 import { createPasskeyPrf, getPasskeyPrf, passkeysAvailable, cancelled } from "./passkey.js";
+import { setupThemeToggle } from "./theme-toggle.js";
 import { foldersAvailable, pickFolder, saveFolder, loadFolder, forgetFolder, mayUse, folderDir } from "./folder.js";
 
 const $ = (sel) => document.querySelector(sel);
@@ -560,6 +561,12 @@ function editRow(li, line, run) {
 // icon doesn't show.
 
 const verseText = { key: null, open: null, passages: new Map() };
+// A passage's text themes itself inside its shadow root, so it's told the theme on screen, not left on auto.
+const themeNow = setupThemeToggle(document.querySelectorAll(".theme-toggle"), {
+  onChange: (theme) => {
+    for (const el of verseText.passages.values()) el.setAttribute("theme", theme);
+  },
+});
 
 async function loadConfig() {
   try {
@@ -598,7 +605,7 @@ function showText(li, runRef) {
     el.setAttribute("yvp-bible-version-id", "3034"); // Berean Standard Bible
     el.setAttribute("passage-id", runRef);
     el.setAttribute("reference", "none");
-    el.setAttribute("theme", "auto");
+    el.setAttribute("theme", themeNow());
     el.setAttribute("headings", "hide");
     verseText.passages.set(runRef, el);
   }

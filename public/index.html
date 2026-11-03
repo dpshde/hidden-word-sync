@@ -12,6 +12,7 @@
   <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <link rel="manifest" href="/manifest.webmanifest">
+  <script src="/theme.js"></script>
   <link rel="stylesheet" href="/style.css">
   <script type="module" src="/report.js"></script>
   <script type="module" src="/app.js"></script>
@@ -19,6 +20,7 @@
 <body>
 <main>
   <section id="start" hidden>
+    <button type="button" class="theme-toggle corner" aria-label="Switch to dark mode" title="Switch to dark mode"></button>
     <h1>Hidden Word</h1>
     <p class="lede">Your highlights, on your devices, in any app.</p>
     <p class="note" id="start-note" role="status" hidden></p>
@@ -65,6 +67,7 @@
   <section id="main" hidden>
     <header>
       <strong id="lib-name" contenteditable="plaintext-only" role="textbox" aria-label="Library name" spellcheck="false" enterkeyhint="done"></strong>
+      <button type="button" class="theme-toggle" aria-label="Switch to dark mode" title="Switch to dark mode"></button>
       <details id="menu">
         <summary aria-label="Menu">•••</summary>
         <div>

@@ -23,5 +23,8 @@
     "tsrs": "0.20.1-ts7.1.0-beta",
     "typescript": "^5.9.2",
     "wrangler": "^4.40.0"
+  },
+  "patchedDependencies": {
+    "@faith-tools/scripture-inline@0.3.1": "patches/@faith-tools%2Fscripture-inline@0.3.1.patch"
   }
 }
