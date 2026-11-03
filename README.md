@@ -50,7 +50,9 @@ cf d1 migrations apply <database-id> --dir migrations
 bun run deploy
 ```
 
-Observability is off on purpose: the server should keep as little as it can about the people using it.
+CI runs `bun test` and `bun run check` on every push to `main` and every pull request (`.github/workflows/ci.yml`). Deploys stay manual.
+
+Logs, traces and browser error reports are on, redacted so they never hold a key, token, id, query string or verse: see [docs/observability.md](docs/observability.md) for what's recorded and where to read it.
 
 ## Adding Hidden Word to an app
 

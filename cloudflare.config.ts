@@ -1,7 +1,10 @@
 import { bindings, defineConfig } from "cf/config";
 
 // To deploy to another account: `cf d1 create --name hidden-word`, and put its id and your account id below.
-// Observability is off: the server should keep as little about its users as it can.
+// Observability keeps as little about users as it can (docs/observability.md). Logs are the Worker's
+// own redacted lines (src/observe.ts); Cloudflare's invocation logs are off, since they record the
+// request itself. Traces record timings and fixed span attributes (no auth headers, no bodies), and
+// query strings are stripped from every URL in both, so a /save?ref=… link leaves no reference.
 export default defineConfig({
 	accountId: "91ff2c2b757414041aeaa00896a8a43f",
 	worker: {
@@ -10,7 +13,11 @@ export default defineConfig({
 		entrypoint: "src/worker.ts",
 		workersDev: true,
 		observability: {
-			enabled: false,
+			enabled: true,
+			redactQueryString: true,
+			logs: { enabled: true, headSamplingRate: 1, invocationLogs: false },
+			traces: { enabled: true, headSamplingRate: 1 },
+			issues: { enabled: true },
 		},
 		assets: {
 			runWorkerFirst: false,

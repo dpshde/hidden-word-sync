@@ -26,3 +26,4 @@ To change a decision, write a new record and mark the old one `Superseded by …
 | [Offer 1Password's save button](offer-1password-s-save-button.md) | Accepted | 2026-11-02 |
 | [Show verse text from YouVersion on request](show-verse-text-from-youversion-on-request.md) | Accepted | 2026-11-03 |
 | [Serve an MCP server that opens a library with its sync key](serve-an-mcp-server-that-opens-a-library-with-its-sync-key.md) | Accepted | 2026-11-03 |
+| [Observe the Worker with redacted logs and traces](observe-the-worker-with-redacted-logs-and-traces.md) | Accepted | 2026-11-03 |

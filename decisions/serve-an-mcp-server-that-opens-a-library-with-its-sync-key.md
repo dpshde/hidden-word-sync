@@ -26,3 +26,7 @@ The options were a local MCP server on the person's machine (the key never leave
 - An MCP client keeps the key in its own configuration. Anyone who reads that file can read and change the library, as with any copy of the key.
 - A library's name lives only on devices, so `get_library_info` doesn't have one.
 - Each request reads the whole library from D1 (one page per 500 items), which is fine at the sizes the limits allow.
+
+## Update 2026-11-03
+
+Observability is now on ([Observe the Worker with redacted logs and traces](observe-the-worker-with-redacted-logs-and-traces.md)). Cloudflare's invocation logs stay off, and the Worker's own log line for `/mcp` holds only fixed words: the methods, tool names and outcomes, never the key, the arguments or the answers.

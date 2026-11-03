@@ -8,6 +8,7 @@
 import { Library, memoryStore, palette, serverTransport as server, topColor } from "../../public/sync.js";
 import { BOOKS as books, compareRefs, groupRuns, highlightRecord, labelRef, splitRef } from "../../public/refs.js";
 import { readPassage as read } from "../../public/passage.js";
+import { type Note, noNote } from "../observe";
 
 // The shared modules are plain JavaScript; these are the shapes they take and return.
 const serverTransport = server as (options: { url?: string; fetch?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response> }) => ReturnType<typeof server>;
@@ -44,7 +45,10 @@ function keyFrom(request: Request): string | null {
   return (bearer ?? request.headers.get("x-hidden-word-key") ?? "").trim() || null;
 }
 
-export async function mcp(request: Request, syncFetch: SyncFetch): Promise<Response> {
+const METHODS = new Set(["initialize", "ping", "tools/list", "tools/call"]);
+
+/** `note` gets what the request log line may say: methods, tool names and outcomes, all fixed words. */
+export async function mcp(request: Request, syncFetch: SyncFetch, note: Note = noNote): Promise<Response> {
   if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
   // Stateless: no server-to-client stream to open, and no session to end.
   if (request.method !== "POST") return reply(rpcError(null, -32000, "Method not allowed"), 405, { allow: "POST, OPTIONS" });
@@ -69,6 +73,7 @@ export async function mcp(request: Request, syncFetch: SyncFetch): Promise<Respo
     if (!keyText) throw new Error();
     library = await Library.open({ keyText, store: memoryStore() });
   } catch {
+    note({ mcp: "bad_key" });
     return reply(rpcError(messages[0]?.id, -32001, BAD_KEY), 401, { "www-authenticate": 'Bearer realm="hidden-word"' });
   }
 
@@ -78,6 +83,8 @@ export async function mcp(request: Request, syncFetch: SyncFetch): Promise<Respo
     const answer = await session.answer(m);
     if (answer) answers.push(answer);
   }
+  const method = (m: Rpc) => (METHODS.has(m.method as string) ? m.method as string : (m.method as string).startsWith("notifications/") ? "notification" : "other");
+  note({ mcp: "ok", mcp_methods: messages.map(method).join(","), ...session.outcome });
   // Only notifications: nothing to say.
   if (!answers.length) return new Response(null, { status: 202, headers: CORS });
   return reply(Array.isArray(body) ? answers : answers[0]);
@@ -144,6 +151,8 @@ const link = (ref: string) => `https://route.bible/${ref.toLowerCase()}`;
 
 class Session {
   synced = false;
+  /** For the log line: tools called and how they ended, as fixed words. */
+  outcome: Record<string, string> = {};
   constructor(readonly library: Library, readonly syncFetch: SyncFetch) {}
 
   async answer(m: Rpc): Promise<Json | null> {
@@ -154,6 +163,7 @@ class Session {
     } catch (error) {
       if (notification) return null;
       if (error instanceof RpcFault) return rpcError(m.id, error.code, error.message);
+      this.outcome.mcp_error_class = error instanceof Error && /^[A-Za-z]{1,40}$/.test(error.name) ? error.name : "Error";
       return rpcError(m.id, -32603, "Internal error");
     }
   }
@@ -183,10 +193,13 @@ class Session {
 
   async call(name: string, args: Json) {
     if (!TOOLS.some((t) => t.name === name)) throw new RpcFault(-32602, `Unknown tool: ${name}`);
+    this.outcome.tools = this.outcome.tools ? `${this.outcome.tools},${name}` : name;
     try {
       const result = await this.run(name, args);
       return { content: [{ type: "text", text: JSON.stringify(result) }], structuredContent: result, isError: false };
     } catch (error) {
+      this.outcome.tool_result = error instanceof Refusal ? "refused" : "failed";
+      if (!(error instanceof Refusal)) this.outcome.mcp_error_class = error instanceof Error && /^[A-Za-z]{1,40}$/.test(error.name) ? error.name : "Error";
       // Answers never repeat what the caller sent, which could be anything (a pasted key, even).
       const sent = Object.values(args).map(String).filter((v) => v.length >= 6);
       const message =

@@ -2,6 +2,7 @@
 // names or keys, only random-looking ids, ciphertext, and SHA-256 hashes of bearer tokens.
 
 import { mcp } from "./mcp/index";
+import { type Note, clientErrors, errorFields, noNote, observe } from "./observe";
 
 export interface Env {
   DB: D1Database;
@@ -46,18 +47,23 @@ function json(body: unknown, status = 200): Response {
 const empty = (status = 204) => new Response(null, { status, headers: { ...CORS, "cache-control": "no-store" } });
 const fail = (status: number, error: string) => json({ error }, status);
 
+const clientError = clientErrors();
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    try {
-      return await handle(request, env);
-    } catch (error) {
-      console.error(JSON.stringify({ message: "request failed", error: String(error) }));
-      return fail(500, "server error");
-    }
+    // One redacted log line per request (src/observe.ts); a failure logs its class, never its data.
+    return observe(request, async (note) => {
+      try {
+        return await handle(request, env, note);
+      } catch (error) {
+        note(errorFields(error));
+        return fail(500, "server error");
+      }
+    });
   },
 } satisfies ExportedHandler<Env>;
 
-export async function handle(request: Request, env: Env): Promise<Response> {
+export async function handle(request: Request, env: Env, note: Note = noNote): Promise<Response> {
   const url = new URL(request.url);
   // /save?ref=…&color=… is the web app's: it saves into the library unlocked in the browser.
   if (url.pathname === "/save" && env.ASSETS && (request.method === "GET" || request.method === "HEAD")) {
@@ -70,7 +76,9 @@ export async function handle(request: Request, env: Env): Promise<Response> {
   }
   // The MCP server (src/mcp/): it opens a library with the caller's sync key and syncs through the
   // routes below, called directly rather than over the network.
-  if (url.pathname === "/mcp") return mcp(request, (r) => handle(r, env));
+  if (url.pathname === "/mcp") return mcp(request, (r) => handle(r, env), note);
+  // Browser errors from public/report.js, scrubbed and logged.
+  if (url.pathname === "/api/client-error") return clientError(request, note);
   const parts = url.pathname.split("/");
   if (parts[1] !== "v1") return fail(404, "not found");
   if (request.method === "OPTIONS") return empty();
