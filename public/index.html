@@ -79,7 +79,8 @@
 
     <form id="add" autocomplete="off" novalidate>
       <si-passage-input id="ref" placeholder="John 3:16" aria-label="Verse or passage"></si-passage-input>
-      <fieldset class="swatches" aria-label="Color"></fieldset>
+      <input type="hidden" name="color" value="yellow">
+      <button type="button" id="add-dot" class="pick" aria-haspopup="true" aria-label="Highlight color: Yellow"><span class="dot" data-color="yellow"></span></button>
       <button type="submit">Highlight</button>
       <p class="error" role="alert"></p>
     </form>

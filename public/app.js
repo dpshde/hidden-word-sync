@@ -196,33 +196,25 @@ $("#save-form").addEventListener("formdata", (e) => {
 
 // ---- highlights
 
-let swatchesFor = "";
+// The add form's color: one dot showing it, which opens the shared color popover to change it. The
+// choice lives in the form's hidden "color" input, so submitting reads it like any field.
+const addColor = $("#add").elements.namedItem("color");
+const addDot = $("#add-dot");
 
-function renderSwatches() {
-  const key = JSON.stringify(colors);
-  if (key === swatchesFor) return;
-  swatchesFor = key;
-  const picked = new FormData($("#add")).get("color") ?? "yellow";
-  $("#add .swatches").replaceChildren(
-    ...colors.map((c) => {
-      const label = document.createElement("label");
-      label.className = "dot";
-      label.title = colorName(c);
-      paint(label, c.id);
-      const input = document.createElement("input");
-      input.type = "radio";
-      input.name = "color";
-      input.value = c.id;
-      input.checked = c.id === picked;
-      const text = document.createElement("span");
-      text.className = "sr";
-      text.textContent = colorName(c);
-      label.append(input, text);
-      return label;
-    }),
-  );
-  if (!$("#add").querySelector("input:checked")) $("#add").querySelector("input").checked = true;
+function renderAddColor() {
+  if (!colors.some((c) => c.id === addColor.value)) addColor.value = colors[0].id; // its color was deleted
+  const c = colors.find((x) => x.id === addColor.value);
+  paint(addDot.querySelector(".dot"), c.id);
+  addDot.setAttribute("aria-label", `Highlight color: ${colorName(c)}`);
+  addDot.title = `Highlight color: ${colorName(c)}`;
 }
+
+addDot.addEventListener("click", () =>
+  openColorPicker(addDot, addColor.value, (id) => {
+    addColor.value = id;
+    renderAddColor();
+  }),
+);
 
 /**
  * Highlights whole verses in one color. A verse already highlighted keeps when it was first. Returns
@@ -297,7 +289,7 @@ async function saveFromLink() {
 function render() {
   if (!library) return;
   colors = palette(library.all("color"));
-  renderSwatches();
+  renderAddColor();
 
   const ids = colors.map((c) => c.id);
   const rows = library.all("highlight").sort((a, b) => compareRefs(a.ref, b.ref));
@@ -368,7 +360,12 @@ function row({ ref: runRef, records }) {
   paint(dot, topColor(records[0], ids));
   dot.setAttribute("aria-label", `Change color of ${labelRef(runRef)}`);
   dot.setAttribute("aria-haspopup", "true");
-  dot.addEventListener("click", () => openColorPicker(dot, records));
+  dot.addEventListener("click", () =>
+    openColorPicker(dot, topColor(records[0], ids), (id) => {
+      const t = now();
+      library.putMany(records.map((r) => ({ ...r, highlights: r.highlights.map((h) => ({ ...h, color: id, edited: t })) })));
+    }),
+  );
 
   // The whole row opens the passage in route.bible: the link stretches over the line (see .row-link
   // in style.css), and the dot and icons sit above it as their own buttons.
@@ -555,11 +552,13 @@ function placePopover(pop, anchor, { alignEnd = false } = {}) {
   pop.style.top = `${below + h > innerHeight - 8 ? a.top - h - 6 : below}px`;
 }
 
-/** The shared color popover, anchored under the dot that opened it. Picking a color recolors the whole run. */
-function openColorPicker(anchor, records) {
+/**
+ * The shared color popover, anchored under the dot that opened it, with `current` pressed. Picking a
+ * different color calls `pick(id)`: a row's dot recolors its run, the add form's dot only sets the form.
+ * It closes on an outside press or Escape by itself, and focus goes back to the dot.
+ */
+function openColorPicker(anchor, current, pick) {
   const pop = $("#color-pop");
-  const ids = colors.map((c) => c.id);
-  const current = topColor(records[0], ids);
   pop.replaceChildren(
     ...colors.map((c) => {
       const b = document.createElement("button");
@@ -571,13 +570,16 @@ function openColorPicker(anchor, records) {
       b.setAttribute("aria-pressed", String(current === c.id));
       b.addEventListener("click", () => {
         pop.hidePopover();
-        if (c.id === current) return;
-        const t = now();
-        library.putMany(records.map((r) => ({ ...r, highlights: r.highlights.map((h) => ({ ...h, color: c.id, edited: t })) })));
+        if (c.id !== current) pick(c.id);
       });
       return b;
     }),
   );
+  pop.ontoggle = (e) => {
+    if (e.newState !== "closed") return;
+    const focus = document.activeElement;
+    if (anchor.isConnected && (!focus || focus === document.body || pop.contains(focus))) anchor.focus();
+  };
   placePopover(pop, anchor);
   pop.querySelector('[aria-pressed="true"]')?.focus();
 }
