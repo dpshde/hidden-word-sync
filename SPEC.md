@@ -1,4 +1,4 @@
-# Hidden Word, version 0.2
+# Hidden Word, version 0.3
 
 > Thy word have I hid in mine heart, that I might not sin against thee. (Psalm 119:11)
 
@@ -26,6 +26,8 @@ A record is a JSON object. Every record has:
 | `kind` | string | `highlight`, `note`, `color`, or an app's own kind starting with `x-` |
 | `ref` | string | What the record is about: a canonical reference (1.1), or for `color`, a color id |
 | `updated` | integer | When the record last changed, in Unix seconds (see section 3) |
+| `updated_ms` | integer | Optional, recommended. The same moment in Unix milliseconds; `updated` is it divided by 1000, rounded down |
+| `device` | string | Optional, recommended. The id of the device that made this version |
 | `deleted` | `true` | Optional. The record was deleted |
 
 A record's identity is its `kind` and `ref`. A library holds one version of each identity; section 3 says which.
@@ -83,6 +85,14 @@ There are no bookmarks: a highlight in a color named "Bookmarks" does the same j
 
 `ref` may be a chapter, a verse, or a range. `body` is plain text. There is one note per reference.
 
+A note MAY also carry its history and conflict copies (section 3.1), with the names bible-rs uses:
+
+| Field | Type | Meaning |
+|---|---|---|
+| `base_updated`, `base_device` | integer, string | The stamp of the version this one was edited from. Absent for a new note |
+| `seen` | list | Stamps (`{"updated_ms":…,"device":…}`) of older versions this one supersedes, newest first, at most 32 |
+| `conflicts` | list | Versions that lost to this one: `{"body","updated_ms","device","found"}`, `found` in Unix seconds. Dropping one is an edit of the note |
+
 ### 1.4 Colors
 
 Colors double as categories. Six are built in: `yellow`, `green`, `blue`, `pink`, `purple`, `orange`. A library may name them, and may add its own:
@@ -119,24 +129,70 @@ When importing a file, each record is merged into the library by the rule in sec
 
 Apps MAY import a bible-rs export (JSON with `"app": "bible-rs"` and `"format"` 1 or 2):
 
-- Each entry of `highlights` (`book`, `chapter`, `verse`, `color`, `start`, `end`, `quote`, `created`, `edited`) becomes a part of the highlight record for `BOOK.chapter.verse`, with RFC 3339 times converted to Unix seconds. `updated` is the latest `edited` or `created` among its parts, or the verse's `updated_ms` (format 2, Unix ms, rounded down to seconds) when that is later. The stamp matters: a verse whose part was removed in bible-rs has no later `edited` or `created`, only a later stamp.
-- Each entry of `notes` becomes a `note` record with `body` set to its `note`. `updated` is the later of `updated` and `updated_ms`. A note's `conflicts` (format 2: versions that lost to it in bible-rs) are kept as `x-bible-rs-conflicts`, a list of `{body, updated, device}`, so the losing text isn't dropped.
+- Each entry of `highlights` (`book`, `chapter`, `verse`, `color`, `start`, `end`, `quote`, `created`, `edited`) becomes a part of the highlight record for `BOOK.chapter.verse`, with RFC 3339 times converted to Unix seconds. In format 1, `updated` is the latest `edited` or `created` among its parts.
+- Each entry of `notes` becomes a `note` record with `body` set to its `note`.
 - `bookmarks` have no equivalent and are left out.
-- Format 2's other additions are ignored: `device`, `base_updated`, `base_device` and `seen` (bible-rs's own merge bookkeeping), `history` and `plans`, and the `deleted` tombstones (bible-rs's own import ignores them too).
+- Format 2 entries' stamps (`updated_ms`, `device`) become the records' stamps (section 3), and notes keep `base_updated`, `base_device`, `seen` and `conflicts`. `history`, `plans` and the `deleted` tombstones are ignored, as bible-rs's own import ignores them: an export brought in by hand never deletes.
 
-bible-rs's Study Library folder (`library.json` with `"app": "bible-rs study library"`, `changes/<device>/`, `snapshots/`) is not a Hidden Word folder, and apps don't read or write it.
+### 2.2 bible-rs Study Libraries
 
-## 3. Merging
+An app MAY join a bible-rs Study Library (bible-rs [#81](https://github.com/michaelshimeles/bible-rs/pull/81)) as one more bible-rs device, using its device id. The folder holds:
+
+```
+library.json                        {"app":"bible-rs study library","format":1,"id":"<random>"}
+changes/<device>/<16-digit n>.json  {"format":1,"device":…,"seq":n,"changes":{…}}, n = 1, 2, 3…
+snapshots/<device>.json             the same, holding everything that device has said as of change seq
+```
+
+`changes` has the lists `highlights`, `notes`, `bookmarks`, `plans` and `plan_reads`. Each entry carries its stamp (`updated_ms`, `device`) and `deleted: true` for a tombstone. They map to records like this, with every stamp kept as `updated_ms` and `device`:
+
+| bible-rs | Record |
+|---|---|
+| `highlights` (`book`, `chapter`, `verse`, `parts`) | `highlight` for `BOOK.chapter.verse`; `parts` become `highlights`. No parts, or `deleted`, is a deleted record |
+| `notes` (`body`, `created`, `updated`, `base_updated`, `base_device`, `seen`, `conflicts`) | `note`, same fields; bible-rs's `updated` (its own display time) is kept as `x-bible-rs-updated` when it differs from the stamp's |
+| `bookmarks` | `x-bible-rs-bookmark`, `ref` the verse, with `label` and `created` |
+| `plans` | `x-bible-rs-plan`, `ref` the plan id, with `started`, `finished` and `reset_ms` |
+| `plan_reads` | `x-bible-rs-plan-read`, `ref` `plan/day/passage`, with `plan`, `day`, `passage` and `at` |
+
+Fields bible-rs adds later are kept in `x-bible-rs` and written back. Writing goes the other way. Only what bible-rs can hold is written: highlights and notes on one verse (chapter and range notes stay in Hidden Word), and colors outside bible-rs's six go out as `yellow`. A part always gets `created` and `edited`, which bible-rs requires.
+
+A device in the library:
+
+- Writes only its own files, each whole (a temporary file, then a rename). Its next change file is numbered one past the highest of its files, its snapshot's `seq`, and the number it last wrote.
+- Writes what changed on it since its last write, as one change file, except records whose stamp belongs to another device with files in the folder (that device wrote them already). A note with conflict copies always goes.
+- After more than 64 change files, writes its snapshot as of the newest and removes its change files up to it. When it finds that its own files were removed, it writes a whole snapshot.
+- Reads each other device's change files in order, from where it stopped, and stops at a gap, a half-written file or an iCloud placeholder (`.<name>.icloud`) to try again later. When the next file it needs is gone, it reads that device's snapshot.
+- Merges what it reads by section 3, deletes included: this is sync, not an import (2.1).
+- Remembers, per library id, how far it has read each device and written its own.
+- Refuses a library or file with a newer `format`.
+
+## 3. Merging## 3. Merging
 
 Every device, server and file follows one rule, so a library ends up the same everywhere whatever order changes arrive in, however long a device was offline, and however it syncs.
 
-**Which version wins.** Of two versions of a record, the one with the larger `updated` wins. If `updated` is equal, the one whose JSON text is larger as a sequence of UTF-8 bytes wins. A missing or non-integer `updated` counts as 0. The JSON text is the record exactly as its writer serialized it: the line in a file, or the plaintext of an encrypted item without its padding.
+**Stamps.** A version's stamp is its time in Unix milliseconds and the device that made it: `updated_ms` and `device`. A version without `updated_ms`, or whose `updated_ms` divided by 1000 and rounded down isn't its `updated` (an older app edited it and left the field behind), has the stamp `updated` × 1000 and device `""`. Stamps are ordered by time, then by device id as UTF-8 bytes. This is bible-rs's order, so a library shared with bible-rs (2.2) picks the same winners.
 
-**Writing.** When an app changes a record, it sets `updated` to the current time, or to one more than the `updated` of the version it is replacing, whichever is larger. An edit therefore always beats what it was made from, even on a device whose clock is behind.
+**Which version wins.** Of two versions of a record, the one with the later stamp wins. If the stamps are equal, the one whose JSON text is larger as a sequence of UTF-8 bytes wins. The JSON text is the record exactly as its writer serialized it: the line in a file, or the plaintext of an encrypted item without its padding. Notes (3.1) and `x-bible-rs-plan` records (below) add to this.
+
+**Writing.** When an app changes a record, it stamps it with its own device id and the current time in ms. The time is past every stamp the device has made or seen (ignoring those over a day ahead of its clock) and past the version it replaces. `updated` is that time in seconds. An edit therefore always beats what it was made from, even on a device whose clock is behind.
 
 **Receiving.** A device keeps an incoming version only if it wins against the device's own. A device never deletes or replaces a record for any other reason.
 
 Two devices that change the same record while apart keep the later change. Changes to different records never conflict. An app that wants to keep both versions' highlight parts MAY combine them into a new version, which then wins like any edit.
+
+An `x-bible-rs-plan` keeps the larger `reset_ms` of the two versions even when its stamp loses. A plan that changed this way unticks its `x-bible-rs-plan-read` records stamped before `reset_ms`, by tombstones stamped `reset_ms` from this device. A deleted plan unticks all of its passages with the plan's stamp. A plan-read stamped before its plan's `reset_ms` is ignored.
+
+### 3.1 Notes
+
+A note remembers what it was edited from, so a device can tell an edit that follows on from another from two edits made apart. When an app edits a note, the new version's `base_updated` and `base_device` are the old version's stamp, and its `seen` is the old version's base and `seen` (newest first, at most 32).
+
+A version *has seen* a stamp that is its own, its base, or in its `seen`. Of two versions of a note:
+
+- Equal stamps: keep this device's version, adding to its `seen` what the other has seen.
+- If one has seen the other's stamp, it wins, taking in the other's history.
+- Otherwise each was edited without the other. The later stamp wins and takes in the loser's stamp and history. Unless the loser is deleted, or both say the same thing, the loser's body joins `conflicts` with its stamp and `found` = now.
+
+Conflict copies travel with the note. When the winner follows on from this device's version, its copies replace this device's, plus any this device holds that the winner hasn't seen. Otherwise the copies of both are kept. Copies are ordered by stamp, with one per stamp. The winning version then also counts every copy it holds as seen, so dismissing one later tells other devices it was dropped, not missed. A note that only gained copies or history counts as changed here and goes out again with its stamp unchanged.
 
 ## 4. Folder sync
 
@@ -314,6 +370,13 @@ Losing the sync key and every passkey means losing access to the server copy. Th
 | PRF input | `fcfb4063bf395fdc94420956f179db678140eff05a60a0c776c8c81f3684fef5` |
 | `slot` for PRF `11…11` | `2148b32b2ad12085df0d940c85855e97` |
 
+## Changes from 0.2
+
+- Versions carry a millisecond stamp and the device that made them, and the merge rule orders by those first (section 3), as bible-rs does.
+- Notes carry their history and conflict copies, and merge by section 3.1.
+- Apps may join a bible-rs Study Library as one more bible-rs device (section 2.2). bible-rs's bookmarks, plans and ticked passages are kept as `x-bible-rs-*` records.
+- bible-rs format 2 exports import with their stamps and conflict copies (section 2.1).
+
 ## Changes from 0.1
 
 - One merge rule (section 3) decides every conflict, on every device. Servers no longer decide by arrival order.
@@ -323,4 +386,3 @@ Losing the sync key and every passkey means losing access to the server copy. Th
 - Files have an optional header line.
 - Rules that protect people's data (section 6), and route.bible links (section 8).
 - Password-manager saving uses a real form submission that sends nothing (section 7.1). Saving from a link (section 7.4).
-- bible-rs format 2 exports import, using their stamps and keeping notes' conflict copies (section 2.1).

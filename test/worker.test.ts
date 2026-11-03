@@ -338,7 +338,7 @@ describe("the merge rule", () => {
     const keyText = await formatKey(newKey());
     const lib = await device(keyText);
     await lib.put(hl("GEN.1.1", "yellow"));
-    const before = lib.find("highlight", "GEN.1.1").updated;
+    const before = lib.find("highlight", "GEN.1.1").updated_ms;
     const realNow = Date.now;
     Date.now = () => realNow() - 86_400_000;
     try {
@@ -346,7 +346,7 @@ describe("the merge rule", () => {
     } finally {
       Date.now = realNow;
     }
-    expect(lib.find("highlight", "GEN.1.1").updated).toBe(before + 1);
+    expect(lib.find("highlight", "GEN.1.1").updated_ms).toBe(before + 1);
     expect(colors(lib)).toEqual({ "GEN.1.1": "blue" });
   });
 

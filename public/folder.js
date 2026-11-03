@@ -62,3 +62,56 @@ export function folderDir(handle) {
     },
   };
 }
+
+/** The folder as paths, in the shape `bibleRsTransport` takes (a bible-rs Study Library has subfolders). */
+export function folderTree(handle) {
+  const parts = (path) => path.split("/").filter(Boolean);
+  async function dir(names, create = false) {
+    let d = handle;
+    for (const name of names) d = await d.getDirectoryHandle(name, { create });
+    return d;
+  }
+  const missing = (e) => e?.name === "NotFoundError" || e?.name === "TypeMismatchError";
+  return {
+    async list(path) {
+      const out = [];
+      try {
+        for await (const [name, entry] of (await dir(parts(path))).entries()) {
+          if (entry.kind === "directory") out.push({ name, kind: "directory" });
+          else {
+            const file = await entry.getFile();
+            out.push({ name, kind: "file", stamp: `${file.size}-${file.lastModified}` });
+          }
+        }
+      } catch (e) {
+        if (!missing(e)) throw e;
+      }
+      return out;
+    },
+    async read(path) {
+      const names = parts(path);
+      try {
+        const file = await (await (await dir(names.slice(0, -1))).getFileHandle(names.at(-1))).getFile();
+        return await file.text();
+      } catch (e) {
+        if (missing(e)) return null;
+        throw e;
+      }
+    },
+    async write(path, text) {
+      const names = parts(path);
+      // createWritable writes to a temporary file and swaps it in on close.
+      const w = await (await (await dir(names.slice(0, -1), true)).getFileHandle(names.at(-1), { create: true })).createWritable();
+      await w.write(text);
+      await w.close();
+    },
+    async remove(path) {
+      const names = parts(path);
+      try {
+        await (await dir(names.slice(0, -1))).removeEntry(names.at(-1), { recursive: true });
+      } catch (e) {
+        if (!missing(e)) throw e;
+      }
+    },
+  };
+}

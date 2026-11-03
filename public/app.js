@@ -6,7 +6,8 @@ import { labelRef, compareRefs } from "./refs.js";
 import { readPassage } from "./passage.js";
 import { createPasskeyPrf, getPasskeyPrf, passkeysAvailable, cancelled } from "./passkey.js";
 import { activateOPButton, encodeOPSaveRequest } from "./vendor/onepassword-save-button.js";
-import { foldersAvailable, pickFolder, saveFolder, loadFolder, forgetFolder, mayUse, folderDir } from "./folder.js";
+import { foldersAvailable, pickFolder, saveFolder, loadFolder, forgetFolder, mayUse, folderDir, folderTree } from "./folder.js";
+import { bibleRsTransport, studyLibrary } from "./biblers.js";
 
 const $ = (sel) => document.querySelector(sel);
 const SESSION = "hidden-word:session";
@@ -81,7 +82,11 @@ async function connect() {
   folder = { handle: (await loadFolder(library.lib)) ?? null, state: "off" };
   if (folder.handle) {
     folder.state = (await mayUse(folder.handle)) ? "on" : "paused";
-    if (folder.state === "on") transports.push(folderTransport(folderDir(folder.handle)));
+    if (folder.state === "on") {
+      // A bible-rs Study Library: join it as one more bible-rs device (spec 2.2).
+      folder.bibleRs = Boolean(await studyLibrary(folderTree(folder.handle)).catch(() => null));
+      transports.push(folder.bibleRs ? bibleRsTransport(folderTree(folder.handle)) : folderTransport(folderDir(folder.handle)));
+    }
     else flash("Folder sync is paused until you allow it again in Sync.");
   }
   renderSync();
@@ -527,9 +532,10 @@ function renderSync() {
   $("#no-folders").hidden = can;
   $("#choose-folder").disabled = !can;
   $("#folder-text").textContent =
+    folder.state === "on" && folder.bibleRs ? `Syncing with the bible-rs Study Library “${folder.handle.name}”, as one more bible-rs device.` :
     folder.state === "on" ? `Syncing with “${folder.handle.name}”. Each device keeps a plain file there you can read.` :
     folder.state === "paused" ? `“${folder.handle.name}” needs your permission again.` :
-    "A folder in iCloud Drive, Dropbox or Syncthing. Each device keeps a plain file there you can read.";
+    "A folder in iCloud Drive, Dropbox or Syncthing. Each device keeps a plain file there you can read. Choose a bible-rs Study Library to sync with bible-rs.";
   $("#choose-folder").textContent = folder.state === "paused" ? "Allow" : folder.state === "on" ? "Change" : "Choose folder";
   $("#stop-folder").hidden = folder.state === "off";
 }

@@ -15,6 +15,12 @@ const PAD = 256;
 const BATCH = 100;
 const FORMAT = 2;
 const TIMEOUT_MS = 20_000;
+/** How far ahead of this device's clock a stamp may be and still move it (bible-rs's MAX_DRIFT_MS). */
+const MAX_DRIFT_MS = 24 * 3600 * 1000;
+/** Kinds that carry bible-rs records Hidden Word doesn't show (spec 2.2). */
+export const PLAN = "x-bible-rs-plan";
+export const PLAN_READ = "x-bible-rs-plan-read";
+export const BOOKMARK = "x-bible-rs-bookmark";
 
 export class KeyError extends Error {
   constructor() {
@@ -200,18 +206,149 @@ export function checkRecord(r) {
   return null;
 }
 
-/**
- * The merge rule: > 0 when version `a` beats `b`. The larger `updated` wins; on a tie, the JSON
- * text that sorts later as UTF-8 bytes. Every device, server and file compares the same way, so
- * they all keep the same version whatever order changes arrive in.
- */
-export function compareVersions(a, b) {
-  const d = (Number.isSafeInteger(a.updated) ? a.updated : 0) - (Number.isSafeInteger(b.updated) ? b.updated : 0);
-  if (d) return d;
-  const x = te.encode(a.text);
-  const y = te.encode(b.text);
+/** UTF-8 byte order, as Rust and the spec compare strings. */
+function compareBytes(a, b) {
+  const x = te.encode(a);
+  const y = te.encode(b);
   for (let i = 0; i < Math.min(x.length, y.length); i++) if (x[i] !== y[i]) return x[i] - y[i];
   return x.length - y.length;
+}
+
+/**
+ * A version's stamp (spec 3): when it changed, in Unix ms, and the device that changed it. A
+ * version without `updated_ms`, or whose `updated_ms` doesn't agree with `updated` (an older app
+ * edited it), counts as `updated` seconds from no device.
+ */
+export function stampOf(r) {
+  const updated = Number.isSafeInteger(r?.updated) ? r.updated : 0;
+  if (Number.isSafeInteger(r?.updated_ms) && Math.floor(r.updated_ms / 1000) === updated) {
+    return { updated_ms: r.updated_ms, device: typeof r.device === "string" ? r.device : "" };
+  }
+  return { updated_ms: updated * 1000, device: "" };
+}
+
+/** Stamps in order: the later time, then the device id that sorts later (as bible-rs orders them). */
+export const compareStamps = (a, b) => a.updated_ms - b.updated_ms || compareBytes(a.device, b.device);
+const sameStamp = (a, b) => a.updated_ms === b.updated_ms && a.device === b.device;
+
+/**
+ * The merge rule: > 0 when version `a` beats `b`. The later stamp wins (time in ms, then device
+ * id); on a tie, the JSON text that sorts later as UTF-8 bytes. Every device, server and file
+ * compares the same way, so they all keep the same version whatever order changes arrive in.
+ * Notes and bible-rs plans add to this (see `mergeNote` and `Library.offer`).
+ */
+export function compareVersions(a, b) {
+  return compareStamps(stampOf(a), stampOf(b)) || compareBytes(a.text, b.text);
+}
+
+// ---- notes edited on two devices (spec 3.1, bible-rs's merge_note)
+
+/** How many superseded versions a note remembers. */
+const NOTE_HISTORY = 32;
+
+/** A note's version: its stamp, whether it is live, what it was edited from and what else it supersedes. */
+function noteVersion(r) {
+  return {
+    stamp: stampOf(r),
+    live: !r.deleted,
+    base: { updated_ms: Number.isSafeInteger(r.base_updated) ? r.base_updated : 0, device: r.base_device ?? "" },
+    seen: (r.seen ?? []).map((t) => ({ updated_ms: t.updated_ms ?? 0, device: t.device ?? "" })),
+  };
+}
+
+const hasSeen = (v, t) => sameStamp(t, v.stamp) || (t.updated_ms !== 0 && sameStamp(t, v.base)) || v.seen.some((s) => sameStamp(s, t));
+
+function newestFirst(stamps) {
+  const out = [...stamps].sort((a, b) => compareStamps(b, a));
+  return out.filter((t, i) => i === 0 || !sameStamp(t, out[i - 1])).slice(0, NOTE_HISTORY);
+}
+
+const ancestors = (v) => newestFirst([v.base, ...v.seen].filter((t) => t.updated_ms !== 0));
+
+function absorb(v, others) {
+  const extra = [...others].filter((t) => t.updated_ms !== 0 && !sameStamp(t, v.stamp) && !sameStamp(t, v.base));
+  return { ...v, seen: newestFirst([...v.seen, ...extra]) };
+}
+
+/** The version an edit of `prev` makes, stamped `stamp`. */
+const edited = (prev, stamp, live) => absorb({ stamp, live, base: prev.stamp, seen: [] }, ancestors(prev));
+
+/** `version`'s history as a note record's fields. */
+function historyFields(v) {
+  const f = { base_updated: undefined, base_device: undefined, seen: undefined };
+  if (v.base.updated_ms) f.base_updated = v.base.updated_ms;
+  if (v.base.device) f.base_device = v.base.device;
+  if (v.seen.length) f.seen = v.seen;
+  return f;
+}
+
+/**
+ * bible-rs's merge_note, sync mode: of two versions of a note, the one that has seen the other wins;
+ * when each was edited without seeing the other, the later stamp wins and the losing text is kept
+ * as a conflict copy. Returns the pick ("local", "absorb": local with more history, "remote") with
+ * its version, and which side's text became a copy (true: local's).
+ */
+export function mergeNote(l, r, sameBody) {
+  if (!l) return { pick: "remote", version: r, copy: null };
+  if (sameStamp(l.stamp, r.stamp)) {
+    const v = absorb(l, ancestors(r));
+    return { pick: JSON.stringify(v.seen) === JSON.stringify(l.seen) ? "local" : "absorb", version: v, copy: null };
+  }
+  if (hasSeen(l, r.stamp)) return { pick: "local", version: l, copy: null };
+  if (hasSeen(r, l.stamp)) return { pick: "remote", version: absorb(r, ancestors(l)), copy: null };
+  const remoteWins = compareStamps(r.stamp, l.stamp) > 0;
+  const [winner, loser] = remoteWins ? [r, l] : [l, r];
+  const version = absorb(winner, [...ancestors(loser), loser.stamp]);
+  const copy = loser.live && !(winner.live && sameBody) ? remoteWins : null;
+  return { pick: remoteWins ? "remote" : "absorb", version, copy };
+}
+
+const copyStamp = (k) => ({ updated_ms: k.updated_ms ?? 0, device: k.device ?? "" });
+const sameCopies = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+
+/**
+ * Merges note `remote` into `local` (either may be a tombstone), copies included, as bible-rs's
+ * store does in sync mode. Returns the note to keep, or null to keep `local` as it is.
+ */
+export function mergeNoteRecords(local, remote, found = now()) {
+  const l = local ? noteVersion(local) : null;
+  const r = noteVersion(remote);
+  const localBody = local && !local.deleted ? (local.body ?? "") : "";
+  const remoteBody = remote.deleted ? "" : (remote.body ?? "");
+  const m = mergeNote(l, r, localBody === remoteBody);
+  const here = local?.conflicts ?? [];
+  const theirs = remote.conflicts ?? [];
+  const unseen = (by, copies) => copies.filter((k) => !hasSeen(by, copyStamp(k)));
+  const followsOn = !l || hasSeen(r, l.stamp);
+  let copies =
+    m.pick === "local" ? (l ? [...here, ...unseen(l, theirs)] : [...here]) :
+    m.pick === "remote" && followsOn ? [...theirs, ...unseen(r, here)] :
+    [...here, ...theirs];
+  const lost =
+    m.copy === true && local && !local.deleted ? { body: localBody, ...l.stamp, found } :
+    m.copy === false ? { body: remoteBody, ...r.stamp, found } : null;
+  if (lost) copies.push(lost);
+  copies = copies.map((k) => ({ body: k.body ?? "", updated_ms: k.updated_ms ?? 0, device: k.device ?? "", found: k.found ?? 0 }));
+  copies.sort((a, b) => compareStamps(a, b));
+  copies = copies.filter((k, i) => i === 0 || !sameStamp(k, copies[i - 1]));
+  const held = copies.map(copyStamp);
+  const copiesChanged = !sameCopies(copies, here.map((k) => ({ body: k.body ?? "", updated_ms: k.updated_ms ?? 0, device: k.device ?? "", found: k.found ?? 0 })));
+  let { pick, version } = m;
+  if (pick === "local") {
+    if (!l || !(copiesChanged || held.some((t) => !hasSeen(l, t)))) return null;
+    pick = "absorb";
+  }
+  version = absorb(version, held);
+  const conflicts = copies.length ? copies : undefined;
+  if (pick === "absorb") {
+    return { ...local, ...historyFields(version), conflicts };
+  }
+  const lc = local && !local.deleted ? local.created : undefined;
+  const rc = remote.created ?? 0;
+  const created = lc > 0 && (rc === 0 || lc < rc) ? lc : rc > 0 ? rc : found;
+  const out = { ...remote, ...historyFields(version), conflicts };
+  if (version.live) out.created = created;
+  return out;
 }
 
 /** The library's colors: the six built in (named, when the library names them), then its own. */
@@ -248,16 +385,16 @@ export function parseJsonl(text) {
 
 const seconds = (s) => (s ? Math.floor(Date.parse(s) / 1000) || undefined : undefined);
 
-/** Unix ms → whole seconds, or undefined. */
-const fromMs = (ms) => (Number.isSafeInteger(ms) && ms > 0 ? Math.floor(ms / 1000) : undefined);
-
-/** The later of two times, either of which may be missing. */
-const later = (a, b) => (a === undefined ? b : b === undefined ? a : Math.max(a, b));
+/** A format 2 entry's stamp as record fields, or nothing for format 1. */
+function stampFrom(e) {
+  if (!Number.isSafeInteger(e.updated_ms) || e.updated_ms <= 0) return null;
+  return { updated: Math.floor(e.updated_ms / 1000), updated_ms: e.updated_ms, device: typeof e.device === "string" ? e.device : "" };
+}
 
 /**
  * A bible-rs JSON export (format 1 or 2) → records. Its bookmarks have no Hidden Word kind and are
- * left out. Format 2's stamps (`updated_ms`) set `updated`, so a later export that removed a part
- * still wins; a note's conflict copies are kept in `x-bible-rs-conflicts`. Tombstones are ignored,
+ * left out. Format 2's stamps become the records' stamps (spec 3), so a later export whose verse
+ * lost a part still wins, and a note keeps its history and conflict copies. Tombstones are ignored,
  * as bible-rs's own import ignores them.
  */
 export function fromBibleRs(doc) {
@@ -270,21 +407,27 @@ export function fromBibleRs(doc) {
     if (h.end !== undefined && h.end !== null) part.end = h.end;
     if (h.quote) part.quote = h.quote;
     if (h.edited) part.edited = seconds(h.edited);
-    const v = verses.get(ref(h)) ?? { parts: [], stamp: undefined };
+    const v = verses.get(ref(h)) ?? { parts: [], stamp: null };
     v.parts.push(part);
-    v.stamp = later(v.stamp, fromMs(h.updated_ms));
+    const s = stampFrom(h);
+    if (s && (!v.stamp || compareStamps(s, v.stamp) > 0)) v.stamp = s;
     verses.set(ref(h), v);
   }
   const out = [];
   for (const [r, { parts: highlights, stamp }] of verses) {
-    const updated = later(stamp, Math.max(...highlights.map((h) => h.edited ?? h.created ?? 0)));
-    out.push({ kind: "highlight", ref: r, updated, highlights });
+    const updated = Math.max(...highlights.map((h) => h.edited ?? h.created ?? 0));
+    out.push({ kind: "highlight", ref: r, ...(stamp ?? { updated }), highlights });
   }
   for (const n of doc.notes ?? []) {
-    const note = { kind: "note", ref: ref(n), updated: later(seconds(n.updated), fromMs(n.updated_ms)), created: seconds(n.created), body: n.note };
+    const s = stampFrom(n);
+    const note = { kind: "note", ref: ref(n), ...(s ?? { updated: seconds(n.updated) }), created: seconds(n.created), body: n.note };
+    if (s && seconds(n.updated) !== s.updated) note["x-bible-rs-updated"] = seconds(n.updated);
+    if (s && n.base_updated) note.base_updated = n.base_updated;
+    if (s && n.base_device) note.base_device = n.base_device;
+    if (s && n.seen?.length) note.seen = n.seen.map((t) => ({ updated_ms: t.updated_ms ?? 0, device: t.device ?? "" }));
     const copies = (n.conflicts ?? []).filter((c) => typeof c?.body === "string");
     if (copies.length) {
-      note["x-bible-rs-conflicts"] = copies.map((c) => ({ body: c.body, updated: fromMs(c.updated_ms), device: c.device || undefined }));
+      note.conflicts = copies.map((c) => ({ body: c.body, updated_ms: c.updated_ms ?? 0, device: c.device ?? "", found: c.found ?? 0 }));
     }
     out.push(note);
   }
@@ -299,7 +442,7 @@ export function memoryStore() {
 }
 
 // items: id → { t: the record's JSON text, n: local change number, s: the transport it came from }
-const emptyState = () => ({ v: FORMAT, device: b64url(randomBytes(9)), n: 0, items: {}, remotes: {} });
+const emptyState = () => ({ v: FORMAT, device: b64url(randomBytes(9)), n: 0, clock: 0, items: {}, remotes: {} });
 
 export class Library {
   static async open({ keyText, name = "Personal", store = memoryStore(), transports = [] }) {
@@ -357,22 +500,41 @@ export class Library {
   }
 
   /**
-   * Saves edits on this device at once and syncs in the background. Each gets `updated` = now, or
-   * one second past the version it replaces when this device's clock is behind, so an edit always
-   * beats what it was made from.
+   * Saves edits on this device at once and syncs in the background. Each gets a stamp (spec 3): now
+   * in ms, but past every stamp this device has made or seen and past the version it replaces, so
+   * an edit always beats what it was made from. A note also records the version it was edited from.
    */
   async putMany(records) {
-    const t = now();
     for (const record of records) {
       const err = checkRecord(record);
       if (err) throw new Error(err);
       const id = await itemId(this.keys, record.kind, record.ref);
-      const updated = Math.max(t, (this.records.get(id)?.updated ?? 0) + 1);
-      const r = { ...record, updated };
+      const prev = this.records.get(id);
+      const ms = this.tick(prev ? stampOf(prev).updated_ms + 1 : 0);
+      const stamp = { updated_ms: ms, device: this.state.device };
+      let r = { ...record, updated: Math.floor(ms / 1000), ...stamp };
+      if (r.kind === "note") {
+        // bible-rs's own note time, read from its folder, is replaced by this edit's.
+        delete r["x-bible-rs-updated"];
+        const history = prev ? historyFields(edited(noteVersion(prev), stamp, !r.deleted)) : historyFields({ base: { updated_ms: 0, device: "" }, seen: [] });
+        r = { ...r, ...history };
+      }
       this.write(id, r, JSON.stringify(r), null);
     }
     this.emit();
     this.sync();
+  }
+
+  /** The next stamp's time (Unix ms): the wall clock, but never at or behind one given out or seen, or `atLeast`. */
+  tick(atLeast = 0) {
+    this.state.clock = Math.max(Date.now(), (this.state.clock ?? 0) + 1, atLeast);
+    return this.state.clock;
+  }
+
+  /** Moves the clock past a stamp seen, unless it is over a day ahead (a device set to the wrong year). */
+  observe(record) {
+    const t = stampOf(record).updated_ms;
+    if (t <= Date.now() + MAX_DRIFT_MS) this.state.clock = Math.max(this.state.clock ?? 0, t);
   }
 
   remove(kind, ref) {
@@ -399,13 +561,68 @@ export class Library {
     this.records.set(id, record);
   }
 
-  /** Keeps `record` if it beats this device's copy. "newer", "older" (this device's wins) or "same". */
+  /**
+   * Keeps `record` if it beats this device's copy. "newer", "older" (this device's wins) or "same".
+   * Notes merge by `mergeNoteRecords`, and bible-rs plans by `offerPlan`; a merge that changes this
+   * device's copy without taking the incoming one counts as an edit here, which goes out everywhere.
+   */
   async offer(record, text, source, id) {
     id ??= await itemId(this.keys, record.kind, record.ref);
+    this.observe(record);
     const mine = this.state.items[id];
-    const c = mine ? compareVersions({ updated: record.updated, text }, { updated: this.records.get(id).updated, text: mine.t }) : 1;
+    const local = this.records.get(id);
+    if (record.kind === "note" && local?.kind === "note") {
+      const merged = mergeNoteRecords(local, record);
+      if (!merged) return sameStamp(stampOf(local), stampOf(record)) ? "same" : "older";
+      const mergedText = JSON.stringify(merged);
+      const taken = sameStamp(stampOf(merged), stampOf(record));
+      this.write(id, merged, taken && sameCopies(merged, record) ? text : mergedText, taken && sameCopies(merged, record) ? source : null);
+      return taken ? "newer" : "older";
+    }
+    if (record.kind === PLAN && local?.kind === PLAN) return this.offerPlan(id, local, record, text, source);
+    if (record.kind === PLAN_READ) {
+      const plan = this.records.get(await itemId(this.keys, PLAN, record.plan));
+      if (stampOf(record).updated_ms < (plan?.reset_ms ?? 0)) return "same";
+    }
+    const c = mine ? compareVersions({ ...record, text }, { ...local, text: mine.t }) : 1;
     if (c > 0) this.write(id, record, text, source);
+    if (c > 0 && record.kind === PLAN) await this.planChanged(record, 0);
     return c > 0 ? "newer" : c < 0 ? "older" : "same";
+  }
+
+  /**
+   * A bible-rs plan (spec 2.2): the later stamp wins, but a restart (`reset_ms`) seen anywhere
+   * counts, and unticks what was ticked before it; a deleted plan unticks everything.
+   */
+  async offerPlan(id, local, record, text, source) {
+    const reset = Math.max(local.reset_ms ?? 0, record.reset_ms ?? 0);
+    if (compareStamps(stampOf(record), stampOf(local)) > 0) {
+      const r = reset === (record.reset_ms ?? 0) ? record : { ...record, reset_ms: reset };
+      this.write(id, r, r === record ? text : JSON.stringify(r), r === record ? source : null);
+      await this.planChanged(r, local.reset_ms ?? 0);
+      return "newer";
+    }
+    if (reset > (local.reset_ms ?? 0)) {
+      const r = { ...local, reset_ms: reset };
+      this.write(id, r, JSON.stringify(r), null);
+      await this.planChanged(r, local.reset_ms ?? 0);
+    }
+    return sameStamp(stampOf(record), stampOf(local)) ? "same" : "older";
+  }
+
+  /** After plan `plan` changed: unticks its passages ticked before a later restart, or all of them when it was deleted. */
+  async planChanged(plan, resetBefore) {
+    const reset = plan.reset_ms ?? 0;
+    if (!plan.deleted && reset <= resetBefore) return;
+    const reads = this.all(PLAN_READ).filter((r) => r.plan === plan.ref).sort((a, b) => a.day - b.day || a.passage - b.passage);
+    for (const read of reads) {
+      let stamp;
+      if (plan.deleted) stamp = stampOf(plan);
+      else if (stampOf(read).updated_ms < reset) stamp = { updated_ms: reset, device: this.state.device };
+      else continue;
+      const r = { ...read, deleted: true, updated: Math.floor(stamp.updated_ms / 1000), ...stamp };
+      this.write(await itemId(this.keys, PLAN_READ, read.ref), r, JSON.stringify(r), null);
+    }
   }
 
   /** One encrypted item from a server. Items that don't decrypt, or sit under the wrong id, are "bad". */
@@ -420,7 +637,8 @@ export class Library {
       return "bad";
     }
     const result = await this.offer(record, text, source, id);
-    if (result === "newer") this.blobs.set(id, { n: this.state.items[id].n, blob });
+    // Cache the server's blob only when this device kept it as it came.
+    if (result === "newer" && this.state.items[id].t === text) this.blobs.set(id, { n: this.state.items[id].n, blob });
     return result;
   }
 

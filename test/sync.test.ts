@@ -185,9 +185,11 @@ describe("records", () => {
     };
     const records = fromBibleRs(doc);
     expect(records).toEqual([
-      { kind: "highlight", ref: "JHN.3.16", updated: 1792497600, highlights: [{ color: "yellow", created: 1791979200 }] },
-      { kind: "note", ref: "JHN.3.17", updated: 1792584000, created: 1791979200, body: "mine",
-        "x-bible-rs-conflicts": [{ body: "theirs", updated: 1792584000, device: "d-phone" }] },
+      { kind: "highlight", ref: "JHN.3.16", updated: 1792497600, updated_ms: 1792497600123, device: "d-mac",
+        highlights: [{ color: "yellow", created: 1791979200 }] },
+      { kind: "note", ref: "JHN.3.17", updated: 1792584000, updated_ms: 1792584000999, device: "d-mac", created: 1791979200, body: "mine",
+        "x-bible-rs-updated": 1792065600, base_updated: 1792065600000, base_device: "d-mac",
+        conflicts: [{ body: "theirs", updated_ms: 1792584000500, device: "d-phone", found: 1792584001 }] },
     ]);
     for (const r of records) expect(checkRecord(r)).toBeNull();
     expect(JSON.stringify(records)).not.toContain("JHN.1.1"); // tombstones are ignored
