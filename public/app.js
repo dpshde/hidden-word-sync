@@ -122,31 +122,32 @@ $("#passkey-unlock").addEventListener("click", async () => {
   }
 });
 
+// The new key is shown as text, and the person pastes it into the form's password field.
+// Password managers (Safari, iOS, 1Password, Chrome) offer to save only a password the person
+// entered; one the page filled in by itself got no offer in testing, even with input events.
+// Pasting it also proves the key was copied before the screen goes away.
+let newKeyText = "";
+const sameKey = (text) => {
+  const norm = (t) => t.toUpperCase().replace(/[\s-]/g, "").replace(/O/g, "0").replace(/[IL]/g, "1");
+  return norm(text) === norm(newKeyText);
+};
+
 $("#create").addEventListener("click", async () => {
   const form = $("#save-form");
-  form.elements["new-password"].value = await formatKey(newKey());
-  form.elements["new-password"].type = "password";
-  $("#reveal").textContent = "Show";
+  newKeyText = await formatKey(newKey());
+  $("#new-key").textContent = newKeyText;
+  form.elements["new-password"].value = "";
+  errorIn(form, "");
   opClosing?.disconnect();
   opClosing = null;
-  // Password managers such as 1Password only save what they saw entered; a value set by script
-  // raises no events, so announce it as if it were typed.
-  for (const input of [form.elements["new-username"], form.elements["new-password"]]) {
-    input.dispatchEvent(new Event("input", { bubbles: true }));
-    input.dispatchEvent(new Event("change", { bubbles: true }));
-  }
   show("created");
   offerOnePassword();
 });
 
-$("#reveal").addEventListener("click", () => {
-  const input = $("#save-form").elements["new-password"];
-  input.type = input.type === "password" ? "text" : "password";
-  $("#reveal").textContent = input.type === "password" ? "Show" : "Hide";
-});
+$("#new-password").addEventListener("input", () => errorIn($("#save-form"), ""));
 
 $("#copy").addEventListener("click", async () => {
-  await navigator.clipboard.writeText($("#save-form").elements["new-password"].value);
+  await navigator.clipboard.writeText(newKeyText);
   $("#copy").textContent = "Copied";
   setTimeout(() => ($("#copy").textContent = "Copy"), 1500);
 });
@@ -165,7 +166,7 @@ function opSaveRequest() {
     title: `Hidden Word: ${name}`,
     fields: [
       { autocomplete: "username", value: name },
-      { autocomplete: "new-password", value: form.elements["new-password"].value },
+      { autocomplete: "new-password", value: newKeyText },
     ],
     // No url field: 1Password sets the item's website from this page itself (its docs say item URLs
     // are determined by 1Password). A url entry only became a stray custom field.
@@ -227,7 +228,10 @@ function continueWhenOnePasswordCloses() {
   const go = () => {
     if (open()) return;
     stop();
-    if (!$("#created").hidden) setTimeout(() => $("#save-form").requestSubmit(), 1000);
+    if ($("#created").hidden) return;
+    // 1Password's button already saved the key, so there's nothing left to paste.
+    $("#save-form").elements["new-password"].value = newKeyText;
+    setTimeout(() => $("#save-form").requestSubmit(), 1000);
   };
   opClosing.observe(document.documentElement, { childList: true, subtree: true });
 }
@@ -245,8 +249,12 @@ $("#new-username").addEventListener("input", () => {
 // the key never leaves the device.
 $("#save-form").addEventListener("submit", (e) => {
   const form = e.target;
+  if (!sameKey(form.elements["new-password"].value)) {
+    e.preventDefault();
+    return errorIn(form, "That isn't the key above. Copy it and paste it here.");
+  }
   const name = form.elements["new-username"].value.trim() || "Personal";
-  localStorage.setItem(SESSION, JSON.stringify({ key: form.elements["new-password"].value, name }));
+  localStorage.setItem(SESSION, JSON.stringify({ key: newKeyText, name }));
   sessionStorage.setItem(CREATED, "1");
 });
 $("#save-form").addEventListener("formdata", (e) => {

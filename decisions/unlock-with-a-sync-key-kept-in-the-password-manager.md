@@ -40,3 +40,7 @@ Creating a library now offers a passkey in the same step. With the key saved (by
 ## Update 2026-11-02, passkey after creation
 
 Offering the passkey before submitting broke saving on iPhone. iOS (and the 1Password AutoFill provider it hands to) only offers to save a password when the form is submitted straight from the person's tap. Continue started the passkey prompt and submitted the form afterwards by script, so iOS treated the submission as the page's, not the person's, and never asked. Now Continue only submits the form, so the save prompt can appear, and the library screen that loads next shows an optional "Add a passkey" button with "Not now" beside it. It uses the same code as "Add passkey" in the menu, and it shows only right after creating a library in a browser that supports passkeys. The passkey costs one more tap, which is the price of the key being saved reliably.
+
+## Update, 2026-11-03: the person pastes the key
+
+Even with a real submission straight from the Continue tap, Safari and 1Password offered no save on the live site. What was left was that the page itself put the key in the password field. Now the new key is shown as text with Copy, the password field starts empty, and the person pastes the key into it before Continue; a key that doesn't match is refused. Closing 1Password's save-button dialog still counts as Continue, filling the field itself since 1Password already has the key.
