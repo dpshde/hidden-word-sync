@@ -124,14 +124,14 @@ $("#passkey-unlock").addEventListener("click", async () => {
 
 $("#create").addEventListener("click", async () => {
   const form = $("#save-form");
-  form.password.value = await formatKey(newKey());
-  form.password.type = "password";
+  form.elements["new-password"].value = await formatKey(newKey());
+  form.elements["new-password"].type = "password";
   $("#reveal").textContent = "Show";
   opClosing?.disconnect();
   opClosing = null;
   // Password managers such as 1Password only save what they saw entered; a value set by script
   // raises no events, so announce it as if it were typed.
-  for (const input of [form.username, form.password]) {
+  for (const input of [form.elements["new-username"], form.elements["new-password"]]) {
     input.dispatchEvent(new Event("input", { bubbles: true }));
     input.dispatchEvent(new Event("change", { bubbles: true }));
   }
@@ -140,13 +140,13 @@ $("#create").addEventListener("click", async () => {
 });
 
 $("#reveal").addEventListener("click", () => {
-  const input = $("#save-form").password;
+  const input = $("#save-form").elements["new-password"];
   input.type = input.type === "password" ? "text" : "password";
   $("#reveal").textContent = input.type === "password" ? "Show" : "Hide";
 });
 
 $("#copy").addEventListener("click", async () => {
-  await navigator.clipboard.writeText($("#save-form").password.value);
+  await navigator.clipboard.writeText($("#save-form").elements["new-password"].value);
   $("#copy").textContent = "Copied";
   setTimeout(() => ($("#copy").textContent = "Copy"), 1500);
 });
@@ -160,12 +160,12 @@ let opTimer = 0;
 
 function opSaveRequest() {
   const form = $("#save-form");
-  const name = form.username.value.trim() || "Personal";
+  const name = form.elements["new-username"].value.trim() || "Personal";
   return encodeOPSaveRequest({
     title: `Hidden Word: ${name}`,
     fields: [
       { autocomplete: "username", value: name },
-      { autocomplete: "new-password", value: form.password.value },
+      { autocomplete: "new-password", value: form.elements["new-password"].value },
     ],
     // No url field: 1Password sets the item's website from this page itself (its docs say item URLs
     // are determined by 1Password). A url entry only became a stray custom field.
@@ -245,8 +245,8 @@ $("#new-username").addEventListener("input", () => {
 // the key never leaves the device.
 $("#save-form").addEventListener("submit", (e) => {
   const form = e.target;
-  const name = form.username.value.trim() || "Personal";
-  localStorage.setItem(SESSION, JSON.stringify({ key: form.password.value, name }));
+  const name = form.elements["new-username"].value.trim() || "Personal";
+  localStorage.setItem(SESSION, JSON.stringify({ key: form.elements["new-password"].value, name }));
   sessionStorage.setItem(CREATED, "1");
 });
 $("#save-form").addEventListener("formdata", (e) => {

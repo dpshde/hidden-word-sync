@@ -16,8 +16,8 @@
     <p class="note" id="start-note" role="status" hidden></p>
 
     <form id="unlock-form" autocomplete="on">
-      <label>Library <input id="username" name="username" autocomplete="username" value="Personal" required></label>
-      <label>Sync key <input id="password" name="password" type="password" autocomplete="current-password" placeholder="XXXX-XXXX-…" required spellcheck="false" autocapitalize="characters"></label>
+      <label for="username">Library <input id="username" name="username" autocomplete="username" value="Personal" required></label>
+      <label for="password">Sync key <input id="password" name="password" type="password" autocomplete="current-password" placeholder="XXXX-XXXX-…" required spellcheck="false" autocapitalize="characters"></label>
       <button type="submit">Unlock</button>
       <p class="error" role="alert"></p>
     </form>
@@ -33,8 +33,8 @@
     <h1>Save your sync key</h1>
     <p class="lede">It's the only way into this library, and nobody can reset it. Save it in your password manager now.</p>
     <form id="save-form" method="get" action="/" autocomplete="on">
-      <label>Library <input id="new-username" name="username" autocomplete="username" value="Personal" required></label>
-      <label>Sync key <input id="new-password" name="password" type="password" autocomplete="new-password" required spellcheck="false"></label>
+      <label for="new-username">Library <input id="new-username" name="new-username" autocomplete="username" value="Personal" required></label>
+      <label for="new-password">Sync key <input id="new-password" name="new-password" type="password" autocomplete="new-password" required spellcheck="false" autocapitalize="characters" minlength="28" maxlength="34" passwordrules="required: upper; required: digit; allowed: [-];"></label>
       <div class="row">
         <button type="button" class="quiet" id="reveal">Show</button>
         <button type="button" class="quiet" id="copy">Copy</button>
