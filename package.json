@@ -11,7 +11,8 @@
     "check": "tsrs --noEmit -p tsconfig.json",
     "check:tsc": "tsc --noEmit",
     "vectors": "bun scripts/vectors.ts",
-    "vendor": "bun scripts/vendor.js"
+    "vendor": "bun scripts/vendor.js",
+    "conformance": "bun scripts/conformance.ts"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20250927.0",

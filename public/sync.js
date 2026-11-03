@@ -1,4 +1,4 @@
-// Hidden Word reference client (spec v0.2). Needs only WebCrypto and fetch, so it runs in browsers,
+// Hidden Word reference client (spec v1.0). Needs only WebCrypto and fetch, so it runs in browsers,
 // Bun, Node 20+, Deno and Workers.
 import { splitRef } from "./refs.js";
 
@@ -508,7 +508,15 @@ export class Library {
   }
 }
 
-// ---- syncing through a server (spec section 3)
+// ---- syncing through a server (spec section 5.6)
+
+/**
+ * Whether a server's answer shows it lost data since `seen` (the epoch and latest seq remembered):
+ * a different epoch, or a seq lower than the latest seen. Then the client refills it (5.6, step 3).
+ */
+export function serverLostData(seen, answer) {
+  return (seen.epoch !== null && answer.epoch !== seen.epoch) || (answer.seq !== undefined && answer.seq < seen.seq);
+}
 
 /** A Hidden Word server. `url` "" means the site this page came from. */
 export function serverTransport({ url = "", fetch: f } = {}) {
@@ -528,8 +536,7 @@ export function serverTransport({ url = "", fetch: f } = {}) {
 
   // The server lost data (it's a new library, or older than what we've seen): start over and
   // send it everything we have.
-  const lost = (r, answer) =>
-    (r.epoch !== null && answer.epoch !== r.epoch) || (answer.seq !== undefined && answer.seq < r.seq);
+  const lost = serverLostData;
   const restart = (r, answer) => Object.assign(r, { cursor: 0, seq: 0, epoch: answer.epoch, sent: 0, all: true, redo: [] });
 
   /** Sends what the server hasn't got. False when the server lost data and must be refilled. */
