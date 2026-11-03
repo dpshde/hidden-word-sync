@@ -172,5 +172,6 @@ describe("browser error reports", () => {
     err.stack = `TypeError: bad\n    at render (${ORIGIN}/app.js:10:5)\n    at https://cdn.other.test/lib.js:1:2`;
     const report = reportFor({ kind: "error", error: err, filename: `${ORIGIN}/app.js?v=1`, lineno: 10, colno: 5 }, { origin: ORIGIN, pathname: "/" });
     expect(report).toEqual({ kind: "error", name: "TypeError", message: "bad '…'", source: "/app.js", line: 10, col: 5, stack: "/app.js:10:5 external:1:2", page: "/" });
+    expect(reportFor({ kind: "error", message: "x", filename: "undefined" }, { origin: ORIGIN, pathname: "/" }).source).toBe("");
   });
 });

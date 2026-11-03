@@ -34,6 +34,7 @@ export function scrub(text, max = FIELD) {
 function sitePath(url, origin) {
   if (!url) return "";
   if (url === "external") return url;
+  if (!/^(https?:\/\/|\/)/.test(url)) return "";
   try {
     const u = new URL(url, origin);
     return u.origin === origin ? u.pathname : "external";
