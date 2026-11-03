@@ -295,6 +295,8 @@ A reference is enough to link to a passage; records don't store links. To open a
 
 A server learns how many items each library has, when they change, from which IP addresses, and each blob's size in 256-byte steps. It does not learn verses, colors, notes, names or keys. It can delete or withhold items, or serve old versions; section 5.6 repairs the latter, and section 6 makes sure the former never costs a device its copy.
 
+A server that also answers for an assistant with the sync key, like the reference Worker's MCP endpoint (`/mcp`), reads that library while it answers. That is the person's choice, made by giving an app the key; plain server sync never sends it.
+
 Losing the sync key and every passkey means losing access to the server copy. The files on a device or in a sync folder are still readable without it.
 
 ## 10. Test vectors

@@ -1,6 +1,8 @@
 // Hidden Word server (spec v0.2): a blind store of encrypted blobs. It never sees verses, notes,
 // names or keys, only random-looking ids, ciphertext, and SHA-256 hashes of bearer tokens.
 
+import { mcp } from "./mcp/index";
+
 export interface Env {
   DB: D1Database;
   ASSETS?: Fetcher;
@@ -66,6 +68,9 @@ export async function handle(request: Request, env: Env): Promise<Response> {
   if (url.pathname === "/config.json" && (request.method === "GET" || request.method === "HEAD")) {
     return json({ yvpPublicAppKey: env.YVP_PUBLIC_APP_KEY || null });
   }
+  // The MCP server (src/mcp/): it opens a library with the caller's sync key and syncs through the
+  // routes below, called directly rather than over the network.
+  if (url.pathname === "/mcp") return mcp(request, (r) => handle(r, env));
   const parts = url.pathname.split("/");
   if (parts[1] !== "v1") return fail(404, "not found");
   if (request.method === "OPTIONS") return empty();

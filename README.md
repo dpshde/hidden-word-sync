@@ -6,8 +6,26 @@ Bible highlights that follow you between apps and devices. Your library lives on
 - [decisions/](decisions/README.md): why it is built this way, one architecture decision record per choice.
 - `public/sync.js`: the reference client. Plain JavaScript with WebCrypto and `fetch`, no dependencies, so it runs in browsers, Bun, Node 20+, Deno and Workers. It merges records, syncs through servers (`serverTransport`) and folders (`folderTransport`), and writes library files.
 - `public/passage.js`: reads what people type or paste ("jn 3.16", "Psalm 23", a bible.com link) with [grab-bcv](https://github.com/dpshde/grab-bcv), bundled into `public/vendor/` by `bun run vendor`. The add field is [scripture-inline](https://github.com/cameronapak/scripture-inline)'s `<si-passage-input>` by Cameron Pak (MIT), which suggests books, chapters, verses and ranges as you type; it is bundled into `public/vendor/` the same way, so the app loads nothing from a CDN. `public/refs.js` labels and sorts canonical references (`JHN.3.16`).
+- `src/mcp/`: an [MCP](https://modelcontextprotocol.io) server at `/mcp`, so AI assistants can read and change a library (see "Connect an AI assistant" below).
 - `src/worker.ts`: the server, a Cloudflare Worker with D1. It also serves `/config.json` with the YouVersion app key from the `YVP_PUBLIC_APP_KEY` secret, so the key stays out of this repo.
 - `public/`: a minimal web app: unlock with a passkey where the browser has them, or with the sync key; create a library (and save its key to your password manager, then optionally add a passkey), unlock it, rename it in place, add highlights (tap a row to open it in route.bible, or its book icon to read it in the BSB from YouVersion, via scripture-inline's `<si-passage>`), recolor and delete them, name colors or add your own, choose how it syncs (and erase it) on the Sync screen, export and import (including bible-rs exports), and log out. The library's name is this device's label for it: it is kept in localStorage and not synced. `/unlock` lets other apps ask for a library, and `/save?ref=John+3:16&color=blue` saves a verse from any link.
+
+## Connect an AI assistant (MCP)
+
+The Worker serves a remote MCP server (Streamable HTTP) at `https://hidden-word.dpshade.workers.dev/mcp`. It opens your library with your sync key, sent on every request as `Authorization: Bearer <sync key>` (or `X-Hidden-Word-Key: <sync key>`). Tools: `list_highlights`, `find_highlights`, `add_highlight`, `set_highlight_color`, `delete_highlight`, `list_colors`, `get_library_info`, `get_passage_link`. Changes reach your other devices on their next sync.
+
+```json
+{
+  "mcpServers": {
+    "hidden-word": {
+      "url": "https://hidden-word.dpshade.workers.dev/mcp",
+      "headers": { "Authorization": "Bearer XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX" }
+    }
+  }
+}
+```
+
+The tradeoff: server sync never shows the server your key, but the MCP server has to decrypt your library to answer, so your key reaches the Worker, in memory, for each request. It isn't stored, logged or sent back, and the code is in `src/mcp/`. Your assistant's config file holds the key, so treat it like the key itself. See [the decision record](decisions/serve-an-mcp-server-that-opens-a-library-with-its-sync-key.md).
 
 ## Develop
 
