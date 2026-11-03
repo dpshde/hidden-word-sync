@@ -336,7 +336,7 @@ This is version 1.0. Every 1.x version keeps these working the same way:
 
 **Compatible** changes may come in any 1.x version: new optional fields in records, headers or responses; new record kinds; new routes; new optional query parameters whose absence keeps today's behavior; and clarifications. So implementations MUST ignore response fields they don't know, and MUST keep record fields and kinds they don't know (section 1) and write them back unchanged.
 
-**Deprecation.** A feature to be removed is first marked deprecated here, in a 1.x version, and keeps working for the rest of 1.x. It's removed only in 2.0. A server that adds `/v2` SHOULD keep serving `/v1` for at least a year after.
+**Deprecation.** A feature to be removed is first marked deprecated here, in a 1.x version, and keeps working for the rest of 1.x. It's removed only in 2.0.
 
 Not covered: the reference web app's screens and storage, and the reference Worker's extras (`/mcp`, `/config.json`, `/api/client-error`).
 
