@@ -117,11 +117,14 @@ When importing a file, each record is merged into the library by the rule in sec
 
 ### 2.1 bible-rs exports
 
-Apps MAY import a bible-rs export (JSON with `"app": "bible-rs"` and `"format": 1`):
+Apps MAY import a bible-rs export (JSON with `"app": "bible-rs"` and `"format"` 1 or 2):
 
-- Each entry of `highlights` (`book`, `chapter`, `verse`, `color`, `start`, `end`, `quote`, `created`, `edited`) becomes a part of the highlight record for `BOOK.chapter.verse`, with RFC 3339 times converted to Unix seconds. `updated` is the latest `edited` or `created` among its parts.
-- Each entry of `notes` becomes a `note` record with `body` set to its `note`.
+- Each entry of `highlights` (`book`, `chapter`, `verse`, `color`, `start`, `end`, `quote`, `created`, `edited`) becomes a part of the highlight record for `BOOK.chapter.verse`, with RFC 3339 times converted to Unix seconds. `updated` is the latest `edited` or `created` among its parts, or the verse's `updated_ms` (format 2, Unix ms, rounded down to seconds) when that is later. The stamp matters: a verse whose part was removed in bible-rs has no later `edited` or `created`, only a later stamp.
+- Each entry of `notes` becomes a `note` record with `body` set to its `note`. `updated` is the later of `updated` and `updated_ms`. A note's `conflicts` (format 2: versions that lost to it in bible-rs) are kept as `x-bible-rs-conflicts`, a list of `{body, updated, device}`, so the losing text isn't dropped.
 - `bookmarks` have no equivalent and are left out.
+- Format 2's other additions are ignored: `device`, `base_updated`, `base_device` and `seen` (bible-rs's own merge bookkeeping), `history` and `plans`, and the `deleted` tombstones (bible-rs's own import ignores them too).
+
+bible-rs's Study Library folder (`library.json` with `"app": "bible-rs study library"`, `changes/<device>/`, `snapshots/`) is not a Hidden Word folder, and apps don't read or write it.
 
 ## 3. Merging
 
@@ -320,3 +323,4 @@ Losing the sync key and every passkey means losing access to the server copy. Th
 - Files have an optional header line.
 - Rules that protect people's data (section 6), and route.bible links (section 8).
 - Password-manager saving uses a real form submission that sends nothing (section 7.1). Saving from a link (section 7.4).
+- bible-rs format 2 exports import, using their stamps and keeping notes' conflict copies (section 2.1).

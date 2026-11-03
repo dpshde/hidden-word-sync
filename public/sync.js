@@ -248,7 +248,18 @@ export function parseJsonl(text) {
 
 const seconds = (s) => (s ? Math.floor(Date.parse(s) / 1000) || undefined : undefined);
 
-/** A bible-rs JSON export (format 1) → records. Its bookmarks have no Hidden Word kind and are left out. */
+/** Unix ms → whole seconds, or undefined. */
+const fromMs = (ms) => (Number.isSafeInteger(ms) && ms > 0 ? Math.floor(ms / 1000) : undefined);
+
+/** The later of two times, either of which may be missing. */
+const later = (a, b) => (a === undefined ? b : b === undefined ? a : Math.max(a, b));
+
+/**
+ * A bible-rs JSON export (format 1 or 2) → records. Its bookmarks have no Hidden Word kind and are
+ * left out. Format 2's stamps (`updated_ms`) set `updated`, so a later export that removed a part
+ * still wins; a note's conflict copies are kept in `x-bible-rs-conflicts`. Tombstones are ignored,
+ * as bible-rs's own import ignores them.
+ */
 export function fromBibleRs(doc) {
   if (doc?.app !== "bible-rs") throw new Error("not a bible-rs export");
   const ref = (e) => `${e.book}.${e.chapter}.${e.verse}`;
@@ -259,17 +270,23 @@ export function fromBibleRs(doc) {
     if (h.end !== undefined && h.end !== null) part.end = h.end;
     if (h.quote) part.quote = h.quote;
     if (h.edited) part.edited = seconds(h.edited);
-    const parts = verses.get(ref(h)) ?? [];
-    parts.push(part);
-    verses.set(ref(h), parts);
+    const v = verses.get(ref(h)) ?? { parts: [], stamp: undefined };
+    v.parts.push(part);
+    v.stamp = later(v.stamp, fromMs(h.updated_ms));
+    verses.set(ref(h), v);
   }
   const out = [];
-  for (const [r, highlights] of verses) {
-    const updated = Math.max(...highlights.map((h) => h.edited ?? h.created ?? 0));
+  for (const [r, { parts: highlights, stamp }] of verses) {
+    const updated = later(stamp, Math.max(...highlights.map((h) => h.edited ?? h.created ?? 0)));
     out.push({ kind: "highlight", ref: r, updated, highlights });
   }
   for (const n of doc.notes ?? []) {
-    out.push({ kind: "note", ref: ref(n), updated: seconds(n.updated), created: seconds(n.created), body: n.note });
+    const note = { kind: "note", ref: ref(n), updated: later(seconds(n.updated), fromMs(n.updated_ms)), created: seconds(n.created), body: n.note };
+    const copies = (n.conflicts ?? []).filter((c) => typeof c?.body === "string");
+    if (copies.length) {
+      note["x-bible-rs-conflicts"] = copies.map((c) => ({ body: c.body, updated: fromMs(c.updated_ms), device: c.device || undefined }));
+    }
+    out.push(note);
   }
   return out;
 }
