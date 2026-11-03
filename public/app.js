@@ -342,8 +342,9 @@ function renderFilters(counts) {
 }
 
 const ICONS = {
-  more: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>',
+  edit: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.17 6.81a1 1 0 0 0-3.98-3.98L3.84 16.17a2 2 0 0 0-.5.83l-1.32 4.35a.5.5 0 0 0 .62.62l4.35-1.32a2 2 0 0 0 .83-.5z"/><path d="m15 5 4 4"/></svg>',
   text: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>',
+  trash: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
 };
 
 function iconButton(tag, icon, label) {
@@ -385,19 +386,44 @@ function row({ ref: runRef, records }) {
   quote.textContent = records.flatMap((r) => r.highlights.map((h) => h.quote)).filter(Boolean).join(" … ");
   link.append(ref, quote);
 
-  // Two icons, as one compact group (see .actions in style.css): the verse text, and ••• for the rest.
-  const more = iconButton("button", "more", `More for ${labelRef(runRef)}`);
-  more.classList.add("more");
-  more.setAttribute("aria-haspopup", "menu");
-  const actions = document.createElement("span");
-  actions.className = "actions";
-  if (verseText.key) actions.append(textButton(li, runRef));
-  actions.append(more);
-
   const line = document.createElement("div");
   line.className = "row";
+
+  const edit = iconButton("button", "edit", `Edit ${labelRef(runRef)}`);
+  edit.classList.add("edit");
+  edit.addEventListener("click", () => editRow(li, line, { ref: runRef, records }));
+
+  // Two taps to delete: the first turns the trash into a "Delete" confirm, which resets after a moment.
+  const del = iconButton("button", "trash", `Delete ${labelRef(runRef)}`);
+  del.classList.add("trash");
+  let reset;
+  const disarm = () => {
+    clearTimeout(reset);
+    delete del.dataset.confirm;
+    del.innerHTML = ICONS.trash;
+    del.setAttribute("aria-label", `Delete ${labelRef(runRef)}`);
+  };
+  del.addEventListener("click", () => {
+    if (del.dataset.confirm) {
+      disarm();
+      library.putMany(records.map((r) => ({ kind: "highlight", ref: r.ref, deleted: true })));
+      return;
+    }
+    del.dataset.confirm = "1";
+    del.textContent = "Delete";
+    del.setAttribute("aria-label", `Confirm delete ${labelRef(runRef)}`);
+    reset = setTimeout(disarm, 4000);
+  });
+  del.addEventListener("blur", disarm);
+
+  // Three icons as one compact group (see .actions in style.css). They sit above the row's link, so
+  // tapping one never opens route.bible.
+  const actions = document.createElement("span");
+  actions.className = "actions";
+  actions.append(edit);
+  if (verseText.key) actions.append(textButton(li, runRef));
+  actions.append(del);
   line.append(dot, link, actions);
-  more.addEventListener("click", () => openRowMenu(more, li, line, { ref: runRef, records }));
   li.append(line);
   if (verseText.open === runRef) showText(li, runRef);
   return li;
@@ -529,57 +555,6 @@ function placePopover(pop, anchor, { alignEnd = false } = {}) {
   const below = a.bottom + 6;
   pop.style.left = `${left}px`;
   pop.style.top = `${below + h > innerHeight - 8 ? a.top - h - 6 : below}px`;
-}
-
-/**
- * The shared ••• popover for a row: Edit reference, and Delete. Delete takes two taps: the first arms it
- * (it turns solid red and asks again), which resets after a moment. A popover closes on an outside press
- * and on Escape by itself.
- */
-function openRowMenu(anchor, li, line, run) {
-  const pop = $("#row-pop");
-  const label = labelRef(run.ref);
-  const item = (text, className = "") => {
-    const b = document.createElement("button");
-    b.type = "button";
-    b.className = className;
-    b.setAttribute("role", "menuitem");
-    b.textContent = text;
-    return b;
-  };
-  const edit = item("Edit reference");
-  edit.addEventListener("click", () => {
-    pop.hidePopover();
-    editRow(li, line, run);
-  });
-  const del = item("Delete", "danger");
-  del.setAttribute("aria-label", `Delete ${label}`);
-  let reset;
-  const disarm = () => {
-    clearTimeout(reset);
-    delete del.dataset.confirm;
-    del.textContent = "Delete";
-    del.setAttribute("aria-label", `Delete ${label}`);
-  };
-  del.addEventListener("click", () => {
-    if (del.dataset.confirm) {
-      disarm();
-      pop.hidePopover();
-      library.putMany(run.records.map((r) => ({ kind: "highlight", ref: r.ref, deleted: true })));
-      return;
-    }
-    del.dataset.confirm = "1";
-    del.textContent = "Tap again to delete";
-    del.setAttribute("aria-label", `Confirm delete ${label}`);
-    reset = setTimeout(disarm, 4000);
-  });
-  pop.replaceChildren(edit, del);
-  pop.ontoggle = (e) => {
-    anchor.setAttribute("aria-expanded", String(e.newState === "open"));
-    if (e.newState === "closed") clearTimeout(reset);
-  };
-  placePopover(pop, anchor, { alignEnd: true });
-  edit.focus();
 }
 
 /** The shared color popover, anchored under the dot that opened it. Picking a color recolors the whole run. */
