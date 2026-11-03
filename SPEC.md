@@ -193,7 +193,7 @@ All bodies are JSON. Every route needs `Authorization: Bearer <token>`. Servers 
 {"items":[{"seq":41,"id":"cq_pOilWI_5HRaH6ll9W2d","blob":"AAEC…"}],"more":false,"seq":57,"epoch":"9c1f0e…"}
 ```
 
-When `more` is true, ask again with `after` set to the last item's `seq`. `seq` is the library's latest sequence number. `epoch` is a random id the server chose when the library was first written, or `null` when the server has no such library.
+An optional `limit` (1–500, default 500) caps the page for clients with small memory, such as watches. Servers clamp it to that range and treat a value that isn't a number as 500. When `more` is true, ask again with `after` set to the last item's `seq`. `seq` is the library's latest sequence number. `epoch` is a random id the server chose when the library was first written, or `null` when the server has no such library.
 
 **`POST /v1/lib/{lib}`** with `{"items":[{"id":…,"blob":…}]}`, 1 to 100 items, returns `{"seq": n, "epoch": "…"}`.
 

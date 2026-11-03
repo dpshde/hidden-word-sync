@@ -78,13 +78,21 @@ export async function handle(request: Request, env: Env): Promise<Response> {
   return fail(404, "not found");
 }
 
+/** `?limit=` for a page of items: clamped to 1..pageSize; missing or not a number means pageSize. */
+export function pageLimit(text: string | null): number {
+  const n = text === null || text.trim() === "" ? NaN : Math.trunc(Number(text));
+  return Number.isFinite(n) ? Math.min(Math.max(n, 1), LIMITS.pageSize) : LIMITS.pageSize;
+}
+
 // Each route is one D1 batch: one round trip to the database, run as one transaction.
 
 async function library(request: Request, db: D1Database, lib: string, tokenHash: string): Promise<Response> {
   switch (request.method) {
     case "GET": {
-      const after = Number(new URL(request.url).searchParams.get("after") ?? "0");
+      const query = new URL(request.url).searchParams;
+      const after = Number(query.get("after") ?? "0");
       if (!Number.isSafeInteger(after) || after < 0) return fail(400, "after must be a non-negative integer");
+      const limit = pageLimit(query.get("limit"));
       const [libs, items] = await db.batch([
         db.prepare("SELECT auth_hash, seq, epoch FROM libs WHERE lib = ?").bind(lib),
         // Only for the right token: a wrong one never reads a blob.
@@ -93,13 +101,13 @@ async function library(request: Request, db: D1Database, lib: string, tokenHash:
             `SELECT seq, id, blob FROM items WHERE lib = ?1 AND seq > ?2
              AND EXISTS (SELECT 1 FROM libs WHERE lib = ?1 AND auth_hash = ?3) ORDER BY seq LIMIT ?4`,
           )
-          .bind(lib, after, tokenHash, LIMITS.pageSize + 1),
+          .bind(lib, after, tokenHash, limit + 1),
       ]);
       const row = libs.results[0] as { auth_hash: string; seq: number; epoch: string } | undefined;
       if (!row) return json({ items: [], more: false, seq: 0, epoch: null });
       if (row.auth_hash !== tokenHash) return fail(401, "wrong token for this library");
       const results = items.results as Item[];
-      return json({ items: results.slice(0, LIMITS.pageSize), more: results.length > LIMITS.pageSize, seq: row.seq, epoch: row.epoch });
+      return json({ items: results.slice(0, limit), more: results.length > limit, seq: row.seq, epoch: row.epoch });
     }
     case "POST":
       return post(request, db, lib, tokenHash);

@@ -1,7 +1,7 @@
 import { Database } from "bun:sqlite";
 import { describe, expect, test } from "bun:test";
 import { readFileSync, readdirSync } from "node:fs";
-import { LIMITS, handle } from "../src/worker";
+import { LIMITS, handle, pageLimit } from "../src/worker";
 import {
   Library, deriveKeys, encryptRecord, folderTransport, formatKey, memoryDir, memoryStore, newKey, openSlot, parseKey,
   saveSlot, serverTransport, slotKeys,
@@ -132,6 +132,26 @@ describe("server", () => {
     const rest = await (await fetch(`/v1/lib/${keys.lib}?after=${first.items.at(-1).seq}`, { headers: auth(keys.auth) })).json();
     expect(rest.items).toHaveLength(100);
     expect(rest.more).toBe(false);
+  });
+
+  test("limit caps a page, clamped to 1..500", async () => {
+    const { fetch } = setup();
+    const { keys } = await keysFor();
+    const blob = (await encryptRecord(keys, hl("GEN.1.1", "yellow"))).blob;
+    const items = Array.from({ length: 5 }, (_, i) => ({ id: `id${String(i).padStart(20, "0")}`, blob }));
+    expect((await post(fetch, keys.lib, keys.auth, items)).status).toBe(200);
+    const page = async (q: string) => (await fetch(`/v1/lib/${keys.lib}?${q}`, { headers: auth(keys.auth) })).json();
+    const two = await page("limit=2");
+    expect(two.items.map((i: { seq: number }) => i.seq)).toEqual([1, 2]);
+    expect(two.more).toBe(true);
+    const next = await page("after=2&limit=2");
+    expect(next.items.map((i: { seq: number }) => i.seq)).toEqual([3, 4]);
+    expect((await page("after=4&limit=2")).more).toBe(false);
+    expect((await page("limit=0")).items).toHaveLength(1);
+    expect((await page("limit=-3")).items).toHaveLength(1);
+    expect((await page("limit=abc")).items).toHaveLength(5);
+    expect((await page("limit=9999")).more).toBe(false);
+    expect([pageLimit("2.7"), pageLimit(""), pageLimit(null), pageLimit("9999")]).toEqual([2, 500, 500, 500]);
   });
 
   test("rejects malformed requests", async () => {
