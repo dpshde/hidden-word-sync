@@ -105,9 +105,22 @@ si-passage-input::part(option) { white-space: nowrap; }
 .dot[data-color="orange"] { background: var(--orange); }
 button.dot[aria-pressed="true"] { border-color: var(--fg); }
 
-#list { list-style: none; margin: 0; padding: 0; }
-#list li { border-top: 1px solid var(--line); }
-#list li:last-child { border-bottom: 1px solid var(--line); }
+/* The list, in groups: each a disclosure whose whole header toggles it. */
+#list .rows { list-style: none; margin: 0; padding: 0; }
+#list .rows > li { border-top: 1px solid var(--line); }
+#list .group { border-top: 1px solid var(--line); }
+#list .group:last-child { border-bottom: 1px solid var(--line); }
+#list .group > summary { display: flex; align-items: center; gap: .5rem; min-height: 2.5rem; padding: .375rem .25rem; letter-spacing: 0; border-radius: 0; color: var(--muted); font-size: .8125rem; font-weight: 600; text-transform: uppercase; user-select: none; -webkit-user-select: none; }
+#list .group > summary::before { content: ""; flex: none; width: .4rem; height: .4rem; margin: 0 .3rem 0 .2rem; border: solid currentColor; border-width: 0 1.5px 1.5px 0; transform: rotate(-45deg); transition: transform .15s; }
+#list .group[open] > summary::before { transform: rotate(45deg) translate(-1px, -1px); }
+#list .group > summary:hover { color: var(--fg); }
+#list .group > summary:focus-visible { outline-offset: -2px; }
+#list .group .count { margin-left: auto; font-weight: 400; font-variant-numeric: tabular-nums; }
+/* Date | Genre: a compact segmented control above the list. */
+.segmented { display: inline-flex; margin: 0 0 .75rem; padding: 2px; border: 1px solid var(--line); border-radius: .5rem; }
+.segmented[hidden] { display: none; }
+.segmented button { padding: .25rem .75rem; font-size: .8125rem; background: transparent; color: var(--muted); border-radius: .375rem; }
+.segmented button[aria-pressed="true"] { background: var(--line); color: var(--fg); }
 .row { display: flex; align-items: center; gap: .625rem; padding: .375rem 0 .375rem .25rem; }
 .row > .dot { width: .875rem; height: .875rem; border: 0; position: relative; }
 .row > .dot::after { content: ""; position: absolute; inset: -.75rem; }

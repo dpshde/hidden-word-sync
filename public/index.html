@@ -85,8 +85,12 @@
       <p class="error" role="alert"></p>
     </form>
 
+    <div id="group-by" class="segmented" role="group" aria-label="Group by" hidden>
+      <button type="button" data-mode="date" aria-pressed="true">Date</button>
+      <button type="button" data-mode="genre" aria-pressed="false">Genre</button>
+    </div>
     <div id="filters" role="group" aria-label="Show"></div>
-    <ul id="list"></ul>
+    <div id="list"></div>
     <div id="color-pop" popover role="group" aria-label="Highlight color"></div>
     <p id="empty" class="quiet-text">No highlights yet.</p>
   </section>

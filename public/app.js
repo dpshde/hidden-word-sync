@@ -2,8 +2,9 @@ import {
   COLORS, Library, KeyError, newKey, formatKey, parseKey, now, palette, topColor, parseJsonl, fromBibleRs, saveSlot, openSlot,
   serverTransport, folderTransport,
 } from "./sync.js";
-import { labelRef, compareRefs, groupRuns, highlightRecord, editRun } from "./refs.js";
+import { labelRef, compareRefs, highlightRecord, editRun } from "./refs.js";
 import { readPassage } from "./passage.js";
+import { MODES, groupList, startsOpen } from "./groups.js";
 import { definePassageInput, defineScripturePassage } from "./vendor/scripture-inline.js";
 import { createPasskeyPrf, getPasskeyPrf, passkeysAvailable, cancelled } from "./passkey.js";
 import { foldersAvailable, pickFolder, saveFolder, loadFolder, forgetFolder, mayUse, folderDir } from "./folder.js";
@@ -12,6 +13,8 @@ const $ = (sel) => document.querySelector(sel);
 const SESSION = "hidden-word:session";
 const CREATED = "hidden-word:created";
 const SAVE_LINK = "hidden-word:save-link";
+// How this device groups the list ("date" or "genre"): a display choice, kept here and not synced.
+const GROUP_BY = "hidden-word:group-by";
 // A library's name as this device last called it. The name isn't synced: it's this device's label.
 const nameKey = (lib) => `hidden-word:name:${lib}`;
 const store = {
@@ -300,10 +303,54 @@ function render() {
 
   const shown = filter ? rows.filter((r) => topColor(r, ids) === filter) : rows;
   $("#empty").hidden = rows.length > 0;
+  renderGroupBy(rows.length > 0);
   // A row being edited stays as it is until the edit ends (a sync mid-edit would wipe the field);
   // finishing the edit renders again.
-  if (!editing) $("#list").replaceChildren(...groupRuns(shown, (r) => topColor(r, ids)).map(row));
+  if (!editing) $("#list").replaceChildren(...groupList(shown, groupBy, (r) => topColor(r, ids)).map(group));
   if (!$("#colors").hidden) renderColors();
+}
+
+// ---- grouping: by date (Today, Last 7 days, Older) or by genre, each group a disclosure. Which groups
+// are open lasts for this page load; each starts as startsOpen says.
+
+let groupBy = MODES.includes(localStorage.getItem(GROUP_BY) ?? "") ? localStorage.getItem(GROUP_BY) : "date";
+const groupOpen = new Map();
+
+function renderGroupBy(any) {
+  $("#group-by").hidden = !any;
+  for (const b of document.querySelectorAll("#group-by button")) b.setAttribute("aria-pressed", String(b.dataset.mode === groupBy));
+}
+
+for (const b of document.querySelectorAll("#group-by button")) {
+  b.addEventListener("click", () => {
+    groupBy = b.dataset.mode;
+    localStorage.setItem(GROUP_BY, groupBy);
+    render();
+  });
+}
+
+/** One group: its name and count as the summary (the whole header toggles it), then its rows. */
+function group({ id, name, runs }) {
+  const key = `${groupBy}:${id}`;
+  const details = document.createElement("details");
+  details.className = "group";
+  details.dataset.group = id;
+  details.open = groupOpen.get(key) ?? startsOpen(groupBy, id);
+  details.addEventListener("toggle", () => groupOpen.set(key, details.open));
+  const summary = document.createElement("summary");
+  const title = document.createElement("span");
+  title.className = "group-name";
+  title.textContent = name;
+  const count = document.createElement("span");
+  count.className = "count";
+  count.textContent = String(runs.length);
+  count.setAttribute("aria-label", `${runs.length} ${runs.length === 1 ? "passage" : "passages"}`);
+  summary.append(title, count);
+  const list = document.createElement("ul");
+  list.className = "rows";
+  list.append(...runs.map(row));
+  details.append(summary, list);
+  return details;
 }
 
 function renderFilters(counts) {
