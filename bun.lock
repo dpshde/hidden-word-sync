@@ -16,6 +16,9 @@
       },
     },
   },
+  "patchedDependencies": {
+    "@faith-tools/scripture-inline@0.3.1": "patches/@faith-tools%2Fscripture-inline@0.3.1.patch",
+  },
   "packages": {
     "@cloudflare/build-output-utils": ["@cloudflare/build-output-utils@0.8.5", "", { "dependencies": { "@cloudflare/config": "0.23.0" } }, "sha512-xnwcDCyBSErZeOj5eUy1gTrmVjwIY51TZ0Pz9W7mZqLGA3IkIckud7dNtFdGhKSXL2szfxBRbGM4R4qFE4SoPA=="],
 

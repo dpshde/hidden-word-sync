@@ -1,0 +1,45 @@
+diff --git a/dist/index.js b/dist/index.js
+index 6780b42e10f3a5415c64a25c435f5556f478ada2..91b22c9d04f24758363705ae1e955aac9ee585b7 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -495,6 +495,11 @@ var K = class extends HTMLElement {
+ 			t && this.accept(this.suggestions[Number(t.dataset.index)]);
+ 		};
+ 		this.list.addEventListener("click", r);
++		this.list.addEventListener("pointerover", (e) => {
++			if (e.pointerType !== "mouse") return;
++			let t = e.target.closest("[role=option]:not([aria-disabled])");
++			t && Number(t.dataset.index) !== this.active && this.highlight(Number(t.dataset.index), !1);
++		});
+ 		let i;
+ 		this.list.addEventListener("touchstart", (e) => i = e.touches[0], { passive: !0 }), this.list.addEventListener("touchend", (e) => {
+ 			let t = e.changedTouches[0];
+@@ -602,11 +607,11 @@ var K = class extends HTMLElement {
+ 		}
+ 		this.list.hidden = !this.list.childElementCount, this.input.setAttribute("aria-expanded", String(!this.list.hidden)), this.input.removeAttribute("aria-activedescendant");
+ 	}
+-	highlight(e) {
++	highlight(e, n = !0) {
+ 		this.active = e;
+ 		for (let t of this.list.children) t.setAttribute("aria-selected", String(t.id === `${this.list.id}-${e}`));
+ 		let t = this.list.children[e];
+-		t ? (this.input.setAttribute("aria-activedescendant", t.id), t.scrollIntoView({ block: "nearest" })) : this.input.removeAttribute("aria-activedescendant");
++		t ? (this.input.setAttribute("aria-activedescendant", t.id), n && t.scrollIntoView({ block: "nearest" })) : this.input.removeAttribute("aria-activedescendant");
+ 	}
+ 	close() {
+ 		this.list.hidden = !0, this.input.setAttribute("aria-expanded", "false"), this.input.removeAttribute("aria-activedescendant"), this.active = -1;
+@@ -628,7 +633,13 @@ var K = class extends HTMLElement {
+ 				let r = l(this.input.value.trim());
+ 				return t && e.preventDefault(), !this.input.value.trim() && this.active < 0 ? (this.close(), this.commit("")) : this.active >= 0 ? this.accept(this.suggestions[this.active]) : r.ok || !n ? (this.close(), this.commit(this.input.value)) : this.accept(this.suggestions[0]);
+ 			}
+-			case "Tab":
++			case "Tab": {
++				let h = !t || e.shiftKey ? null : this.list.querySelector("[role=option]:not([aria-disabled]):hover");
++				if (h) {
++					e.preventDefault(), this.accept(this.suggestions[Number(h.dataset.index)]);
++					return;
++				}
++			}
+ 				if (n && !e.shiftKey && this.input.value.trim()) {
+ 					let t = this.suggestions[Math.max(this.active, 0)];
+ 					t.kind === "book" && `${t.insertText} ` !== this.input.value && (e.preventDefault(), this.accept(t));
