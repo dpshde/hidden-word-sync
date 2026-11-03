@@ -63,8 +63,19 @@ export default {
   },
 } satisfies ExportedHandler<Env>;
 
+/** The web app's address. sync.selah.tools is an alias that serves the same Worker directly. */
+const CANONICAL_ORIGIN = "https://vault.selah.tools";
+const OLD_HOST = "hidden-word.dpshade.workers.dev";
+/** What other apps call programmatically. These keep answering on the old address, so existing clients don't break. */
+const API_PATH = /^\/(?:v1(?:\/|$)|mcp$|api\/|config\.json$)/;
+
 export async function handle(request: Request, env: Env, note: Note = noNote): Promise<Response> {
   const url = new URL(request.url);
+  const read = request.method === "GET" || request.method === "HEAD";
+  // The old workers.dev address sends browsers to the canonical one, same path and query.
+  if (url.hostname === OLD_HOST && read && !API_PATH.test(url.pathname)) {
+    return new Response(null, { status: 308, headers: { location: CANONICAL_ORIGIN + url.pathname + url.search } });
+  }
   // /save?ref=…&color=… is the web app's: it saves into the library unlocked in the browser.
   if (url.pathname === "/save" && env.ASSETS && (request.method === "GET" || request.method === "HEAD")) {
     return env.ASSETS.fetch(new Request(new URL("/", url), request));
@@ -80,7 +91,8 @@ export async function handle(request: Request, env: Env, note: Note = noNote): P
   // Browser errors from public/report.js, scrubbed and logged.
   if (url.pathname === "/api/client-error") return clientError(request, note);
   const parts = url.pathname.split("/");
-  if (parts[1] !== "v1") return fail(404, "not found");
+  // Pages that run the Worker first (assets.runWorkerFirst, for the redirect above) are served from assets.
+  if (parts[1] !== "v1") return env.ASSETS && read ? env.ASSETS.fetch(request) : fail(404, "not found");
   if (request.method === "OPTIONS") return empty();
   if (parts.length !== 4 || !HEX32.test(parts[3])) return fail(404, "not found");
   const token = /^Bearer (\S+)$/.exec(request.headers.get("authorization") ?? "")?.[1];

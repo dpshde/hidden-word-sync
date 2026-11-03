@@ -19,8 +19,10 @@ export default defineConfig({
 			traces: { enabled: true, headSamplingRate: 1 },
 			issues: { enabled: true },
 		},
+		// The pages run the Worker first, so it can send browsers on the old workers.dev address to
+		// vault.selah.tools (src/worker.ts). Everything else is served from assets without the Worker.
 		assets: {
-			runWorkerFirst: false,
+			runWorkerFirst: ["/", "/index.html", "/unlock", "/unlock.html"],
 		},
 		env: {
 			DB: bindings.d1({

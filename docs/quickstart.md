@@ -2,7 +2,7 @@
 
 Five steps from a sync key to a synced highlight, using the test-vector key from [SPEC.md section 10](../SPEC.md#10-test-vectors). Every value below is real: check your code against it.
 
-The test-vector key is public, so anyone can read or erase its library. Use it only against a local server (`bun run dev`, then `http://localhost:8787`), never for real highlights.
+The test-vector key is public, so anyone can read or erase its library. Use it only against a local server (`bun run dev`, then `http://localhost:8787`), never for real highlights. The hosted server is `https://vault.selah.tools`: point your app there once these steps work against your local one.
 
 ## 1. Parse the key
 
