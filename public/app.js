@@ -24,7 +24,6 @@ const saveSettings = (lib, s) => localStorage.setItem(settingsKey(lib), JSON.str
 let library = null;
 let colors = palette([]);
 let folder = { handle: null, state: "off" };
-let editing = null;
 let filter = null;
 let flashTimer = 0;
 
@@ -337,66 +336,105 @@ function renderFilters(counts) {
   $("#filters").replaceChildren(...chips);
 }
 
+const ICONS = {
+  open: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>',
+  trash: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
+};
+
+function iconButton(tag, icon, label) {
+  const el = document.createElement(tag);
+  el.className = "icon";
+  el.innerHTML = ICONS[icon];
+  el.setAttribute("aria-label", label);
+  el.title = label;
+  if (tag === "button") el.type = "button";
+  return el;
+}
+
 /** One list row: a single highlight, or a run of back-to-back verses in one color (see groupRuns). */
 function row({ ref: runRef, records }) {
   const ids = colors.map((c) => c.id);
-  const record = records[0];
   const li = document.createElement("li");
-  const head = document.createElement("button");
-  head.type = "button";
-  head.className = "row-head";
-  head.setAttribute("aria-expanded", String(editing === runRef));
-  const dot = document.createElement("span");
+  li.className = "row";
+
+  const dot = document.createElement("button");
+  dot.type = "button";
   dot.className = "dot";
-  paint(dot, topColor(record, ids));
+  paint(dot, topColor(records[0], ids));
+  dot.setAttribute("aria-label", `Change color of ${labelRef(runRef)}`);
+  dot.setAttribute("aria-haspopup", "true");
+  dot.addEventListener("click", () => openColorPicker(dot, records));
+
   const ref = document.createElement("span");
   ref.className = "ref";
   ref.textContent = labelRef(runRef);
   const quote = document.createElement("span");
   quote.className = "quote";
   quote.textContent = records.flatMap((r) => r.highlights.map((h) => h.quote)).filter(Boolean).join(" … ");
-  head.append(dot, ref, quote);
-  head.addEventListener("click", () => {
-    editing = editing === runRef ? null : runRef;
-    render();
-  });
-  li.append(head);
 
-  if (editing === runRef) {
-    const tools = document.createElement("div");
-    tools.className = "tools";
-    for (const c of colors) {
+  const open = iconButton("a", "open", `Open ${labelRef(runRef)} in route.bible`);
+  open.href = `https://route.bible/${runRef.toLowerCase()}`; // the whole run, e.g. rom.5.3-5
+  open.target = "_blank";
+  open.rel = "noopener";
+
+  // Two taps to delete: the first turns the trash into a "Delete" confirm, which resets after a moment.
+  const del = iconButton("button", "trash", `Delete ${labelRef(runRef)}`);
+  let reset;
+  const disarm = () => {
+    clearTimeout(reset);
+    delete del.dataset.confirm;
+    del.innerHTML = ICONS.trash;
+    del.setAttribute("aria-label", `Delete ${labelRef(runRef)}`);
+  };
+  del.addEventListener("click", () => {
+    if (del.dataset.confirm) {
+      disarm();
+      library.putMany(records.map((r) => ({ kind: "highlight", ref: r.ref, deleted: true })));
+      return;
+    }
+    del.dataset.confirm = "1";
+    del.textContent = "Delete";
+    del.setAttribute("aria-label", `Confirm delete ${labelRef(runRef)}`);
+    reset = setTimeout(disarm, 4000);
+  });
+  del.addEventListener("blur", disarm);
+
+  li.append(dot, ref, quote, open, del);
+  return li;
+}
+
+/** The shared color popover, anchored under the dot that opened it. Picking a color recolors the whole run. */
+function openColorPicker(anchor, records) {
+  const pop = $("#color-pop");
+  const ids = colors.map((c) => c.id);
+  const current = topColor(records[0], ids);
+  pop.replaceChildren(
+    ...colors.map((c) => {
       const b = document.createElement("button");
       b.type = "button";
       b.className = "dot";
       b.title = colorName(c);
       paint(b, c.id);
       b.setAttribute("aria-label", `Make ${colorName(c)}`);
-      b.setAttribute("aria-pressed", String(topColor(record, ids) === c.id));
+      b.setAttribute("aria-pressed", String(current === c.id));
       b.addEventListener("click", () => {
+        pop.hidePopover();
+        if (c.id === current) return;
         const t = now();
         library.putMany(records.map((r) => ({ ...r, highlights: r.highlights.map((h) => ({ ...h, color: c.id, edited: t })) })));
       });
-      tools.append(b);
-    }
-    const open = document.createElement("a");
-    open.href = `https://route.bible/${runRef.toLowerCase()}`; // the whole run, e.g. rom.5.3-5
-    open.target = "_blank";
-    open.rel = "noopener";
-    open.textContent = "Open";
-    open.title = "Open in your Bible app (route.bible)";
-    const del = document.createElement("button");
-    del.type = "button";
-    del.className = "danger quiet";
-    del.textContent = "Delete";
-    del.addEventListener("click", () => {
-      editing = null;
-      library.putMany(records.map((r) => ({ kind: "highlight", ref: r.ref, deleted: true })));
-    });
-    tools.append(open, del);
-    li.append(tools);
-  }
-  return li;
+      return b;
+    }),
+  );
+  pop.showPopover();
+  const a = anchor.getBoundingClientRect();
+  const w = pop.offsetWidth;
+  const h = pop.offsetHeight;
+  const left = Math.max(8, Math.min(a.left - 8, innerWidth - w - 8));
+  const below = a.bottom + 6;
+  pop.style.left = `${left}px`;
+  pop.style.top = `${below + h > innerHeight - 8 ? a.top - h - 6 : below}px`;
+  pop.querySelector('[aria-pressed="true"]')?.focus();
 }
 
 // ---- colors
