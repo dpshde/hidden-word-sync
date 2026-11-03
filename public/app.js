@@ -633,6 +633,18 @@ libName.addEventListener("blur", () => {
 });
 
 // ---- menu
+// Close the ••• menu on any press outside it, and on Escape (returning focus to its toggle).
+document.addEventListener("pointerdown", (e) => {
+  const menu = $("#menu");
+  if (menu.open && !menu.contains(e.target)) menu.open = false;
+});
+document.addEventListener("keydown", (e) => {
+  const menu = $("#menu");
+  if (e.key === "Escape" && menu.open) {
+    menu.open = false;
+    menu.querySelector("summary").focus();
+  }
+});
 
 function menuAction(id, fn) {
   $(id).addEventListener("click", async () => {
