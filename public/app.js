@@ -12,6 +12,8 @@ const $ = (sel) => document.querySelector(sel);
 const SESSION = "hidden-word:session";
 const CREATED = "hidden-word:created";
 const SAVE_LINK = "hidden-word:save-link";
+// A library's name as this device last called it. The name isn't synced: it's this device's label.
+const nameKey = (lib) => `hidden-word:name:${lib}`;
 const store = {
   load: (lib) => JSON.parse(localStorage.getItem(`hidden-word:${lib}`) ?? "null"),
   save: (lib, state) => localStorage.setItem(`hidden-word:${lib}`, JSON.stringify(state)),
@@ -62,8 +64,10 @@ function paint(el, id) {
 
 // ---- unlocking, creating, locking
 
-async function enter(keyText, name) {
-  library = await Library.open({ keyText, name, store });
+async function enter(keyText, given) {
+  library = await Library.open({ keyText, name: given, store });
+  const name = localStorage.getItem(nameKey(library.lib)) || given;
+  library.name = name;
   localStorage.setItem(SESSION, JSON.stringify({ key: library.keyText, name }));
   $("#lib-name").textContent = name;
   library.onChange(render);
@@ -81,7 +85,7 @@ async function connect() {
   if (folder.handle) {
     folder.state = (await mayUse(folder.handle)) ? "on" : "paused";
     if (folder.state === "on") transports.push(folderTransport(folderDir(folder.handle)));
-    else flash("Folder sync is paused until you allow it again in Sync.");
+    // Paused until allowed again; the Sync screen says so. The main view never talks about sync.
   }
   renderSync();
   await library.use(transports);
@@ -295,23 +299,9 @@ async function saveFromLink() {
   flash(`Saved ${found.label} in ${colorName(color)}.`, { label: "Undo", run: undo });
 }
 
-// Syncing happens out of sight: the library on this device is the library. The status only
-// speaks up when something needs attention: changes stuck offline, or sync failing again and again.
-function statusText() {
-  const { state, failures = 0 } = library.status;
-  if (state === "local") return "On this device only";
-  const waiting = library.waiting();
-  if (state === "error" && failures > 1) return waiting ? `Sync failed · ${waiting} waiting` : "Sync failed";
-  if (state === "offline" && waiting) return `Offline · ${waiting} waiting`;
-  if (folder.state === "paused") return "Folder sync paused";
-  return "Synced";
-}
-
 function render() {
   if (!library) return;
   colors = palette(library.all("color"));
-  $("#status").textContent = statusText();
-  $("#status").dataset.state = library.status.state === "error" && library.status.failures > 1 ? "error" : "";
   renderSwatches();
 
   const ids = colors.map((c) => c.id);
@@ -373,7 +363,6 @@ function iconButton(tag, icon, label) {
 function row({ ref: runRef, records }) {
   const ids = colors.map((c) => c.id);
   const li = document.createElement("li");
-  li.className = "row";
 
   const dot = document.createElement("button");
   dot.type = "button";
@@ -383,20 +372,28 @@ function row({ ref: runRef, records }) {
   dot.setAttribute("aria-haspopup", "true");
   dot.addEventListener("click", () => openColorPicker(dot, records));
 
+  // The whole row opens the passage in route.bible: the link stretches over the line (see .row-link
+  // in style.css), and the dot and trash sit above it as their own buttons.
+  const link = document.createElement("a");
+  link.className = "row-link";
+  link.href = `https://route.bible/${runRef.toLowerCase()}`; // the whole run, e.g. rom.5.3-5
+  link.target = "_blank";
+  link.rel = "noopener";
+  link.setAttribute("aria-label", `Open ${labelRef(runRef)} in route.bible`);
   const ref = document.createElement("span");
   ref.className = "ref";
   ref.textContent = labelRef(runRef);
   const quote = document.createElement("span");
   quote.className = "quote";
   quote.textContent = records.flatMap((r) => r.highlights.map((h) => h.quote)).filter(Boolean).join(" … ");
-
-  const open = iconButton("a", "open", `Open ${labelRef(runRef)} in route.bible`);
-  open.href = `https://route.bible/${runRef.toLowerCase()}`; // the whole run, e.g. rom.5.3-5
-  open.target = "_blank";
-  open.rel = "noopener";
+  link.append(ref, quote);
+  const open = document.createElement("span");
+  open.className = "icon open";
+  open.innerHTML = ICONS.open;
 
   // Two taps to delete: the first turns the trash into a "Delete" confirm, which resets after a moment.
   const del = iconButton("button", "trash", `Delete ${labelRef(runRef)}`);
+  del.classList.add("trash");
   let reset;
   const disarm = () => {
     clearTimeout(reset);
@@ -417,7 +414,10 @@ function row({ ref: runRef, records }) {
   });
   del.addEventListener("blur", disarm);
 
-  li.append(dot, ref, quote, open, del);
+  const line = document.createElement("div");
+  line.className = "row";
+  line.append(dot, link, open, del);
+  li.append(line);
   return li;
 }
 
@@ -552,8 +552,29 @@ $("#stop-folder").addEventListener("click", async () => {
   await connect();
 });
 
-$("#status").addEventListener("click", () => (renderSync(), show("sync")));
 for (const back of document.querySelectorAll(".back")) back.addEventListener("click", () => (show("main"), render()));
+
+// ---- the library's name, edited in place
+
+function rename(next) {
+  library.name = next;
+  localStorage.setItem(nameKey(library.lib), next);
+  localStorage.setItem(SESSION, JSON.stringify({ key: library.keyText, name: next }));
+}
+
+const libName = $("#lib-name");
+libName.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.isComposing) (e.preventDefault(), libName.blur());
+  if (e.key === "Escape") (e.preventDefault(), (libName.textContent = library.name), libName.blur());
+});
+// Enter and tapping away save it; an empty name keeps the old one.
+libName.addEventListener("blur", () => {
+  if (!library) return;
+  const next = libName.textContent.replace(/\s+/g, " ").trim().slice(0, 80);
+  if (next && next !== library.name) rename(next);
+  libName.textContent = library.name;
+  getSelection()?.removeAllRanges();
+});
 
 // ---- menu
 
@@ -627,12 +648,14 @@ $("#import-file").addEventListener("change", async (e) => {
 
 menuAction("#lock", lock);
 
-menuAction("#erase", async () => {
+$("#erase").addEventListener("click", async () => {
   const ok = confirm("Erase this library from the server, the sync folder and this device? A device that still has it will put it back when it syncs.");
   if (!ok) return;
   await library.erase();
   await forgetFolder(library.lib);
   localStorage.removeItem(settingsKey(library.lib));
+  localStorage.removeItem(nameKey(library.lib));
+  $("#danger").open = false;
   lock();
 });
 

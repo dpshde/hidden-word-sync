@@ -51,8 +51,7 @@
 
   <section id="main" hidden>
     <header>
-      <strong id="lib-name"></strong>
-      <button type="button" id="status" class="link"></button>
+      <strong id="lib-name" contenteditable="plaintext-only" role="textbox" aria-label="Library name" spellcheck="false" enterkeyhint="done"></strong>
       <details id="menu">
         <summary aria-label="Menu">•••</summary>
         <div>
@@ -62,8 +61,7 @@
           <button type="button" id="show-key">Show sync key</button>
           <button type="button" id="export">Export</button>
           <button type="button" id="import">Import</button>
-          <button type="button" id="lock">Lock</button>
-          <button type="button" id="erase" class="danger">Erase library</button>
+          <button type="button" id="lock">Log out</button>
         </div>
       </details>
     </header>
@@ -115,6 +113,11 @@
     </div>
     <p class="quiet-text" id="no-folders" hidden>This browser can't sync a folder. Use Export and Import to move a file by hand.</p>
     <button type="button" class="back">Done</button>
+    <details id="danger">
+      <summary>Danger zone</summary>
+      <p class="quiet-text">Erasing removes this library from the server, the sync folder and this device.</p>
+      <button type="button" id="erase" class="quiet danger">Erase library</button>
+    </details>
   </section>
 </main>
 </body>

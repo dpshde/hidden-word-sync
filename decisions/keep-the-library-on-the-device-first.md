@@ -35,3 +35,7 @@ SPEC.md section 6 makes this normative:
 ## Update 2026-11-03: sync is not shown
 
 Since every change is already saved on the device, the web app no longer shows "Syncing…". The status reads "Synced" (or "On this device only") and only changes when it matters: "Offline · n waiting" when changes can't be sent, or "Sync failed" after two failed runs in a row, so a single blip stays quiet. A change goes up right away, and when the server's answer shows no other device wrote in between, the app skips the pull, so a change costs one request.
+
+## Update 2026-11-03 (later): no sync status at all
+
+The main view says nothing about sync in any state: the header's status ("Synced", "Offline · n waiting", "Sync failed", "Folder sync paused") is gone, and so is the flash about a paused folder. The library on the device is the library, so there is nothing to report in normal use. How a library syncs, including a folder that needs permission again, lives only on the Sync screen, reached from the ••• menu. Erasing a library moved there too, under "Danger zone", and "Lock" is now "Log out".
