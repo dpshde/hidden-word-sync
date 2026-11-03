@@ -71,73 +71,95 @@ export async function handle(request: Request, env: Env): Promise<Response> {
   return fail(404, "not found");
 }
 
+// Each route is one D1 batch: one round trip to the database, run as one transaction.
+
 async function library(request: Request, db: D1Database, lib: string, tokenHash: string): Promise<Response> {
-  const row = await db
-    .prepare("SELECT auth_hash, seq, epoch FROM libs WHERE lib = ?")
-    .bind(lib)
-    .first<{ auth_hash: string; seq: number; epoch: string }>();
-  if (row && row.auth_hash !== tokenHash) return fail(401, "wrong token for this library");
   switch (request.method) {
     case "GET": {
       const after = Number(new URL(request.url).searchParams.get("after") ?? "0");
       if (!Number.isSafeInteger(after) || after < 0) return fail(400, "after must be a non-negative integer");
+      const [libs, items] = await db.batch([
+        db.prepare("SELECT auth_hash, seq, epoch FROM libs WHERE lib = ?").bind(lib),
+        // Only for the right token: a wrong one never reads a blob.
+        db
+          .prepare(
+            `SELECT seq, id, blob FROM items WHERE lib = ?1 AND seq > ?2
+             AND EXISTS (SELECT 1 FROM libs WHERE lib = ?1 AND auth_hash = ?3) ORDER BY seq LIMIT ?4`,
+          )
+          .bind(lib, after, tokenHash, LIMITS.pageSize + 1),
+      ]);
+      const row = libs.results[0] as { auth_hash: string; seq: number; epoch: string } | undefined;
       if (!row) return json({ items: [], more: false, seq: 0, epoch: null });
-      const { results } = await db
-        .prepare("SELECT seq, id, blob FROM items WHERE lib = ? AND seq > ? ORDER BY seq LIMIT ?")
-        .bind(lib, after, LIMITS.pageSize + 1)
-        .all<Item>();
+      if (row.auth_hash !== tokenHash) return fail(401, "wrong token for this library");
+      const results = items.results as Item[];
       return json({ items: results.slice(0, LIMITS.pageSize), more: results.length > LIMITS.pageSize, seq: row.seq, epoch: row.epoch });
     }
     case "POST":
-      return post(request, db, lib, tokenHash, !!row);
-    case "DELETE":
-      if (row) {
-        await db.batch([
-          db.prepare("DELETE FROM items WHERE lib = ?").bind(lib),
-          db.prepare("DELETE FROM libs WHERE lib = ?").bind(lib),
-        ]);
-      }
-      return empty();
+      return post(request, db, lib, tokenHash);
+    case "DELETE": {
+      const [libs] = await db.batch([
+        db.prepare("SELECT auth_hash FROM libs WHERE lib = ?").bind(lib),
+        db.prepare("DELETE FROM items WHERE lib = ?1 AND EXISTS (SELECT 1 FROM libs WHERE lib = ?1 AND auth_hash = ?2)").bind(lib, tokenHash),
+        db.prepare("DELETE FROM libs WHERE lib = ? AND auth_hash = ?").bind(lib, tokenHash),
+      ]);
+      const row = libs.results[0] as { auth_hash: string } | undefined;
+      return row && row.auth_hash !== tokenHash ? fail(401, "wrong token for this library") : empty();
+    }
     default:
       return fail(405, "method not allowed");
   }
 }
 
-async function post(request: Request, db: D1Database, lib: string, tokenHash: string, exists: boolean): Promise<Response> {
+// What the library's size would be after this write: its size now, plus the new blobs, minus the
+// blobs they replace. ?1 lib, ?3 characters added, ?4 the ids being written as a JSON list.
+const SIZE_AFTER = `size + ?3 - (SELECT COALESCE(SUM(LENGTH(blob)), 0) FROM items WHERE lib = ?1 AND id IN (SELECT value FROM json_each(?4)))`;
+
+async function post(request: Request, db: D1Database, lib: string, tokenHash: string): Promise<Response> {
   const body = await readJson(request);
   if (body instanceof Response) return body;
   const items = parseItems(body);
   if (typeof items === "string") return fail(400, items);
-
-  if (!exists) {
-    // First write claims the library for this token.
-    await db
-      .prepare("INSERT INTO libs (lib, auth_hash, seq, epoch) VALUES (?, ?, 0, ?) ON CONFLICT(lib) DO NOTHING")
-      .bind(lib, tokenHash, newEpoch())
-      .run();
-    const claimed = await db.prepare("SELECT auth_hash FROM libs WHERE lib = ?").bind(lib).first<{ auth_hash: string }>();
-    if (claimed?.auth_hash !== tokenHash) return fail(401, "wrong token for this library");
-  }
-
-  const used = await db.prepare("SELECT COALESCE(SUM(LENGTH(blob)), 0) AS size FROM items WHERE lib = ?").bind(lib).first<{ size: number }>();
-  const adding = items.reduce((n, item) => n + item.blob.length, 0);
-  if ((used?.size ?? 0) + adding > LIMITS.libraryChars) return fail(413, "library is full");
-
-  // One transaction: reserve n sequence numbers, then write each item with its own. Readers can
-  // never see a later seq before an earlier one, so `after` cursors don't skip anything.
   const n = items.length;
-  const results = await db.batch([
-    db.prepare("UPDATE libs SET seq = seq + ? WHERE lib = ?").bind(n, lib),
-    ...items.map((item, i) =>
+  const adding = items.reduce((total, item) => total + item.blob.length, 0);
+  const ids = JSON.stringify(items.map((item) => item.id));
+
+  // One transaction. The first write claims the library for this token. Then reserve n sequence
+  // numbers and write each item with its own, so readers never see a later seq before an earlier
+  // one and `after` cursors skip nothing. A wrong token or a full library sets a NOT NULL column
+  // to NULL, which fails the batch and rolls all of it back, claim included.
+  let results: D1Result[];
+  try {
+    results = await db.batch([
+      db
+        .prepare("INSERT INTO libs (lib, auth_hash, seq, epoch, size) VALUES (?, ?, 0, ?, 0) ON CONFLICT(lib) DO NOTHING")
+        .bind(lib, tokenHash, newEpoch()),
       db
         .prepare(
-          `INSERT INTO items (lib, id, seq, blob) VALUES (?, ?, (SELECT seq FROM libs WHERE lib = ?) - ?, ?)
-           ON CONFLICT(lib, id) DO UPDATE SET seq = excluded.seq, blob = excluded.blob`,
+          `UPDATE libs SET seq = CASE WHEN auth_hash = ?2 THEN seq + ?5 END,
+             size = CASE WHEN ${SIZE_AFTER} <= ?6 THEN ${SIZE_AFTER} END
+           WHERE lib = ?1`,
         )
-        .bind(lib, item.id, lib, n - 1 - i, item.blob),
-    ),
-    db.prepare("SELECT seq, epoch FROM libs WHERE lib = ?").bind(lib),
-  ]);
+        .bind(lib, tokenHash, adding, ids, n, LIMITS.libraryChars),
+      ...items.map((item, i) =>
+        db
+          .prepare(
+            `INSERT INTO items (lib, id, seq, blob) VALUES (?1, ?2, (SELECT seq FROM libs WHERE lib = ?1) - ?3, ?4)
+             ON CONFLICT(lib, id) DO UPDATE SET seq = excluded.seq, blob = excluded.blob`,
+          )
+          .bind(lib, item.id, n - 1 - i, item.blob),
+      ),
+      db.prepare("SELECT seq, epoch FROM libs WHERE lib = ?").bind(lib),
+    ]);
+  } catch (error) {
+    // Only failures pay for a second round trip, to say which it was.
+    const row = await db
+      .prepare(`SELECT auth_hash = ?2 AS mine, ${SIZE_AFTER} AS after FROM libs WHERE lib = ?1`)
+      .bind(lib, tokenHash, adding, ids)
+      .first<{ mine: number; after: number }>();
+    if (row && !row.mine) return fail(401, "wrong token for this library");
+    if ((row?.after ?? adding) > LIMITS.libraryChars) return fail(413, "library is full");
+    throw error;
+  }
   const last = results[results.length - 1].results[0] as { seq: number; epoch: string };
   return json({ seq: last.seq, epoch: last.epoch });
 }
@@ -158,15 +180,16 @@ async function slot(request: Request, db: D1Database, id: string, tokenHash: str
       if (typeof wrapped !== "string" || !B64URL.test(wrapped) || wrapped.length > LIMITS.wrappedChars || wrapped.length < 38) {
         return fail(400, "wrapped must be base64url");
       }
-      await db
-        .prepare(
-          `INSERT INTO slots (slot, auth_hash, wrapped) VALUES (?, ?, ?)
-           ON CONFLICT(slot) DO UPDATE SET wrapped = excluded.wrapped WHERE slots.auth_hash = excluded.auth_hash`,
-        )
-        .bind(id, tokenHash, wrapped)
-        .run();
-      const saved = await db.prepare("SELECT auth_hash FROM slots WHERE slot = ?").bind(id).first<{ auth_hash: string }>();
-      return saved?.auth_hash === tokenHash ? empty() : fail(401, "wrong token for this slot");
+      const [, saved] = await db.batch([
+        db
+          .prepare(
+            `INSERT INTO slots (slot, auth_hash, wrapped) VALUES (?, ?, ?)
+             ON CONFLICT(slot) DO UPDATE SET wrapped = excluded.wrapped WHERE slots.auth_hash = excluded.auth_hash`,
+          )
+          .bind(id, tokenHash, wrapped),
+        db.prepare("SELECT auth_hash FROM slots WHERE slot = ?").bind(id),
+      ]);
+      return (saved.results[0] as { auth_hash: string } | undefined)?.auth_hash === tokenHash ? empty() : fail(401, "wrong token for this slot");
     }
     case "DELETE":
       if (row) await db.prepare("DELETE FROM slots WHERE slot = ?").bind(id).run();

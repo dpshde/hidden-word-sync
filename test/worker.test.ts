@@ -158,6 +158,64 @@ describe("server", () => {
   });
 });
 
+describe("library size", () => {
+  const size = (sqlite: Database, lib: string) =>
+    sqlite.query("SELECT size, (SELECT COALESCE(SUM(LENGTH(blob)), 0) FROM items WHERE lib = ?1) AS actual FROM libs WHERE lib = ?1").get(lib) as
+      { size: number; actual: number };
+
+  test("is kept by every write: new items add, replaced ones swap their old size for the new", async () => {
+    const { sqlite, fetch } = setup();
+    const { keys } = await keysFor();
+    const a = await encryptRecord(keys, hl("JHN.3.16", "yellow"));
+    const b = await encryptRecord(keys, hl("JHN.3.17", "blue"));
+    await post(fetch, keys.lib, keys.auth, [a, b]);
+    expect(size(sqlite, keys.lib)).toEqual({ size: a.blob.length + b.blob.length, actual: a.blob.length + b.blob.length });
+    const big = { id: a.id, blob: "A".repeat(LIMITS.blobChars) };
+    await post(fetch, keys.lib, keys.auth, [big, big]);
+    const after = size(sqlite, keys.lib);
+    expect(after.size).toBe(after.actual);
+    expect(after.size).toBe(LIMITS.blobChars + b.blob.length);
+  });
+
+  test("a write past the limit is refused whole, and replacing items still fits", async () => {
+    const { sqlite, fetch } = setup();
+    const { keys } = await keysFor();
+    const batch = (start: number) =>
+      Array.from({ length: 100 }, (_, i) => ({ id: `id${String(start + i).padStart(20, "0")}`, blob: "A".repeat(LIMITS.blobChars) }));
+    for (const start of [0, 100, 200]) expect((await post(fetch, keys.lib, keys.auth, batch(start))).status).toBe(200);
+    const before = sqlite.query("SELECT seq, size FROM libs").get();
+    const res = await post(fetch, keys.lib, keys.auth, batch(300));
+    expect(res.status).toBe(413);
+    expect(await res.json()).toEqual({ error: "library is full" });
+    expect(sqlite.query("SELECT seq, size FROM libs").get()).toEqual(before);
+    expect(sqlite.query("SELECT COUNT(*) AS n FROM items").get()).toEqual({ n: 300 });
+    expect((await post(fetch, keys.lib, keys.auth, batch(100))).status).toBe(200);
+    expect(size(sqlite, keys.lib).size).toBe(300 * LIMITS.blobChars);
+  });
+
+  test("a refused token changes nothing: no claim, no items, no erasing", async () => {
+    const { sqlite, fetch } = setup();
+    const { keys } = await keysFor();
+    const item = await encryptRecord(keys, hl("JHN.3.16", "yellow"));
+    await post(fetch, keys.lib, keys.auth, [item]);
+    const before = sqlite.query("SELECT * FROM libs").all();
+    const other = "B".repeat(43);
+    expect((await post(fetch, keys.lib, other, [{ id: "x".repeat(22), blob: item.blob }])).status).toBe(401);
+    expect((await fetch(`/v1/lib/${keys.lib}`, { method: "DELETE", headers: auth(other) })).status).toBe(401);
+    expect(sqlite.query("SELECT * FROM libs").all()).toEqual(before);
+    expect(sqlite.query("SELECT id FROM items").all()).toEqual([{ id: item.id }]);
+  });
+
+  test("the migration fills in the size of libraries written before it", () => {
+    const sqlite = new Database(":memory:");
+    for (const m of MIGRATIONS.slice(0, 2)) sqlite.exec(m);
+    sqlite.query("INSERT INTO libs (lib, auth_hash, seq, epoch) VALUES ('a', 'h', 2, 'e'), ('b', 'h', 0, 'e')").run();
+    sqlite.query("INSERT INTO items (lib, id, seq, blob) VALUES ('a', '1', 1, 'xxx'), ('a', '2', 2, 'yyyyy')").run();
+    sqlite.exec(MIGRATIONS[2]);
+    expect(sqlite.query("SELECT lib, size FROM libs ORDER BY lib").all()).toEqual([{ lib: "a", size: 8 }, { lib: "b", size: 0 }]);
+  });
+});
+
 describe("passkey slots", () => {
   test("save, open, and refuse another token", async () => {
     const { fetch } = setup();
@@ -194,6 +252,47 @@ describe("syncing through a server", () => {
     await phone.sync();
     await laptop.sync();
     expect(laptop.all()).toEqual([]);
+  });
+
+  test("a change goes up in one request, and still pulls when another device wrote in between", async () => {
+    const { fetch } = setup();
+    const calls: string[] = [];
+    const counted: Fetch = (input, init) => (calls.push(`${init?.method ?? "GET"} ${new URL(String(input), "http://local").search}`), fetch(input, init));
+    const keyText = await formatKey(newKey());
+    const phone = await device(keyText, [serverTransport({ fetch: counted })]);
+    const laptop = await device(keyText, [serverTransport({ fetch })]);
+    await phone.sync();
+    calls.length = 0;
+
+    // put() starts the sync itself.
+    await phone.put(hl("ROM.5.3", "yellow"));
+    await phone.running;
+    expect(calls).toEqual(["POST "]);
+
+    await laptop.sync();
+    await laptop.put(hl("ROM.5.4", "blue"));
+    await laptop.sync();
+    calls.length = 0;
+    await phone.put(hl("ROM.5.5", "yellow"));
+    await phone.running;
+    expect(calls).toEqual(["POST ", "GET ?after=1"]);
+    expect(colors(phone)).toEqual({ "ROM.5.3": "yellow", "ROM.5.4": "blue", "ROM.5.5": "yellow" });
+    expect(phone.status).toMatchObject({ state: "synced", failures: 0 });
+  });
+
+  test("failures in a row are counted, so one blip needn't be shown", async () => {
+    const { fetch } = setup();
+    let up = true;
+    const flaky: Fetch = (input, init) => (up ? fetch(input, init) : Promise.resolve(new Response("{}", { status: 500 })));
+    const phone = await device(await formatKey(newKey()), [serverTransport({ fetch: flaky })]);
+    up = false;
+    await phone.sync();
+    expect(phone.status).toMatchObject({ state: "error", failures: 1 });
+    await phone.sync();
+    expect(phone.status).toMatchObject({ state: "error", failures: 2 });
+    up = true;
+    await phone.sync();
+    expect(phone.status).toMatchObject({ state: "synced", failures: 0 });
   });
 
   test("offline edits wait across restarts, then go up", async () => {

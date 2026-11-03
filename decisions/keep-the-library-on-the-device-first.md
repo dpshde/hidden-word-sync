@@ -31,3 +31,7 @@ SPEC.md section 6 makes this normative:
 - Erasing a library only removes it from the erasing device and its transports. Any other device that still holds it will put it back on its next sync. This is deliberate, and the UI has to say so.
 - Every client must implement merging (see [Resolve conflicts with one merge rule](resolve-conflicts-with-one-merge-rule.md)), because there is no authority to defer to.
 - Local storage limits (localStorage in the web app) bound library size. Fine for highlights and notes; revisit if records grow large.
+
+## Update 2026-11-03: sync is not shown
+
+Since every change is already saved on the device, the web app no longer shows "Syncing…". The status reads "Synced" (or "On this device only") and only changes when it matters: "Offline · n waiting" when changes can't be sent, or "Sync failed" after two failed runs in a row, so a single blip stays quiet. A change goes up right away, and when the server's answer shows no other device wrote in between, the app skips the pull, so a change costs one request.

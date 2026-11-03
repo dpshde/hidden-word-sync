@@ -451,8 +451,6 @@ export class Library {
           this.again = false;
           const before = this.state.n;
           for (const t of this.transports) {
-            this.status.remotes[t.name] = { state: "syncing" };
-            this.setStatus();
             try {
               await t.sync(this);
               this.status.remotes[t.name] = { state: "synced" };
@@ -471,10 +469,16 @@ export class Library {
     return this.running;
   }
 
+  /**
+   * Sets `status.state` from the run that just finished: "synced", "offline", "error", "idle" (not
+   * synced yet) or "local" (no transports). A run in progress doesn't change it: syncing is never
+   * shown. `status.failures` counts runs in a row that failed, so a one-off failure can be ignored.
+   */
   setStatus() {
     const states = this.transports.map((t) => this.status.remotes[t.name]?.state ?? "idle");
-    const worst = ["error", "offline", "syncing", "idle", "synced"].find((s) => states.includes(s));
+    const worst = ["error", "offline", "idle", "synced"].find((s) => states.includes(s));
     this.status.state = this.transports.length ? worst : "local";
+    this.status.failures = worst === "error" || worst === "offline" ? (this.status.failures ?? 0) + 1 : 0;
     this.emit();
   }
 
@@ -528,6 +532,7 @@ export function serverTransport({ url = "", fetch: f } = {}) {
     (r.epoch !== null && answer.epoch !== r.epoch) || (answer.seq !== undefined && answer.seq < r.seq);
   const restart = (r, answer) => Object.assign(r, { cursor: 0, seq: 0, epoch: answer.epoch, sent: 0, all: true, redo: [] });
 
+  /** Sends what the server hasn't got. False when the server lost data and must be refilled. */
   async function push(lib, r) {
     const ids = lib.unsent(name);
     for (let i = 0; i < ids.length; i += BATCH) {
@@ -540,6 +545,9 @@ export function serverTransport({ url = "", fetch: f } = {}) {
         return false;
       }
       r.epoch = answer.epoch;
+      // Our items took the last n seqs. When the one before them is our cursor, nobody else wrote
+      // since our last read, so there is nothing new to pull and no reason to read our own back.
+      if (answer.seq - items.length === r.cursor) r.cursor = answer.seq;
       r.seq = Math.max(r.seq, answer.seq);
       const done = new Set(chunk);
       r.redo = r.redo.filter((id) => !done.has(id));
@@ -575,8 +583,10 @@ export function serverTransport({ url = "", fetch: f } = {}) {
     async sync(lib) {
       const r = lib.remote(name);
       for (let round = 0; round < 4; round++) {
+        const sent = lib.unsent(name).length > 0;
         if (!(await push(lib, r))) continue;
-        if (!(await pull(lib, r))) continue;
+        // After a push that left the cursor at the latest seq, a pull would only find our own items.
+        if (!(sent && r.cursor === r.seq) && !(await pull(lib, r))) continue;
         if (!r.redo.length && !lib.unsent(name).length) return;
       }
     },

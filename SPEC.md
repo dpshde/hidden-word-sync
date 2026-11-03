@@ -212,10 +212,10 @@ A server SHOULD accept at least: 100 items per POST; blobs of 379 to 21,900 char
 A client keeps, per server: the cursor (the last `seq` it read), the latest `seq` and the `epoch` it has seen, and which of its records the server doesn't have yet.
 
 1. **Push** every record changed on this device, or received through another transport, since the last push, in POSTs of up to 100. Records that came from this server are not sent back to it.
-2. **Pull** pages from the cursor until `more` is false. Merge each item (section 3). If this device's version wins against the server's, send this device's version again on the next push. That repairs a server that went back to an old version, or received one late.
+2. **Pull** pages from the cursor until `more` is false. A client MAY skip this after a push when the POST's answer shows nobody else wrote: if `seq` minus the number of items sent equals the cursor, those were the client's own items, so it can set the cursor to `seq` without reading them back. Merge each item (section 3). If this device's version wins against the server's, send this device's version again on the next push. That repairs a server that went back to an old version, or received one late.
 3. **Refill a server that lost data.** If an answer has a different `epoch` from the one remembered, or a `seq` lower than the latest seen, the server was erased, replaced or restored from a backup. Reset the cursor to 0, send every record (including deleted ones), and pull again.
 
-Sync after changes, on start, when the network returns, and every 30 seconds or so while visible.
+Sync after changes, on start, when the network returns, and every 30 seconds or so while visible. Syncing runs in the background and needn't be shown: apps SHOULD speak up only when changes are waiting and can't be sent, or when sync keeps failing.
 
 ## 6. Rules that protect people's data
 

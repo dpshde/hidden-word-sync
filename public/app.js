@@ -278,21 +278,23 @@ async function saveFromLink() {
   flash(`Saved ${found.label} in ${colorName(color)}.`, { label: "Undo", run: undo });
 }
 
+// Syncing happens out of sight: the library on this device is the library. The status only
+// speaks up when something needs attention: changes stuck offline, or sync failing again and again.
 function statusText() {
-  const waiting = library.waiting();
-  const { state } = library.status;
+  const { state, failures = 0 } = library.status;
   if (state === "local") return "On this device only";
-  if (state === "syncing") return "Syncing…";
-  if (state === "offline") return `Offline${waiting ? ` · ${waiting} waiting` : ""}`;
-  if (state === "error") return "Sync failed";
-  return waiting ? `${waiting} waiting` : folder.state === "paused" ? "Synced · folder paused" : "Synced";
+  const waiting = library.waiting();
+  if (state === "error" && failures > 1) return waiting ? `Sync failed · ${waiting} waiting` : "Sync failed";
+  if (state === "offline" && waiting) return `Offline · ${waiting} waiting`;
+  if (folder.state === "paused") return "Folder sync paused";
+  return "Synced";
 }
 
 function render() {
   if (!library) return;
   colors = palette(library.all("color"));
   $("#status").textContent = statusText();
-  $("#status").dataset.state = library.status.state;
+  $("#status").dataset.state = library.status.state === "error" && library.status.failures > 1 ? "error" : "";
   renderSwatches();
 
   const ids = colors.map((c) => c.id);
