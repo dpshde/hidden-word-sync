@@ -36,34 +36,7 @@ export async function mayUse(handle, ask = false) {
   return ask && (await handle.requestPermission(opts)) === "granted";
 }
 
-/** The folder in the shape `folderTransport` takes. */
-export function folderDir(handle) {
-  return {
-    async list() {
-      const out = [];
-      for await (const [name, entry] of handle.entries()) {
-        if (entry.kind !== "file") continue;
-        const file = await entry.getFile();
-        out.push({ name, stamp: `${file.lastModified}:${file.size}` });
-      }
-      return out;
-    },
-    async read(name) {
-      return (await (await handle.getFileHandle(name)).getFile()).text();
-    },
-    async write(name, text) {
-      // createWritable writes to a temporary file and swaps it in on close.
-      const w = await (await handle.getFileHandle(name, { create: true })).createWritable();
-      await w.write(text);
-      await w.close();
-    },
-    async remove(name) {
-      await handle.removeEntry(name);
-    },
-  };
-}
-
-/** The folder as paths, in the shape `bibleRsTransport` takes (a bible-rs Study Library has subfolders). */
+/** The folder as a tree of paths, the shape sync adapters take (see `memoryTree` in sync.js). */
 export function folderTree(handle) {
   const parts = (path) => path.split("/").filter(Boolean);
   async function dir(names, create = false) {
@@ -73,14 +46,14 @@ export function folderTree(handle) {
   }
   const missing = (e) => e?.name === "NotFoundError" || e?.name === "TypeMismatchError";
   return {
-    async list(path) {
+    async list(path = "") {
       const out = [];
       try {
         for await (const [name, entry] of (await dir(parts(path))).entries()) {
           if (entry.kind === "directory") out.push({ name, kind: "directory" });
           else {
             const file = await entry.getFile();
-            out.push({ name, kind: "file", stamp: `${file.size}-${file.lastModified}` });
+            out.push({ name, kind: "file", stamp: `${file.lastModified}:${file.size}` });
           }
         }
       } catch (e) {
@@ -91,8 +64,7 @@ export function folderTree(handle) {
     async read(path) {
       const names = parts(path);
       try {
-        const file = await (await (await dir(names.slice(0, -1))).getFileHandle(names.at(-1))).getFile();
-        return await file.text();
+        return await (await (await (await dir(names.slice(0, -1))).getFileHandle(names.at(-1))).getFile()).text();
       } catch (e) {
         if (missing(e)) return null;
         throw e;

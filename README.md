@@ -4,10 +4,11 @@ Bible highlights that follow you between apps and devices. Your library lives on
 
 - [SPEC.md](SPEC.md): the format and protocol. Start here to add Hidden Word to an app.
 - [decisions/](decisions/README.md): why it is built this way, one architecture decision record per choice.
-- `public/sync.js`: the reference client. Plain JavaScript with WebCrypto and `fetch`, no dependencies, so it runs in browsers, Bun, Node 20+, Deno and Workers. It merges records, syncs through servers (`serverTransport`) and folders (`folderTransport`), and writes library files.
+- `public/sync.js`: the reference client. Plain JavaScript with WebCrypto and `fetch`, no dependencies, so it runs in browsers, Bun, Node 20+, Deno and Workers. It merges records, syncs through servers (`serverTransport`) and any sync adapter (`Library.use`), and writes library files.
 - `public/passage.js`: reads what people type or paste ("jn 3.16", "Psalm 23", a bible.com link) with [grab-bcv](https://github.com/dpshde/grab-bcv), bundled into `public/vendor/` by `bun run vendor`. `public/refs.js` labels and sorts canonical references (`JHN.3.16`).
+- `public/adapters/`: sync adapters for folders, as plugins listed in `public/adapters/index.js`. `hidden-word/` is Hidden Word's own folder format (spec section 4). `bible-rs/` syncs with a [bible-rs](https://github.com/michaelshimeles/bible-rs) Study Library and imports bible-rs exports; see its [README](public/adapters/bible-rs/README.md). The core doesn't know about any adapter, and works with `bible-rs/` deleted (`test/separation.test.ts` checks).
 - `src/worker.ts`: the server, a Cloudflare Worker with D1.
-- `public/`: a minimal web app: create a library (and save its key to your password manager, with 1Password's save button when the extension is there, then optionally add a passkey), unlock it, add, recolor and delete highlights, name colors or add your own, choose how it syncs, export and import (including bible-rs exports). `/unlock` lets other apps ask for a library, and `/save?ref=John+3:16&color=blue` saves a verse from any link.
+- `public/`: a minimal web app: create a library (and save its key to your password manager, with 1Password's save button when the extension is there, then optionally add a passkey), unlock it, add, recolor and delete highlights, name colors or add your own, choose how it syncs, export and import (including other apps' files, through their adapters). `/unlock` lets other apps ask for a library, and `/save?ref=John+3:16&color=blue` saves a verse from any link.
 
 ## Develop
 
@@ -21,6 +22,8 @@ bun run dev             # cf dev, http://localhost:8787 (add -- --port 8799 if 8
 bun test                # client, server, and every mix of sync between devices
 bun run check           # typecheck with tsrs (bun run check:tsc uses tsc)
 ```
+
+`HWCOMPAT=<path to hwcompat> bun test` also runs the bible-rs adapter against bible-rs itself (see `test/adapters/bible-rs/hwcompat.rs`).
 
 `bun run vectors` rewrites `test/vectors.json` from the reference client. Only do that when the spec's cryptography changes.
 

@@ -28,8 +28,3 @@ Servers store blobs they can't read, so they never apply the rule; clients do, a
 - Changes to different records never conflict. Concurrent changes to the same record keep the later one; the earlier one is lost unless an app chooses to combine highlight parts into a new version.
 - A device with a clock far in the future can win conflicts it shouldn't. The `+1` rule limits the damage from slow clocks but not fast ones.
 - The tie-break compares exact serialized text, so writers must not reformat records they did not change.
-
-## Update 2026-11-02: stamps and note history
-
-To match bible-rs (see [Join bible-rs Study Libraries as a bible-rs device](join-bible-rs-study-libraries-as-a-bible-rs-device.md)), versions are ordered by a millisecond stamp and then device id before the JSON text. Notes merge by their edit history: a concurrent edit keeps the losing text as a conflict copy. The rule is still one rule, applied the same on every device and transport (spec section 3).
-

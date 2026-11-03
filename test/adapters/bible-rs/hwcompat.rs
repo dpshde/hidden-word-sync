@@ -1,6 +1,6 @@
 //! A bible-rs device driven from the command line, to test Hidden Word against bible-rs's own
 //! Study Library code (crates/core/src/folder.rs). Not part of bible-rs; kept in Hidden Word at
-//! test/bible-rs/hwcompat.rs and copied into a bible-rs checkout to run.
+//! test/adapters/bible-rs/hwcompat.rs and copied into a bible-rs checkout to run.
 //!
 //!   hwcompat seed <folder> <a.db> <b.db>   two devices: highlights, notes (with a conflict),
 //!                                          a bookmark, a plan with a ticked passage, deletes

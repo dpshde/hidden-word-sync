@@ -4,7 +4,7 @@ Date: 2026-11-02
 
 ## Status
 
-Superseded by [Join bible-rs Study Libraries as a bible-rs device](join-bible-rs-study-libraries-as-a-bible-rs-device.md)
+Superseded by [Sync with bible-rs through an adapter](sync-with-bible-rs-through-an-adapter.md)
 
 ## Context
 

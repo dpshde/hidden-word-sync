@@ -1,13 +1,13 @@
 import {
-  COLORS, Library, KeyError, newKey, formatKey, now, palette, topColor, parseJsonl, fromBibleRs, saveSlot, openSlot,
-  serverTransport, folderTransport,
+  COLORS, Library, KeyError, newKey, formatKey, now, palette, topColor, parseJsonl, saveSlot, openSlot,
+  serverTransport,
 } from "./sync.js";
 import { labelRef, compareRefs } from "./refs.js";
 import { readPassage } from "./passage.js";
 import { createPasskeyPrf, getPasskeyPrf, passkeysAvailable, cancelled } from "./passkey.js";
 import { activateOPButton, encodeOPSaveRequest } from "./vendor/onepassword-save-button.js";
-import { foldersAvailable, pickFolder, saveFolder, loadFolder, forgetFolder, mayUse, folderDir, folderTree } from "./folder.js";
-import { bibleRsTransport, studyLibrary } from "./biblers.js";
+import { foldersAvailable, pickFolder, saveFolder, loadFolder, forgetFolder, mayUse, folderTree } from "./folder.js";
+import { formatFor, importFile } from "./adapters/index.js";
 
 const $ = (sel) => document.querySelector(sel);
 const SESSION = "hidden-word:session";
@@ -83,9 +83,16 @@ async function connect() {
   if (folder.handle) {
     folder.state = (await mayUse(folder.handle)) ? "on" : "paused";
     if (folder.state === "on") {
-      // A bible-rs Study Library: join it as one more bible-rs device (spec 2.2).
-      folder.bibleRs = Boolean(await studyLibrary(folderTree(folder.handle)).catch(() => null));
-      transports.push(folder.bibleRs ? bibleRsTransport(folderTree(folder.handle)) : folderTransport(folderDir(folder.handle)));
+      // The folder's format picks the adapter (public/adapters/).
+      const tree = folderTree(folder.handle);
+      const format = await formatFor(tree);
+      if (format) {
+        folder.label = format.label;
+        transports.push(format.adapter(tree));
+      } else {
+        folder.state = "off";
+        flash("No folder format here can sync that folder.");
+      }
     }
     else flash("Folder sync is paused until you allow it again in Sync.");
   }
@@ -532,10 +539,9 @@ function renderSync() {
   $("#no-folders").hidden = can;
   $("#choose-folder").disabled = !can;
   $("#folder-text").textContent =
-    folder.state === "on" && folder.bibleRs ? `Syncing with the bible-rs Study Library “${folder.handle.name}”, as one more bible-rs device.` :
-    folder.state === "on" ? `Syncing with “${folder.handle.name}”. Each device keeps a plain file there you can read.` :
+    folder.state === "on" ? `Syncing with “${folder.handle.name}”. ${folder.label}` :
     folder.state === "paused" ? `“${folder.handle.name}” needs your permission again.` :
-    "A folder in iCloud Drive, Dropbox or Syncthing. Each device keeps a plain file there you can read. Choose a bible-rs Study Library to sync with bible-rs.";
+    "A folder in iCloud Drive, Dropbox or Syncthing. Each device keeps a plain file there you can read.";
   $("#choose-folder").textContent = folder.state === "paused" ? "Allow" : folder.state === "on" ? "Change" : "Choose folder";
   $("#stop-folder").hidden = folder.state === "off";
 }
@@ -619,13 +625,8 @@ $("#import-file").addEventListener("change", async (e) => {
   if (!file) return;
   try {
     const text = await file.text();
-    let doc = null;
-    try {
-      doc = JSON.parse(text);
-    } catch {
-      // Not one JSON document: JSON Lines.
-    }
-    const records = doc?.app === "bible-rs" ? fromBibleRs(doc) : parseJsonl(text);
+    // Another app's file, through its adapter (public/adapters/), or a library file.
+    const records = (await importFile(text)) ?? parseJsonl(text);
     const changed = await library.merge(records);
     const older = records.length - changed;
     flash(`Imported ${changed} ${changed === 1 ? "record" : "records"}${older ? ` (${older} unchanged: you had them, or newer)` : ""}.`);

@@ -3,9 +3,10 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync, readdirSync } from "node:fs";
 import { LIMITS, handle } from "../src/worker";
 import {
-  Library, deriveKeys, encryptRecord, folderTransport, formatKey, memoryDir, memoryStore, newKey, openSlot, parseKey,
+  Library, deriveKeys, encryptRecord, formatKey, memoryStore, memoryTree, newKey, openSlot, parseKey,
   saveSlot, serverTransport, slotKeys,
 } from "../public/sync.js";
+import { folderTransport } from "../public/adapters/hidden-word/index.js";
 
 const dir = new URL("../migrations/", import.meta.url);
 const MIGRATIONS = readdirSync(dir).filter((f) => f.endsWith(".sql")).sort().map((f) => readFileSync(new URL(f, dir), "utf8"));
@@ -338,7 +339,7 @@ describe("the merge rule", () => {
     const keyText = await formatKey(newKey());
     const lib = await device(keyText);
     await lib.put(hl("GEN.1.1", "yellow"));
-    const before = lib.find("highlight", "GEN.1.1").updated_ms;
+    const before = lib.find("highlight", "GEN.1.1").updated;
     const realNow = Date.now;
     Date.now = () => realNow() - 86_400_000;
     try {
@@ -346,7 +347,7 @@ describe("the merge rule", () => {
     } finally {
       Date.now = realNow;
     }
-    expect(lib.find("highlight", "GEN.1.1").updated_ms).toBe(before + 1);
+    expect(lib.find("highlight", "GEN.1.1").updated).toBe(before + 1);
     expect(colors(lib)).toEqual({ "GEN.1.1": "blue" });
   });
 
@@ -363,8 +364,8 @@ describe("syncing through a folder", () => {
   test("devices sharing a folder see each other's changes, in files people can read", async () => {
     const shared = new Map();
     const keyText = await formatKey(newKey());
-    const phone = await device(keyText, [folderTransport(memoryDir(shared))]);
-    const laptop = await device(keyText, [folderTransport(memoryDir(shared))]);
+    const phone = await device(keyText, [folderTransport(memoryTree(shared))]);
+    const laptop = await device(keyText, [folderTransport(memoryTree(shared))]);
 
     await phone.putMany([hl("PSA.119.11", "yellow"), { kind: "note", ref: "PSA.119", body: "hidden" }]);
     await phone.sync();
@@ -384,8 +385,8 @@ describe("syncing through a folder", () => {
 
   test("files from another library in the same folder are left alone", async () => {
     const shared = new Map();
-    const mine = await device(await formatKey(newKey()), [folderTransport(memoryDir(shared))]);
-    const theirs = await device(await formatKey(newKey()), [folderTransport(memoryDir(shared))]);
+    const mine = await device(await formatKey(newKey()), [folderTransport(memoryTree(shared))]);
+    const theirs = await device(await formatKey(newKey()), [folderTransport(memoryTree(shared))]);
     await theirs.put(hl("GEN.1.1", "pink"));
     await theirs.sync();
     await mine.sync();
@@ -401,8 +402,8 @@ describe("mixing servers, folders and no sync", () => {
     const shared = new Map();
     const keyText = await formatKey(newKey());
     const web = await device(keyText, [serverTransport({ fetch })]);
-    const offlineMac = await device(keyText, [folderTransport(memoryDir(shared))]);
-    const phone = await device(keyText, [serverTransport({ fetch }), folderTransport(memoryDir(shared))]);
+    const offlineMac = await device(keyText, [folderTransport(memoryTree(shared))]);
+    const phone = await device(keyText, [serverTransport({ fetch }), folderTransport(memoryTree(shared))]);
 
     await web.put(hl("JHN.1.1", "blue"));
     await offlineMac.put(hl("JHN.1.14", "green"));

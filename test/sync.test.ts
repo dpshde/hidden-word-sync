@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { createDecipheriv, createHmac, hkdfSync } from "node:crypto";
 import {
-  KeyError, Library, checkRecord, compareVersions, decryptRecord, deriveKeys, encryptRecord, formatKey, fromB64url, fromBibleRs,
+  KeyError, checkRecord, compareVersions, decryptRecord, deriveKeys, encryptRecord, formatKey, fromB64url,
   hex, itemId, newKey, pad, palette, parseJsonl, parseKey, slotKeys, topColor,
 } from "../public/sync.js";
 import { compareRefs, expandVerses, labelRef } from "../public/refs.js";
@@ -144,67 +144,6 @@ describe("records", () => {
     const records = parseJsonl(text);
     expect(records).toHaveLength(2);
     expect(records[0].highlights[0].color).toBe("blue");
-  });
-
-  test("bible-rs exports convert, verse by verse", () => {
-    const doc = {
-      app: "bible-rs", format: 1, exported_at: "2026-10-16T12:00:00Z", translation: "KJV",
-      highlights: [
-        { reference: "John 3:16", book: "JHN", chapter: 3, verse: 16, color: "yellow", created: "2026-10-14T12:00:00Z" },
-        { reference: "John 3:16", book: "JHN", chapter: 3, verse: 16, color: "blue", created: "2026-10-14T12:00:00Z",
-          start: 4, end: 26, quote: "God so loved the world", edited: "2026-10-15T12:00:00Z" },
-      ],
-      notes: [{ reference: "John 3:17", book: "JHN", chapter: 3, verse: 17, note: "sent", created: "2026-10-14T12:00:00Z", updated: "2026-10-15T12:00:00Z" }],
-      bookmarks: [{ reference: "Psalm 23:1", book: "PSA", chapter: 23, verse: 1, label: "", created: "2026-10-14T12:00:00Z" }],
-    };
-    const records = fromBibleRs(doc);
-    expect(records).toEqual([
-      { kind: "highlight", ref: "JHN.3.16", updated: 1792065600, highlights: [
-        { color: "yellow", created: 1791979200 },
-        { color: "blue", created: 1791979200, start: 4, end: 26, quote: "God so loved the world", edited: 1792065600 },
-      ] },
-      { kind: "note", ref: "JHN.3.17", updated: 1792065600, created: 1791979200, body: "sent" },
-    ]);
-    for (const r of records) expect(checkRecord(r)).toBeNull();
-  });
-
-  // bible-rs PR #80/#81 (sync phase 0/1): format 2 adds stamps, conflict copies and tombstones.
-  test("bible-rs format 2 stamps set updated, so a removed part still wins", () => {
-    const doc = {
-      app: "bible-rs", format: 2, exported_at: "2026-10-20T12:00:00Z", translation: "KJV",
-      highlights: [
-        { reference: "John 3:16", book: "JHN", chapter: 3, verse: 16, color: "yellow", created: "2026-10-14T12:00:00Z",
-          updated_ms: 1792497600123, device: "d-mac" },
-      ],
-      notes: [{
-        reference: "John 3:17", book: "JHN", chapter: 3, verse: 17, note: "mine", created: "2026-10-14T12:00:00Z",
-        updated: "2026-10-15T12:00:00Z", updated_ms: 1792584000999, device: "d-mac", base_updated: 1792065600000, base_device: "d-mac",
-        conflicts: [{ body: "theirs", updated_ms: 1792584000500, device: "d-phone", found: 1792584001 }],
-      }],
-      deleted: { highlights: [{ book: "JHN", chapter: 1, verse: 1, updated_ms: 1792497600000, device: "d-mac", deleted: true }] },
-    };
-    const records = fromBibleRs(doc);
-    expect(records).toEqual([
-      { kind: "highlight", ref: "JHN.3.16", updated: 1792497600, updated_ms: 1792497600123, device: "d-mac",
-        highlights: [{ color: "yellow", created: 1791979200 }] },
-      { kind: "note", ref: "JHN.3.17", updated: 1792584000, updated_ms: 1792584000999, device: "d-mac", created: 1791979200, body: "mine",
-        "x-bible-rs-updated": 1792065600, base_updated: 1792065600000, base_device: "d-mac",
-        conflicts: [{ body: "theirs", updated_ms: 1792584000500, device: "d-phone", found: 1792584001 }] },
-    ]);
-    for (const r of records) expect(checkRecord(r)).toBeNull();
-    expect(JSON.stringify(records)).not.toContain("JHN.1.1"); // tombstones are ignored
-  });
-
-  test("a later bible-rs export that removed a part replaces the earlier import", async () => {
-    const part = (color: string) => ({ reference: "John 3:16", book: "JHN", chapter: 3, verse: 16, color, created: "2026-10-14T12:00:00Z" });
-    const first = fromBibleRs({ app: "bible-rs", format: 2, highlights: [
-      { ...part("yellow"), updated_ms: 1791979200000 }, { ...part("blue"), updated_ms: 1791979200000 },
-    ] });
-    const second = fromBibleRs({ app: "bible-rs", format: 2, highlights: [{ ...part("yellow"), updated_ms: 1792065600000 }] });
-    const lib = await Library.open({ keyText: await formatKey(newKey()) });
-    await lib.merge(first);
-    expect(await lib.merge(second)).toBe(1);
-    expect(lib.all("highlight")[0].highlights.map((h: { color: string }) => h.color)).toEqual(["yellow"]);
   });
 });
 
