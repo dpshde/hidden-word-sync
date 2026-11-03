@@ -118,6 +118,7 @@ function lock() {
   localStorage.removeItem(SESSION);
   $("#menu").open = false;
   $("#passkey-offer").hidden = true;
+  hideKey();
   document.querySelectorAll("form").forEach((f) => f.reset());
   show("start");
 }
@@ -746,7 +747,7 @@ $("#stop-folder").addEventListener("click", async () => {
   await connect();
 });
 
-for (const back of document.querySelectorAll(".back")) back.addEventListener("click", () => (show("main"), render()));
+for (const back of document.querySelectorAll(".back")) back.addEventListener("click", () => (hideKey(), show("main"), render()));
 
 // ---- the library's name, edited in place
 
@@ -793,41 +794,68 @@ function menuAction(id, fn) {
   });
 }
 
-menuAction("#open-sync", () => (renderSync(), show("sync")));
+menuAction("#open-sync", () => (renderSync(), hideKey(), ($("#access-note").textContent = ""), show("sync")));
 menuAction("#open-colors", () => (renderColors(), show("colors")));
+menuAction("#open-backup", () => (($("#backup-note").textContent = ""), show("backup")));
 
-/** Creates a passkey that unlocks the open library. */
+/** Runs a button on a settings screen, saying how it went in that screen's status line. */
+function screenAction(id, note, fn) {
+  $(id).addEventListener("click", async () => {
+    try {
+      const said = await fn();
+      if (said) $(note).textContent = said;
+    } catch (error) {
+      if (!cancelled(error)) $(note).textContent = error.message;
+    }
+  });
+}
+
+/** Creates a passkey that unlocks the open library, and says so. */
 async function addPasskey() {
   const prf = await createPasskeyPrf(library.name);
   await saveSlot({ prf, keyText: library.keyText, name: library.name });
   $("#passkey-offer").hidden = true;
-  flash("Passkey added. Use it to unlock this library in any browser.");
+  return "Passkey added. Use it to unlock this library in any browser.";
 }
 
-menuAction("#add-passkey", addPasskey);
+screenAction("#add-passkey", "#access-note", addPasskey);
 
-// Offered once, right after creating a library. Declining or cancelling costs nothing: the menu
-// has "Add passkey" too.
+// Offered once, right after creating a library. Declining or cancelling costs nothing: the Sync
+// screen has "Add passkey" too.
 $("#offer-passkey").addEventListener("click", async () => {
   try {
-    await addPasskey();
+    flash(await addPasskey());
   } catch (error) {
     if (!cancelled(error)) flash(error.message);
   }
 });
 $("#skip-passkey").addEventListener("click", () => ($("#passkey-offer").hidden = true));
 
-menuAction("#show-key", () => flash(`Sync key: ${library.keyText}`));
+// The key shows on the Sync screen until hidden again or the screen is left.
+function hideKey() {
+  $("#key-reveal").hidden = true;
+  $("#key-text").textContent = "";
+  $("#show-key").textContent = "Show sync key";
+  $("#show-key").setAttribute("aria-expanded", "false");
+}
+$("#show-key").addEventListener("click", () => {
+  if (!$("#key-reveal").hidden) return hideKey();
+  $("#key-text").textContent = library.keyText;
+  $("#key-reveal").hidden = false;
+  $("#show-key").textContent = "Hide sync key";
+  $("#show-key").setAttribute("aria-expanded", "true");
+});
 
-menuAction("#export", () => {
+screenAction("#export", "#backup-note", () => {
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([library.toFile()], { type: "application/x-ndjson" }));
   a.download = `hidden-word-${new Date().toISOString().slice(0, 10)}.jsonl`;
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  return "Saved a copy of this library as a file.";
 });
 
-menuAction("#import", () => $("#import-file").click());
+screenAction("#import", "#backup-note", () => $("#import-file").click());
 
 $("#import-file").addEventListener("change", async (e) => {
   const file = e.target.files[0];
@@ -844,9 +872,9 @@ $("#import-file").addEventListener("change", async (e) => {
     const records = doc?.app === "bible-rs" ? fromBibleRs(doc) : parseJsonl(text);
     const changed = await library.merge(records);
     const older = records.length - changed;
-    flash(`Imported ${changed} ${changed === 1 ? "record" : "records"}${older ? ` (${older} unchanged: you had them, or newer)` : ""}.`);
+    $("#backup-note").textContent = `Imported ${changed} ${changed === 1 ? "record" : "records"}${older ? ` (${older} unchanged: you had them, or newer)` : ""}.`;
   } catch (error) {
-    flash(`Couldn't import that file: ${error.message}`);
+    $("#backup-note").textContent = `Couldn't import that file: ${error.message}`;
   }
 });
 
