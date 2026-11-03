@@ -56,8 +56,10 @@ Logs, traces and browser error reports are on, redacted so they never hold a key
 
 ## Adding Hidden Word to an app
 
+Start with [docs/quickstart.md](docs/quickstart.md): a first sync in five steps, with real requests and answers. SPEC.md is version 1.0, and section 11 says what stays stable.
+
 1. Read and write records (SPEC.md section 1) in your own storage, keyed by `kind` and `ref`, and keep what you don't understand.
 2. Apply the merge rule (section 3) whenever a record comes from anywhere else. Offer export and import of `.jsonl` files (section 2). This alone makes your app interoperable.
 3. For sync without a server, read and write files in a shared folder (section 4).
-4. For server sync, derive keys from the sync key and push and pull (section 5). Check your output against `test/vectors.json`.
+4. For server sync, derive keys from the sync key and push and pull (section 5). Check your output against `test/vectors.json`, replay `conformance/fixtures.json` with your client, and run `bun run conformance <base-url>` against your server (section 10.1).
 5. When creating a library, offer to save its key to the password manager (section 7.1). To use a library made elsewhere, show a username/password form the password manager can fill, or open `/unlock?app=…&callback=…` on a Hidden Word site (section 7.3).
