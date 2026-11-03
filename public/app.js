@@ -435,27 +435,25 @@ function row({ ref: runRef, records }) {
 let editing = null;
 
 /**
- * Swaps a row for a passage field holding its reference. Enter, or leaving the field after changing it,
- * saves; Escape cancels. Saving rewrites the run's verses (see editRun) in one putMany.
+ * Swaps a row's reference for a passage field in the same place, at the same size: the dot and icons
+ * stay where they are (inert while editing). Enter, or leaving the field after changing it, saves;
+ * Escape cancels. A reference that doesn't read keeps the field open and says why in the flash line.
+ * Saving rewrites the run's verses (see editRun) in one putMany.
  */
 function editRow(li, line, run) {
   const ids = colors.map((c) => c.id);
   const color = topColor(run.records[0], ids);
   const form = document.createElement("form");
-  form.className = "row edit";
+  form.className = "ref-edit";
   form.noValidate = true;
   form.autocomplete = "off";
-  const dot = document.createElement("span");
-  dot.className = "dot";
-  paint(dot, color);
   const field = document.createElement("si-passage-input");
   field.setAttribute("aria-label", `Reference for ${labelRef(run.ref)}`);
   field.setAttribute("placeholder", "John 3:16");
-  const error = document.createElement("p");
-  error.className = "error";
-  error.setAttribute("role", "alert");
-  form.append(dot, field, error);
-  line.replaceWith(form);
+  form.append(field);
+  line.querySelector(".row-link").replaceWith(form);
+  line.classList.add("editing");
+  for (const el of line.querySelectorAll(":scope > .dot, :scope > .actions")) el.inert = true;
   editing = run.ref;
   field.value = labelRef(run.ref);
   const start = refText(field);
@@ -470,7 +468,7 @@ function editRow(li, line, run) {
   const save = async () => {
     if (done) return;
     const found = readPassage(refText(field));
-    if (found.error) return errorIn(form, found.error);
+    if (found.error) return (form.dataset.invalid = "1"), flash(found.error);
     const changes = editRun(run.records, found.verses, color, now(), (v) => library.find("highlight", v));
     finish();
     if (changes.length) await library.putMany(changes);
@@ -481,7 +479,7 @@ function editRow(li, line, run) {
     if (e.key === "Enter" && !suggesting(field)) (e.preventDefault(), save());
     if (e.key === "Escape" && !suggesting(field)) (e.preventDefault(), finish());
   });
-  field.addEventListener("input", () => errorIn(form, ""));
+  field.addEventListener("input", () => delete form.dataset.invalid);
   // Leaving the field saves a change and quietly closes an unchanged one. An invalid change stays open.
   form.addEventListener("focusout", (e) => {
     if (done || form.contains(/** @type {Node} */ (e.relatedTarget))) return;
