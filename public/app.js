@@ -723,7 +723,12 @@ setInterval(() => document.visibilityState === "visible" && library?.sync(), 30_
 
 async function boot() {
   loadConfig();
-  if (passkeysAvailable()) $("#passkey-unlock").hidden = false;
+  // With passkeys, unlocking with one is the main way in and the key form is the fallback.
+  if (passkeysAvailable()) {
+    $("#passkey-unlock").hidden = false;
+    $("#or-key").hidden = false;
+    $("#start").classList.add("has-passkey");
+  }
   const request = takeSaveLink();
   if (request) {
     const found = readPassage(request.ref);

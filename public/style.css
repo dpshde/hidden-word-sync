@@ -170,3 +170,13 @@ input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 50%; }
   --yv-background: transparent;
 }
 .icon.text[aria-expanded="true"] { color: var(--fg); }
+
+/* The start screen: passkey first when this browser has passkeys, then the key form, then a way to start. */
+button.wide { width: 100%; padding: .75rem 1rem; }
+#start.has-passkey #unlock-form button[type="submit"] { background: transparent; color: var(--fg); border: 1px solid var(--line); }
+#start label.light { font-size: .8125rem; }
+#start label.light input { padding: .45rem .75rem; font-size: .9375rem; }
+.divider { display: flex; align-items: center; gap: .75rem; margin: 1.5rem 0; color: var(--muted); font-size: .8125rem; }
+.divider::before, .divider::after { content: ""; flex: 1; border-top: 1px solid var(--line); }
+.new-here { margin: 2.5rem 0 0; color: var(--muted); font-size: .875rem; }
+.new-here button.link { display: inline; flex: none; color: var(--fg); text-decoration: underline; text-underline-offset: .2em; font-size: inherit; }

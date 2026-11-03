@@ -18,18 +18,20 @@
     <p class="lede">Your highlights, on your devices, in any app.</p>
     <p class="note" id="start-note" role="status" hidden></p>
 
+    <button id="passkey-unlock" class="wide" type="button" hidden>Unlock with passkey</button>
+    <p class="divider" id="or-key" hidden><span>or use your sync key</span></p>
+
     <form id="unlock-form" autocomplete="on">
-      <label for="username">Library <input id="username" name="username" autocomplete="username" value="Personal" required></label>
+      <!-- The library name stays before the key: password managers pair a username field with the
+           password field after it, so 1Password and iCloud Keychain fill both. -->
+      <label for="username" class="light">Library name (optional) <input id="username" name="username" autocomplete="username" value="Personal"></label>
       <label for="password">Sync key <input id="password" name="password" type="password" autocomplete="current-password" placeholder="XXXX-XXXX-…" required spellcheck="false" autocapitalize="characters"></label>
-      <button type="submit">Unlock</button>
+      <button type="submit" class="wide">Unlock</button>
       <p class="error" role="alert"></p>
     </form>
 
-    <div class="row">
-      <button id="passkey-unlock" class="quiet" type="button" hidden>Unlock with passkey</button>
-      <button id="create" class="quiet" type="button">New library</button>
-    </div>
     <p class="error" id="start-error" role="alert"></p>
+    <p class="new-here">New here? <button id="create" class="link" type="button">Create a library</button></p>
   </section>
 
   <section id="created" hidden>
