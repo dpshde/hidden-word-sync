@@ -4,7 +4,7 @@ Date: 2026-11-02
 
 ## Status
 
-Accepted
+Superseded by [Sync with bible-rs through an adapter](sync-with-bible-rs-through-an-adapter.md)
 
 ## Context
 

@@ -115,14 +115,6 @@ The first line MAY be a header, which has no `kind`:
 
 When importing a file, each record is merged into the library by the rule in section 3, as if it had arrived from another device. Within one file, a later line with the same identity replaces an earlier one. A record without `updated` is treated as written at the moment of import.
 
-### 2.1 bible-rs exports
-
-Apps MAY import a bible-rs export (JSON with `"app": "bible-rs"` and `"format": 1`):
-
-- Each entry of `highlights` (`book`, `chapter`, `verse`, `color`, `start`, `end`, `quote`, `created`, `edited`) becomes a part of the highlight record for `BOOK.chapter.verse`, with RFC 3339 times converted to Unix seconds. `updated` is the latest `edited` or `created` among its parts.
-- Each entry of `notes` becomes a `note` record with `body` set to its `note`.
-- `bookmarks` have no equivalent and are left out.
-
 ## 3. Merging
 
 Every device, server and file follows one rule, so a library ends up the same everywhere whatever order changes arrive in, however long a device was offline, and however it syncs.
@@ -148,6 +140,10 @@ Devices that can reach the same folder (iCloud Drive, Dropbox, Google Drive, Syn
 Files left by old devices are harmless: anything newer elsewhere wins over them. Any one device's file is a complete backup.
 
 People who want the files encrypted at rest should choose a folder service that encrypts (for example iCloud Drive with Advanced Data Protection), or use server sync.
+
+### 4.1 Other apps' folders and files
+
+An app MAY also keep a library in step with another app's folder format, or import another app's files, through an adapter. An adapter maps the other format to records (section 1) and back. Records it gives the library are edits or incoming versions like any other, merged by section 3. Anything the other format holds that has no record (its own kinds, history, metadata) stays in the adapter's own state on the device, not in the library, so the library and every other device and transport never depend on the adapter. Each adapter documents its own mapping, beside its code in `public/adapters/`.
 
 ## 5. Server sync
 
@@ -320,3 +316,4 @@ Losing the sync key and every passkey means losing access to the server copy. Th
 - Files have an optional header line.
 - Rules that protect people's data (section 6), and route.bible links (section 8).
 - Password-manager saving uses a real form submission that sends nothing (section 7.1). Saving from a link (section 7.4).
+- Other apps' formats go through adapters (section 4.1), which document their own mappings; the one export format this spec used to describe (2.1) moved to its adapter.
