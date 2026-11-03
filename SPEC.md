@@ -1,4 +1,4 @@
-# Hidden Word, version 0.2
+# Hidden Word, version 1.0
 
 > Thy word have I hid in mine heart, that I might not sin against thee. (Psalm 119:11)
 
@@ -15,7 +15,7 @@ The spec has layers. Each one works without the ones after it.
 
 An app can stop at layer 3 and interoperate through files. Layer 4 needs only file access. Layer 5 needs only HTTPS, JSON, SHA-256, HMAC-SHA256, HKDF-SHA256 and AES-256-GCM.
 
-The key words MUST, SHOULD and MAY are used as in RFC 2119.
+The key words MUST, SHOULD and MAY are used as in RFC 2119. Section 11 says what stays stable.
 
 ## 1. Records
 
@@ -127,7 +127,7 @@ Apps MAY import a bible-rs export (JSON with `"app": "bible-rs"` and `"format": 
 
 Every device, server and file follows one rule, so a library ends up the same everywhere whatever order changes arrive in, however long a device was offline, and however it syncs.
 
-**Which version wins.** Of two versions of a record, the one with the larger `updated` wins. If `updated` is equal, the one whose JSON text is larger as a sequence of UTF-8 bytes wins. A missing or non-integer `updated` counts as 0. The JSON text is the record exactly as its writer serialized it: the line in a file, or the plaintext of an encrypted item without its padding.
+**Which version wins.** Of two versions of a record, the one with the larger `updated` wins. If `updated` is equal, the one whose JSON text is larger as a sequence of UTF-8 bytes wins (compare bytes, not UTF-16 code units). A missing `updated`, or one that isn't an integer from −(2^53−1) to 2^53−1, counts as 0. The JSON text is the record exactly as its writer serialized it: the line in a file, or the plaintext of an encrypted item without its padding.
 
 **Writing.** When an app changes a record, it sets `updated` to the current time, or to one more than the `updated` of the version it is replacing, whichever is larger. An edit therefore always beats what it was made from, even on a device whose clock is behind.
 
@@ -185,7 +185,7 @@ A reader removes the trailing spaces, parses the JSON, and MUST check that `id` 
 
 ### 5.4 Routes
 
-All bodies are JSON. Every route needs `Authorization: Bearer <token>`. Servers MUST send `Access-Control-Allow-Origin: *` and answer `OPTIONS` preflights. Responses SHOULD be `Cache-Control: no-store`.
+All bodies are JSON. Every route needs `Authorization: Bearer <token>`. Servers MUST send `Access-Control-Allow-Origin: *` and answer `OPTIONS` preflights, allowing at least the `Authorization` and `Content-Type` headers and the methods below. Responses SHOULD be `Cache-Control: no-store`.
 
 **`GET /v1/lib/{lib}?after={seq}`** returns items written after `seq` (default 0), oldest first, at most 500 a page:
 
@@ -193,11 +193,11 @@ All bodies are JSON. Every route needs `Authorization: Bearer <token>`. Servers 
 {"items":[{"seq":41,"id":"cq_pOilWI_5HRaH6ll9W2d","blob":"AAEC…"}],"more":false,"seq":57,"epoch":"9c1f0e…"}
 ```
 
-An optional `limit` (1–500, default 500) caps the page for clients with small memory, such as watches. Servers clamp it to that range and treat a value that isn't a number as 500. When `more` is true, ask again with `after` set to the last item's `seq`. `seq` is the library's latest sequence number. `epoch` is a random id the server chose when the library was first written, or `null` when the server has no such library.
+An `after` that isn't a non-negative integer is a 400. An optional `limit` (1–500, default 500) caps the page for clients with small memory, such as watches. Servers clamp it to that range and treat a value that isn't a number as 500. When `more` is true, ask again with `after` set to the last item's `seq`. `seq` is the library's latest sequence number. `epoch` is a random id the server chose when the library was first written, or `null` when the server has no such library.
 
 **`POST /v1/lib/{lib}`** with `{"items":[{"id":…,"blob":…}]}`, 1 to 100 items, returns `{"seq": n, "epoch": "…"}`.
 
-The first write claims a library: the server stores the SHA-256 of the token and refuses other tokens afterward (401). Each item replaces the server's item with the same id, whatever it held, and gets a new `seq` higher than every earlier one. The server can't read blobs, so it never applies the merge rule; clients do. Readers never see a `seq` before every lower one is visible.
+The first write claims a library: the server stores the SHA-256 of the token and refuses other tokens afterward (401). Each item replaces the server's item with the same id, whatever it held, and gets a new `seq` higher than every earlier one. If one POST names an id twice, the later one is kept, as if sent separately; the items take one `seq` each per distinct id. The server can't read blobs, so it never applies the merge rule; clients do. Readers never see a `seq` before every lower one is visible.
 
 **`DELETE /v1/lib/{lib}`** deletes the library and its items, and releases the claim. Returns 204. The next write starts a new epoch.
 
@@ -212,7 +212,7 @@ A server SHOULD accept at least: 100 items per POST; blobs of 379 to 21,900 char
 A client keeps, per server: the cursor (the last `seq` it read), the latest `seq` and the `epoch` it has seen, and which of its records the server doesn't have yet.
 
 1. **Push** every record changed on this device, or received through another transport, since the last push, in POSTs of up to 100. Records that came from this server are not sent back to it.
-2. **Pull** pages from the cursor until `more` is false. A client MAY skip this after a push when the POST's answer shows nobody else wrote: if `seq` minus the number of items sent equals the cursor, those were the client's own items, so it can set the cursor to `seq` without reading them back. Merge each item (section 3). If this device's version wins against the server's, send this device's version again on the next push. That repairs a server that went back to an old version, or received one late.
+2. **Pull** pages from the cursor until `more` is false. A client MAY skip this after a push when the POST's answer shows nobody else wrote: if `seq` minus the number of distinct ids sent equals the cursor, those were the client's own items, so it can set the cursor to `seq` without reading them back. Merge each item (section 3). If this device's version wins against the server's, send this device's version again on the next push. That repairs a server that went back to an old version, or received one late.
 3. **Refill a server that lost data.** If an answer has a different `epoch` from the one remembered, or a `seq` lower than the latest seen, the server was erased, replaced or restored from a backup. Reset the cursor to 0, send every record (including deleted ones), and pull again.
 
 Sync after changes, on start, when the network returns, and every 30 seconds or so while visible. Syncing runs in the background and needn't be shown: apps SHOULD speak up only when changes are waiting and can't be sent, or when sync keeps failing.
@@ -287,6 +287,7 @@ https://<site>/save?ref=John+3:16&color=blue
 - The link carries no key and reaches no library by itself. A site MUST NOT save for a library the browser hasn't unlocked, and SHOULD forbid framing (`frame-ancestors 'none'`) so the save is always visible.
 
 The reference web app parses `ref` with [grab-bcv](https://github.com/dpshde/grab-bcv).
+
 ## 8. Linking
 
 A reference is enough to link to a passage; records don't store links. To open a passage in the reader's preferred Bible app, apps MAY use route.bible, which uses the same book codes: `https://route.bible/` followed by the lowercased `ref`, for example `https://route.bible/jhn.3.16`.
@@ -295,7 +296,7 @@ A reference is enough to link to a passage; records don't store links. To open a
 
 A server learns how many items each library has, when they change, from which IP addresses, and each blob's size in 256-byte steps. It does not learn verses, colors, notes, names or keys. It can delete or withhold items, or serve old versions; section 5.6 repairs the latter, and section 6 makes sure the former never costs a device its copy.
 
-A server that also answers for an assistant with the sync key, like the reference Worker's MCP endpoint (`/mcp`), reads that library while it answers. That is the person's choice, made by giving an app the key; plain server sync never sends it.
+A server that also answers for an assistant with the sync key, like the reference Worker's MCP endpoint (`/mcp`), reads that library while it answers. That is the person's choice, made by giving an app the key; plain server sync never sends it. The MCP endpoint is optional and outside this spec: servers needn't offer it, and section 11's promises don't cover it.
 
 Losing the sync key and every passkey means losing access to the server copy. The files on a device or in a sync folder are still readable without it.
 
@@ -311,6 +312,41 @@ Losing the sync key and every passkey means losing access to the server copy. Th
 | id of `highlight JHN.3.16` | `cq_pOilWI_5HRaH6ll9W2d` |
 | PRF input | `fcfb4063bf395fdc94420956f179db678140eff05a60a0c776c8c81f3684fef5` |
 | `slot` for PRF `11…11` | `2148b32b2ad12085df0d940c85855e97` |
+
+### 10.1 Conformance
+
+The `conformance/` folder checks an implementation against this spec. Passing it is necessary, not sufficient.
+
+- `bun run conformance <base-url>` checks a server's library routes (section 5.4): CORS and preflights, claiming, wrong tokens, the POST limits, paging, replacing by id, `epoch`, DELETE, the error body and `Cache-Control`. It uses a fresh random key and deletes its library at the end. It doesn't check slots, the 8,000,000-character library limit, or anything outside `/v1/lib`.
+- `conformance/fixtures.json` is for clients: pairs of versions with the one that wins (section 3), the `updated` an edit gets, when a server answer means a refill (5.6), and sync scenarios (two devices converging, a tie, a deletion spreading, a refill after a new epoch, an old version repaired) to replay with your client against a test server.
+
+[docs/quickstart.md](docs/quickstart.md) walks through a first sync with the test-vector key.
+
+## 11. Versioning
+
+This is version 1.0. Every 1.x version keeps these working the same way:
+
+- Records (section 1), the merge rule (3) and the writing rule for `updated`.
+- Library files and their header, `"hidden-word": 2` (2), and folder sync's layout (4).
+- The sync key's text form (5.1), every HKDF info and length (5.2, 7.2), and how item ids, blobs, padding and slots are made (5.3, 7.2).
+- The `/v1` routes, their status codes and response shapes (5.4, 7.2), and the minimum limits (5.5). A server may accept more, never less.
+- The unlock handoff (7.3) and saving from a link (7.4).
+
+**Breaking** means anything that makes a conforming 1.0 client or server stop working with another: removing or renaming a field, route or parameter, changing a response shape or status code, changing the merge rule, or changing any derivation. A breaking change needs version 2.0, with new routes under `/v2/` and new HKDF infos (`hidden-word/v2/…`), so 1.x clients and servers keep talking to each other.
+
+**Compatible** changes may come in any 1.x version: new optional fields in records, headers or responses; new record kinds; new routes; new optional query parameters whose absence keeps today's behavior; and clarifications. So implementations MUST ignore response fields they don't know, and MUST keep record fields and kinds they don't know (section 1) and write them back unchanged.
+
+**Deprecation.** A feature to be removed is first marked deprecated here, in a 1.x version, and keeps working for the rest of 1.x. It's removed only in 2.0. A server that adds `/v2` SHOULD keep serving `/v1` for at least a year after.
+
+Not covered: the reference web app's screens and storage, and the reference Worker's extras (`/mcp`, `/config.json`, `/api/client-error`).
+
+## Changes from 0.2
+
+No wire changes: a 0.2 client or server is a 1.0 one.
+
+- The versioning promise (section 11) and a conformance suite (10.1).
+- Clarified to match the reference implementation: `updated` must be a safe integer to count (section 3); the merge compares UTF-8 bytes; a POST that repeats an id keeps the later one, and the push shortcut counts distinct ids (5.4, 5.6); `after` must be a non-negative integer; preflights allow `Authorization` and `Content-Type`.
+- The MCP endpoint is named as optional and outside the spec (section 9).
 
 ## Changes from 0.1
 

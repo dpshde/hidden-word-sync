@@ -27,3 +27,4 @@ To change a decision, write a new record and mark the old one `Superseded by …
 | [Show verse text from YouVersion on request](show-verse-text-from-youversion-on-request.md) | Accepted | 2026-11-03 |
 | [Serve an MCP server that opens a library with its sync key](serve-an-mcp-server-that-opens-a-library-with-its-sync-key.md) | Accepted | 2026-11-03 |
 | [Observe the Worker with redacted logs and traces](observe-the-worker-with-redacted-logs-and-traces.md) | Accepted | 2026-11-03 |
+| [Promise a stable 1.0 contract](promise-a-stable-1-0-contract.md) | Accepted | 2026-11-03 |
