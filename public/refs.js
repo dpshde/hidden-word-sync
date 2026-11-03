@@ -91,3 +91,27 @@ export function groupRuns(records, keyOf) {
     return { ref: `${first.code}.${first.chapter}.${first.verse}-${first.verse + rs.length - 1}`, records: rs };
   });
 }
+
+/**
+ * A verse highlighted in one color, as the add form saves it. A verse already highlighted (`prev`)
+ * keeps its other fields and when it was first highlighted; the color counts as an edit.
+ */
+export function highlightRecord(prev, ref, color, t) {
+  const created = prev?.highlights?.length ? Math.min(...prev.highlights.map((h) => h.created ?? t)) : t;
+  const part = created === t ? { color, created } : { color, created, edited: t };
+  return { ...(prev ?? {}), kind: "highlight", ref, highlights: [part] };
+}
+
+/**
+ * The records that turn a row's run into a new set of verses, for one putMany. Verses in both stay
+ * untouched (left out); verses only in the run are tombstoned, like deleting them; verses only in
+ * the new set are highlighted in the run's color. `find(ref)` gives any live record for a verse.
+ */
+export function editRun(records, verses, color, t, find = () => null) {
+  const old = new Set(records.map((r) => r.ref));
+  const next = new Set(verses);
+  return [
+    ...records.filter((r) => !next.has(r.ref)).map((r) => ({ kind: "highlight", ref: r.ref, deleted: true })),
+    ...[...next].filter((v) => !old.has(v)).map((v) => highlightRecord(find(v), v, color, t)),
+  ];
+}

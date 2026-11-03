@@ -2,7 +2,7 @@ import {
   COLORS, Library, KeyError, newKey, formatKey, parseKey, now, palette, topColor, parseJsonl, fromBibleRs, saveSlot, openSlot,
   serverTransport, folderTransport,
 } from "./sync.js";
-import { labelRef, compareRefs, groupRuns } from "./refs.js";
+import { labelRef, compareRefs, groupRuns, highlightRecord, editRun } from "./refs.js";
 import { readPassage } from "./passage.js";
 import { definePassageInput, defineScripturePassage } from "./vendor/scripture-inline.js";
 import { createPasskeyPrf, getPasskeyPrf, passkeysAvailable, cancelled } from "./passkey.js";
@@ -231,14 +231,7 @@ function renderSwatches() {
 async function highlight(verses, color) {
   const t = now();
   const before = verses.map((v) => library.find("highlight", v));
-  await library.putMany(
-    verses.map((v, i) => {
-      const prev = before[i];
-      const created = prev ? Math.min(...prev.highlights.map((h) => h.created ?? t)) : t;
-      const part = created === t ? { color, created } : { color, created, edited: t };
-      return { ...(prev ?? {}), kind: "highlight", ref: v, highlights: [part] };
-    }),
-  );
+  await library.putMany(verses.map((v, i) => highlightRecord(before[i], v, color, t)));
   return () => library.putMany(verses.map((v, i) => before[i] ?? { kind: "highlight", ref: v, deleted: true }));
 }
 
@@ -246,17 +239,19 @@ async function highlight(verses, color) {
 // as people type. Its value is a USFM id like ROM.5.3-5 once it reads a passage.
 definePassageInput();
 const refField = $("#ref");
-/** What's in the field: its passage id when it read one, else the typed text, which readPassage reads more
- * loosely (the field won't take passages across chapters, like Genesis 1–2, but Hidden Word does). */
-function refText() {
-  const typed = refField.shadowRoot?.querySelector("input")?.value ?? "";
-  return refField.value && refField.validity.valid ? refField.value : typed;
+/** What's in a passage field: its passage id when it read one, else the typed text, which readPassage reads
+ * more loosely (the field won't take passages across chapters, like Genesis 1–2, but Hidden Word does). */
+function refText(field = refField) {
+  const typed = field.shadowRoot?.querySelector("input")?.value ?? "";
+  return field.value && field.validity.valid ? field.value : typed;
 }
+/** Whether the field's suggestion list is showing (Enter and Escape act on it first). */
+const suggesting = (field) => field.shadowRoot?.querySelector("[role=listbox]")?.hidden === false;
 // Enter that settles a passage highlights it; Enter that only fills in a book name keeps typing.
 // The field's own handler runs first (it's on the inner input), so its list shows what Enter did.
 refField.addEventListener("keydown", (e) => {
   if (e.key !== "Enter" || e.isComposing) return;
-  if (refField.shadowRoot?.querySelector("[role=listbox]")?.hidden !== false) $("#add").requestSubmit();
+  if (!suggesting(refField)) $("#add").requestSubmit();
 });
 
 $("#add").addEventListener("submit", async (e) => {
@@ -313,7 +308,9 @@ function render() {
 
   const shown = filter ? rows.filter((r) => topColor(r, ids) === filter) : rows;
   $("#empty").hidden = rows.length > 0;
-  $("#list").replaceChildren(...groupRuns(shown, (r) => topColor(r, ids)).map(row));
+  // A row being edited stays as it is until the edit ends (a sync mid-edit would wipe the field);
+  // finishing the edit renders again.
+  if (!editing) $("#list").replaceChildren(...groupRuns(shown, (r) => topColor(r, ids)).map(row));
   if (!$("#colors").hidden) renderColors();
 }
 
@@ -347,6 +344,7 @@ function renderFilters(counts) {
 const ICONS = {
   open: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>',
   text: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>',
+  edit: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.17 6.81a1 1 0 0 0-3.98-3.98L3.84 16.17a2 2 0 0 0-.5.83l-1.32 4.35a.5.5 0 0 0 .62.62l4.35-1.32a2 2 0 0 0 .83-.5z"/><path d="m15 5 4 4"/></svg>',
   trash: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
 };
 
@@ -415,14 +413,87 @@ function row({ ref: runRef, records }) {
   });
   del.addEventListener("blur", disarm);
 
+  const edit = iconButton("button", "edit", `Edit ${labelRef(runRef)}`);
+  edit.classList.add("edit");
+  edit.addEventListener("click", () => editRow(li, line, { ref: runRef, records }));
+
+  // The icons sit together as one compact group (see .actions in style.css).
+  const actions = document.createElement("span");
+  actions.className = "actions";
+  actions.append(edit);
+  if (verseText.key) actions.append(textButton(li, runRef));
+  actions.append(open, del);
+
   const line = document.createElement("div");
   line.className = "row";
-  line.append(dot, link);
-  if (verseText.key) line.append(textButton(li, runRef));
-  line.append(open, del);
+  line.append(dot, link, actions);
   li.append(line);
   if (verseText.open === runRef) showText(li, runRef);
   return li;
+}
+
+// ---- editing a row's reference, in place
+
+/** The row being edited, if any: while set, render leaves the list alone. */
+let editing = null;
+
+/**
+ * Swaps a row for a passage field holding its reference. Enter, or leaving the field after changing it,
+ * saves; Escape cancels. Saving rewrites the run's verses (see editRun) in one putMany.
+ */
+function editRow(li, line, run) {
+  const ids = colors.map((c) => c.id);
+  const color = topColor(run.records[0], ids);
+  const form = document.createElement("form");
+  form.className = "row edit";
+  form.noValidate = true;
+  form.autocomplete = "off";
+  const dot = document.createElement("span");
+  dot.className = "dot";
+  paint(dot, color);
+  const field = document.createElement("si-passage-input");
+  field.setAttribute("aria-label", `Reference for ${labelRef(run.ref)}`);
+  field.setAttribute("placeholder", "John 3:16");
+  const error = document.createElement("p");
+  error.className = "error";
+  error.setAttribute("role", "alert");
+  form.append(dot, field, error);
+  line.replaceWith(form);
+  editing = run.ref;
+  field.value = labelRef(run.ref);
+  const start = refText(field);
+  field.focus();
+
+  let done = false;
+  const finish = () => {
+    done = true;
+    editing = null;
+    render();
+  };
+  const save = async () => {
+    if (done) return;
+    const found = readPassage(refText(field));
+    if (found.error) return errorIn(form, found.error);
+    const changes = editRun(run.records, found.verses, color, now(), (v) => library.find("highlight", v));
+    finish();
+    if (changes.length) await library.putMany(changes);
+  };
+  form.addEventListener("submit", (e) => (e.preventDefault(), save()));
+  field.addEventListener("keydown", (e) => {
+    if (e.isComposing) return;
+    if (e.key === "Enter" && !suggesting(field)) (e.preventDefault(), save());
+    if (e.key === "Escape" && !suggesting(field)) (e.preventDefault(), finish());
+  });
+  field.addEventListener("input", () => errorIn(form, ""));
+  // Leaving the field saves a change and quietly closes an unchanged one. An invalid change stays open.
+  form.addEventListener("focusout", (e) => {
+    if (done || form.contains(/** @type {Node} */ (e.relatedTarget))) return;
+    setTimeout(() => {
+      if (done || form.contains(document.activeElement)) return;
+      if (refText(field) === start) finish();
+      else save();
+    });
+  });
 }
 
 // ---- verse text: a row's passage from YouVersion (BSB), shown under the row when its book icon is tapped.
