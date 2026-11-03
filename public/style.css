@@ -159,6 +159,13 @@ button.dot[aria-pressed="true"] { border-color: var(--fg); }
 /* The group hangs .375rem past the row so the idle glyphs line up; the armed pill pulls back inside it. */
 .actions .icon[data-confirm]:last-child { margin-right: .375rem; }
 #danger { margin-top: 2.5rem; }
+/* For developers: links to the spec, on the Sync screen only. */
+#dev-links { margin-top: 2.5rem; font-size: .875rem; color: var(--muted); }
+#dev-links p { margin: 0 0 .25rem; }
+#dev-links .dev-title { color: var(--fg); }
+#dev-links a { color: inherit; text-decoration: underline; text-underline-offset: .15em; }
+#dev-links a:hover { color: var(--fg); }
+#dev-links + #danger { margin-top: 1.5rem; }
 #danger summary, .lost-key summary { letter-spacing: 0; padding: .25rem 0; font-size: .875rem; }
 #danger p { margin: .5rem 0 .75rem; font-size: .875rem; }
 .lost-key { margin-top: .75rem; }

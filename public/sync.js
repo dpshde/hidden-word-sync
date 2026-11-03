@@ -1,4 +1,4 @@
-// Hidden Word reference client (spec v1.0). Needs only WebCrypto and fetch, so it runs in browsers,
+// Hidden Word reference client (spec v1.1). Needs only WebCrypto and fetch, so it runs in browsers,
 // Bun, Node 20+, Deno and Workers.
 import { splitRef } from "./refs.js";
 
@@ -7,7 +7,9 @@ const td = new TextDecoder();
 const subtle = globalThis.crypto.subtle;
 
 export const COLORS = ["yellow", "green", "blue", "pink", "purple", "orange"];
-export const KINDS = ["highlight", "note", "color"];
+export const KINDS = ["highlight", "note", "color", "library"];
+/** The ref of the `library` record that holds the library's name (spec section 1.5). */
+export const NAME_REF = "name";
 const COLOR_ID = /^[a-z0-9][a-z0-9-]{0,31}$/;
 const HEX = /^#[0-9a-fA-F]{6}$/;
 const B32 = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
@@ -180,6 +182,12 @@ export function checkRecord(r) {
   if (r.updated !== undefined && !Number.isSafeInteger(r.updated)) return "updated is a whole number of seconds";
   if (r.kind.startsWith("x-")) return null;
   if (!KINDS.includes(r.kind)) return `unknown kind ${r.kind}`;
+  if (r.kind === "library") {
+    if (r.ref !== NAME_REF) return `not a library setting: ${r.ref}`;
+    if (r.deleted === true) return null;
+    if (typeof r.name !== "string" || !r.name.trim()) return "a library's name is text";
+    return null;
+  }
   if (r.kind === "color") {
     if (!COLOR_ID.test(r.ref)) return `not a color id: ${r.ref}`;
     if (r.deleted === true) return null;
@@ -285,6 +293,7 @@ export function memoryStore() {
 const emptyState = () => ({ v: FORMAT, device: b64url(randomBytes(9)), n: 0, items: {}, remotes: {} });
 
 export class Library {
+  /** `name` is what this device calls the library until a synced name arrives (the name typed to unlock). */
   static async open({ keyText, name = "Personal", store = memoryStore(), transports = [] }) {
     const key = await parseKey(keyText);
     const keys = await deriveKeys(key);
@@ -292,7 +301,8 @@ export class Library {
   }
 
   constructor({ keyText, name, store, keys, transports }) {
-    Object.assign(this, { keyText, name, store, keys, transports });
+    Object.assign(this, { keyText, store, keys, transports });
+    this.localName = name;
     const saved = store.load(keys.lib);
     this.state = saved?.v === FORMAT ? saved : emptyState();
     this.records = new Map(Object.entries(this.state.items).map(([id, it]) => [id, JSON.parse(it.t)]));
@@ -305,6 +315,39 @@ export class Library {
 
   get lib() {
     return this.keys.lib;
+  }
+
+  /** The library's synced name (its `library name` record), else what this device called it. */
+  get name() {
+    return this.syncedName ?? this.localName;
+  }
+
+  /** The name from the library itself, or null when no device has written one yet. */
+  get syncedName() {
+    return this.find("library", NAME_REF)?.name ?? null;
+  }
+
+  /** Renames the library everywhere: a `library name` record, synced like any other edit. */
+  rename(name) {
+    this.localName = name;
+    return this.put({ ...(this.find("library", NAME_REF) ?? {}), kind: "library", ref: NAME_REF, name });
+  }
+
+  /**
+   * Gives a library that has no name record this device's name for it, once every transport has
+   * synced, so a name chosen elsewhere has arrived first. It's written with `updated` 0, so it never
+   * beats a name chosen on any device: a name typed to unlock never renames a library.
+   */
+  async adoptName() {
+    if (this.syncedName !== null || !this.localName) return false;
+    if (this.transports.some((t) => this.status.remotes[t.name]?.state !== "synced")) return false;
+    const id = await itemId(this.keys, "library", NAME_REF);
+    if (this.state.items[id] || this.erased) return false;
+    const r = { kind: "library", ref: NAME_REF, updated: 0, name: this.localName };
+    this.write(id, r, JSON.stringify(r), null);
+    this.emit();
+    this.sync();
+    return true;
   }
 
   onChange(fn) {
@@ -493,6 +536,7 @@ export class Library {
 
   /** Erases the library from every transport and this device. */
   async erase() {
+    this.erased = true;
     for (const t of this.transports) await t.erase?.(this);
     this.state = emptyState();
     this.records.clear();

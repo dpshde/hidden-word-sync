@@ -123,7 +123,7 @@ describe("MCP", () => {
 
     const colors = (await call(s, key, "list_colors")).data.colors;
     expect(colors.find((c: { id: string }) => c.id === "green").verses).toBe(2);
-    expect((await call(s, key, "get_library_info")).data).toEqual({ highlightedVerses: 2, passages: 1, notes: 0, colors: 6, ownColors: 0 });
+    expect((await call(s, key, "get_library_info")).data).toEqual({ name: null, highlightedVerses: 2, passages: 1, notes: 0, colors: 6, ownColors: 0 });
     expect((await call(s, key, "get_passage_link", { reference: "John 3:16-18" })).data.links[0].link).toBe("https://route.bible/jhn.3.16-18");
 
     const nothing = await call(s, key, "delete_highlight", { reference: "Genesis 1:1" });

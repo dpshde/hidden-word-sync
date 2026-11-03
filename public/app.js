@@ -15,7 +15,8 @@ const CREATED = "hidden-word:created";
 const SAVE_LINK = "hidden-word:save-link";
 // How this device groups the list ("date" or "genre"): a display choice, kept here and not synced.
 const GROUP_BY = "hidden-word:group-by";
-// A library's name as this device last called it. The name isn't synced: it's this device's label.
+// A library's name as this device last saw it, for the unlock form and before the library has synced.
+// The name itself syncs as a `library` record (SPEC.md 1.5): library.name is the one to show.
 const nameKey = (lib) => `hidden-word:name:${lib}`;
 const store = {
   load: (lib) => JSON.parse(localStorage.getItem(`hidden-word:${lib}`) ?? "null"),
@@ -69,15 +70,17 @@ function paint(el, id) {
 
 async function enter(keyText, given) {
   library = await Library.open({ keyText, name: given, store });
-  const name = localStorage.getItem(nameKey(library.lib)) || given;
-  library.name = name;
-  localStorage.setItem(SESSION, JSON.stringify({ key: library.keyText, name }));
-  $("#lib-name").textContent = name;
+  library.localName = localStorage.getItem(nameKey(library.lib)) || given;
+  showName();
   library.onChange(render);
+  library.onChange(showName);
   show("main");
   render();
   await saveFromLink();
   await connect();
+  // Only now has every transport had its chance to bring a synced name (see showName).
+  connected = library;
+  showName();
 }
 
 /** Sets up this browser's chosen transports for the open library and syncs. */
@@ -92,6 +95,21 @@ async function connect() {
   }
   renderSync();
   await library.use(transports);
+}
+
+/**
+ * Shows the library's name, synced from other devices, and remembers it here. A library with no
+ * name yet takes this device's, once synced (Library.adoptName), so a typed name never renames one.
+ */
+let connected = null;
+function showName() {
+  if (!library) return;
+  const name = library.name;
+  if (document.activeElement !== $("#lib-name") && $("#lib-name").textContent !== name) $("#lib-name").textContent = name;
+  if (localStorage.getItem(nameKey(library.lib)) !== name) localStorage.setItem(nameKey(library.lib), name);
+  const session = JSON.parse(localStorage.getItem(SESSION) ?? "null");
+  if (session?.key !== library.keyText || session.name !== name) localStorage.setItem(SESSION, JSON.stringify({ key: library.keyText, name }));
+  if (connected === library && library.syncedName === null && ["synced", "local"].includes(library.status.state)) library.adoptName();
 }
 
 function lock() {
@@ -733,9 +751,7 @@ for (const back of document.querySelectorAll(".back")) back.addEventListener("cl
 // ---- the library's name, edited in place
 
 function rename(next) {
-  library.name = next;
-  localStorage.setItem(nameKey(library.lib), next);
-  localStorage.setItem(SESSION, JSON.stringify({ key: library.keyText, name: next }));
+  library.rename(next);
 }
 
 const libName = $("#lib-name");

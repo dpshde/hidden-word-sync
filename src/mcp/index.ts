@@ -132,7 +132,7 @@ export const TOOLS = [
   },
   {
     name: "get_library_info",
-    description: "Count what the library holds: highlighted verses, passages, notes and colors. The library's name isn't kept on the server, so it isn't included.",
+    description: "The library's name (null until one has synced), and counts of what it holds: highlighted verses, passages, notes and colors.",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
   },
   {
@@ -334,6 +334,7 @@ class Session {
       case "get_library_info": {
         const highlights = this.highlights();
         return {
+          name: this.library.syncedName,
           highlightedVerses: highlights.length,
           passages: this.runs(highlights).length,
           notes: this.library.all("note").length,

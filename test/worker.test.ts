@@ -1,10 +1,10 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, setSystemTime, test } from "bun:test";
 import { MIGRATIONS, d1 } from "./d1";
 import { Database } from "bun:sqlite";
 import * as entry from "../src/worker";
 import { LIMITS, handle, pageLimit } from "../src/worker";
 import {
-  Library, deriveKeys, encryptRecord, folderTransport, formatKey, memoryDir, memoryStore, newKey, openSlot, parseKey,
+  Library, deriveKeys, encryptRecord, folderTransport, formatKey, memoryDir, memoryStore, newKey, openSlot, parseJsonl, parseKey,
   saveSlot, serverTransport, slotKeys,
 } from "../public/sync.js";
 
@@ -583,5 +583,96 @@ describe("mixing servers, folders and no sync", () => {
     const other = await device(keyText, [serverTransport({ fetch })]);
     await other.sync();
     expect(colors(other)).toEqual({ "GEN.1.1": "yellow", "GEN.1.2": "green" });
+  });
+});
+
+describe("the library's name", () => {
+  const named = (keyText: string, name: string, fetch: Fetch, store = memoryStore()) =>
+    Library.open({ keyText, name, store, transports: [serverTransport({ fetch })] });
+
+  test("a rename reaches another device, and shows there in place of the name typed to unlock", async () => {
+    const { fetch } = setup();
+    const { keyText } = await keysFor();
+    const phone = await named(keyText, "Personal", fetch);
+    const laptop = await named(keyText, "Typed at unlock", fetch);
+    await phone.rename("Family devotions");
+    await phone.sync();
+    const seen: string[] = [];
+    laptop.onChange((l) => seen.push(l.name));
+    await laptop.sync();
+    expect(laptop.name).toBe("Family devotions");
+    expect(laptop.syncedName).toBe("Family devotions");
+    expect(seen).toContain("Family devotions");
+    // Another instance over the same device storage reads it without the network.
+    const again = await Library.open({ keyText, name: "Whatever", store: laptop.store });
+    expect(again.name).toBe("Family devotions");
+  });
+
+  test("of two renames made apart, the later one wins on both devices", async () => {
+    const { fetch } = setup();
+    const { keyText } = await keysFor();
+    const phone = await named(keyText, "A", fetch);
+    const laptop = await named(keyText, "A", fetch);
+    try {
+      setSystemTime(new Date(1_800_000_000_000));
+      await phone.rename("Earlier");
+      setSystemTime(new Date(1_800_000_060_000));
+      await laptop.rename("Later");
+    } finally {
+      setSystemTime();
+    }
+    for (const d of [phone, laptop, phone]) await d.sync();
+    expect([phone.name, laptop.name]).toEqual(["Later", "Later"]);
+  });
+
+  test("a name typed to unlock never replaces a synced one; a library with none adopts it", async () => {
+    const { fetch } = setup();
+    const { keyText } = await keysFor();
+    const first = await named(keyText, "Prayer journal", fetch);
+    await first.sync();
+    expect(await first.adoptName()).toBe(true);
+    await first.sync();
+
+    // Not synced yet: nothing is adopted, since a name may be waiting on the server.
+    const second = await named(keyText, "Personal", fetch);
+    expect(await second.adoptName()).toBe(false);
+    await second.sync();
+    expect(await second.adoptName()).toBe(false);
+    expect(second.name).toBe("Prayer journal");
+
+    // Even one adopted on a device that had never seen the other's arrives as the loser.
+    const isolated = await Library.open({ keyText, name: "Personal" });
+    expect(await isolated.adoptName()).toBe(true);
+    isolated.use([serverTransport({ fetch })]);
+    // Two adopted names tie on `updated` 0, so the merge rule picks one, the same everywhere.
+    for (const d of [isolated, first, isolated]) await d.sync();
+    expect([isolated.name, first.name]).toEqual(["Prayer journal", "Prayer journal"]);
+    // And any rename beats an adopted name.
+    await isolated.rename("Renamed");
+    await isolated.sync();
+    await first.sync();
+    expect(first.name).toBe("Renamed");
+  });
+
+  test("export carries the name in its header and as a record, and import brings it", async () => {
+    const { keyText } = await keysFor();
+    const a = await Library.open({ keyText, name: "Local" });
+    expect(JSON.parse(a.toFile().split("\n")[0]).name).toBe("Local");
+    await a.rename("Psalms");
+    const file = a.toFile();
+    expect(JSON.parse(file.split("\n")[0]).name).toBe("Psalms");
+    expect(parseJsonl(file)).toContainEqual(expect.objectContaining({ kind: "library", ref: "name", name: "Psalms" }));
+    const b = await Library.open({ keyText, name: "Other" });
+    expect(await b.merge(parseJsonl(file))).toBe(1);
+    expect(b.name).toBe("Psalms");
+  });
+
+  test("an erased library doesn't adopt a name and send it back", async () => {
+    const { fetch } = setup();
+    const { keyText } = await keysFor();
+    const d = await named(keyText, "Gone", fetch);
+    await d.sync();
+    await d.erase();
+    expect(await d.adoptName()).toBe(false);
   });
 });
