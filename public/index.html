@@ -37,11 +37,17 @@
 
     <p class="error" id="start-error" role="alert"></p>
     <p class="new-here">New here? <button id="create" class="link" type="button">Create a library</button></p>
+    <details class="lost-key">
+      <summary>Lost your sync key?</summary>
+      <p>Nobody can recover it. Your library is encrypted with the key, and Hidden Word never keeps a copy.</p>
+      <p>Look in your password manager under this site's address.<span id="lost-passkey" hidden> If you added a passkey, try Unlock with passkey.</span> On a device that's still unlocked, open the ••• menu and choose Show sync key.</p>
+      <p>If none of that works, create a new library. If you exported a file, Import brings your highlights back.</p>
+    </details>
   </section>
 
   <section id="created" hidden>
     <h1>Save your sync key</h1>
-    <p class="lede">It's the only way into this library, and nobody can reset it. Save it in your password manager now.</p>
+    <p class="lede">This key is the only way into your library. Nobody can reset or recover it, and anyone who has it can read your highlights. Save it in your password manager now.</p>
     <div class="key-box">
       <code id="new-key" data-1p-ignore></code>
       <button type="button" class="quiet" id="copy">Copy</button>

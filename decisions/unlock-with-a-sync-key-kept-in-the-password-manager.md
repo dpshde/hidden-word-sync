@@ -44,3 +44,7 @@ Offering the passkey before submitting broke saving on iPhone. iOS (and the 1Pas
 ## Update, 2026-11-03: the person pastes the key
 
 Even with a real submission straight from the Continue tap, Safari and 1Password offered no save on the live site. What was left was that the page itself put the key in the password field. Now the new key is shown as text with Copy, the password field starts empty, and the person pastes the key into it before Continue; a key that doesn't match is refused. Closing 1Password's save-button dialog still counts as Continue, filling the field itself since 1Password already has the key.
+
+## Update 2026-11-03
+
+A lost key is still unrecoverable, so the app says so where it matters. The new-library screen says the key can't be reset or recovered and that anyone who has it can read the library, and Continue still needs the key pasted back. The start page and `/unlock` have a "Lost your sync key?" disclosure: look in the password manager, use a passkey if there is one, or read the key on a device that's still unlocked (••• → Show sync key); failing that, start a new library and Import an exported file.

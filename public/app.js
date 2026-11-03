@@ -860,6 +860,7 @@ async function boot() {
     $("#passkey-unlock").hidden = false;
     $("#or-key").hidden = false;
     $("#start").classList.add("has-passkey");
+    $("#lost-passkey").hidden = false;
   }
   const request = takeSaveLink();
   if (request) {
