@@ -48,3 +48,7 @@ Even with a real submission straight from the Continue tap, Safari and 1Password
 ## Update 2026-11-03
 
 A lost key is still unrecoverable, so the app says so where it matters. The new-library screen says the key can't be reset or recovered and that anyone who has it can read the library, and Continue still needs the key pasted back. The start page and `/unlock` have a "Lost your sync key?" disclosure: look in the password manager, use a passkey if there is one, or read the key on a device that's still unlocked (••• → Show sync key); failing that, start a new library and Import an exported file.
+
+## Update 2026-11-03, a shorter menu
+
+The ••• menu held seven equal items and read as dense. It now holds Sync, Colors and Backup, then Log out after a divider. "Show sync key" and "Add passkey" moved to a "Your key" row at the top of the Sync screen, with the same behavior: the key shows on that screen until hidden, and a passkey is added the same way. Export and Import moved to a Backup screen. The lost-key help points to those places.

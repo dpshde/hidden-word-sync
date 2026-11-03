@@ -75,6 +75,10 @@ details > div { position: absolute; right: 0; top: 2rem; z-index: 20; display: g
 details > div button { background: transparent; color: var(--fg); text-align: left; padding: .5rem .625rem; }
 details > div button.danger { color: var(--danger); }
 details > div button:hover { background: var(--line); }
+/* The ••• menu: a few places to go, then Log out on its own. */
+#menu > div { min-width: 12rem; padding: .5rem; }
+#menu > div button { padding: .625rem .75rem; }
+#menu > div hr { border: 0; border-top: 1px solid var(--line); margin: .375rem .25rem; }
 
 #add { grid-template-columns: auto 1fr auto; align-items: center; }
 #add .error { grid-column: 1 / -1; }
@@ -196,7 +200,14 @@ input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 50%; }
 .check input[type="checkbox"] { width: auto; margin: .3rem 0 0; }
 .check small { display: block; color: var(--muted); font-size: .8125rem; }
 .check.folder { flex-wrap: wrap; justify-content: space-between; border-bottom: 1px solid var(--line); margin-bottom: 1rem; }
-.check.folder > span { flex: 1 1 14rem; }
+.check.folder > span, .check.access > span { flex: 1 1 14rem; }
+.check.access { flex-wrap: wrap; justify-content: space-between; }
+#key-reveal { margin: 0 0 .75rem; }
+#key-reveal[hidden] { display: none; }
+.status-line { font-size: .875rem; color: var(--muted); margin: 0 0 1rem; overflow-wrap: anywhere; }
+.status-line:empty { display: none; }
+.backup-actions { margin: 0 0 1rem; padding: 0; }
+.check.access .row { padding-left: 0; }
 .key-box { display: flex; align-items: center; gap: .75rem; padding: .75rem 1rem; margin: 0 0 1rem; border: 1px solid var(--line, #ddd); border-radius: .5rem; }
 .key-box code { flex: 1; font-size: 1rem; letter-spacing: .02em; overflow-wrap: anywhere; user-select: all; }
 
