@@ -5,7 +5,6 @@ import {
 import { labelRef, compareRefs, groupRuns } from "./refs.js";
 import { readPassage } from "./passage.js";
 import { createPasskeyPrf, getPasskeyPrf, passkeysAvailable, cancelled } from "./passkey.js";
-import { activateOPButton, encodeOPSaveRequest } from "./vendor/onepassword-save-button.js";
 import { foldersAvailable, pickFolder, saveFolder, loadFolder, forgetFolder, mayUse, folderDir } from "./folder.js";
 
 const $ = (sel) => document.querySelector(sel);
@@ -138,10 +137,7 @@ $("#create").addEventListener("click", async () => {
   $("#new-key").textContent = newKeyText;
   form.elements["new-password"].value = "";
   errorIn(form, "");
-  opClosing?.disconnect();
-  opClosing = null;
   show("created");
-  offerOnePassword();
 });
 
 $("#new-password").addEventListener("input", () => errorIn($("#save-form"), ""));
@@ -150,95 +146,6 @@ $("#copy").addEventListener("click", async () => {
   await navigator.clipboard.writeText(newKeyText);
   $("#copy").textContent = "Copied";
   setTimeout(() => ($("#copy").textContent = "Copy"), 1500);
-});
-
-// The form-submit save below relies on each password manager spotting a sign-up, which 1Password
-// does unreliably. Its own Save button hands it the item directly. Only the 1Password extension
-// enables the button, so a button still disabled after a moment means no extension: hide it.
-let opReady = false;
-let opWatch = null;
-let opTimer = 0;
-
-function opSaveRequest() {
-  const form = $("#save-form");
-  const name = form.elements["new-username"].value.trim() || "Personal";
-  return encodeOPSaveRequest({
-    title: `Hidden Word: ${name}`,
-    fields: [
-      { autocomplete: "username", value: name },
-      { autocomplete: "new-password", value: newKeyText },
-    ],
-    // No url field: 1Password sets the item's website from this page itself (its docs say item URLs
-    // are determined by 1Password). A url entry only became a stray custom field.
-    notes: `Sync key for the Hidden Word library “${name}”. Unlock at ${location.origin}`,
-  });
-}
-
-function offerOnePassword() {
-  const slot = $("#onepassword");
-  opWatch?.disconnect();
-  const button = document.createElement("onepassword-save-button");
-  button.setAttribute("data-onepassword-type", "login");
-  button.setAttribute("padding", "none");
-  if (matchMedia("(prefers-color-scheme: dark)").matches) button.setAttribute("data-theme", "dark");
-  button.setAttribute("value", opSaveRequest());
-  slot.replaceChildren(button);
-  slot.hidden = false;
-  const inner = button.shadowRoot?.querySelector("[data-onepassword-save-button]");
-  if (!inner) return (slot.hidden = true);
-  opWatch = new MutationObserver(() => {
-    if (inner.disabled) return;
-    opReady = true;
-    slot.hidden = false;
-  });
-  opWatch.observe(inner, { attributes: true, attributeFilter: ["disabled"] });
-  clearTimeout(opTimer);
-  opTimer = setTimeout(() => (slot.hidden = !opReady && inner.disabled), 2000);
-  button.addEventListener("click", (e) => {
-    if (!inner.disabled && e.composedPath().includes(inner)) continueWhenOnePasswordCloses();
-  });
-  activateOPButton();
-}
-
-// 1Password shows its save dialog in a <com-1password-modal> element it adds to the page, and
-// removes the element when the dialog closes. (Its notification element uses the same pattern, so
-// watch both.) That closing is the cue to go on into the library without a Continue click; the
-// short wait lets 1Password finish writing the item. The page can't tell a save from a dismissal.
-let opClosing = null;
-
-function continueWhenOnePasswordCloses() {
-  if (opClosing) return;
-  const DIALOGS = ["COM-1PASSWORD-MODAL", "COM-1PASSWORD-NOTIFICATION"];
-  const open = () => DIALOGS.some((name) => document.querySelector(name));
-  let opened = open();
-  let settle = 0;
-  opClosing = new MutationObserver((records) => {
-    if ($("#created").hidden) return stop();
-    for (const r of records) {
-      if ([...r.addedNodes].some((n) => DIALOGS.includes(n.nodeName))) opened = true;
-    }
-    clearTimeout(settle);
-    // 1Password sometimes moves the element between parents; only a removal that lasts counts.
-    if (opened && !open()) settle = setTimeout(go, 150);
-  });
-  const stop = () => {
-    opClosing?.disconnect();
-    opClosing = null;
-  };
-  const go = () => {
-    if (open()) return;
-    stop();
-    if ($("#created").hidden) return;
-    // 1Password's button already saved the key, so there's nothing left to paste.
-    $("#save-form").elements["new-password"].value = newKeyText;
-    setTimeout(() => $("#save-form").requestSubmit(), 1000);
-  };
-  opClosing.observe(document.documentElement, { childList: true, subtree: true });
-}
-
-// The element copies its value to the inner button once, so a renamed library updates that button.
-$("#new-username").addEventListener("input", () => {
-  $("#onepassword onepassword-save-button")?.shadowRoot?.querySelector("[data-onepassword-save-button]")?.setAttribute("value", opSaveRequest());
 });
 
 // Password managers (1Password, Chrome, Safari) offer to save a sign-up when its form is really

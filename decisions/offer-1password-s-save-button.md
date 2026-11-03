@@ -37,3 +37,7 @@ After saving with the button, people expected to go on without pressing Continue
 ## Update 2026-11-02, no passkey before going on
 
 Closing 1Password's dialog now goes straight into the library, a second later so 1Password has finished writing the item. The passkey is offered on the library screen instead (see [the passkey update](unlock-with-a-sync-key-kept-in-the-password-manager.md#update-2026-11-02-passkey-after-creation)): iOS only offers to save a password for a submission the person started themselves, and running the passkey prompt first made Continue's submission a scripted one.
+
+## Update, 2026-11-03: removed
+
+Dylan asked to drop the button. Once the person pastes the new key into the form (see the sync-key decision), 1Password's own save offer appears, with the website filled in, so the button only duplicated it. The vendored `onepassword-save-button.js` and the code that watched its dialog are gone.

@@ -248,7 +248,6 @@ The sync key is a password, and the library name is its username. When an app cr
   - Show the generated key as text with a Copy button, and have the person paste it into the empty password field. Password managers, Safari and iOS among them, offer to save only a password the person entered: a key the page filled in, even with `input` and `change` events dispatched, got no offer in testing. Refuse a pasted key that doesn't match, which also proves it was copied.
   - Let the submission navigate (for example a `GET` to the app's own page) instead of cancelling it. The key MUST NOT leave the device: remove every entry in the form's `formdata` event, so the request carries nothing. Keep what the new page needs to open the library in local storage.
 - Native apps use the platform equivalents (Associated Domains with `textContentType` `.username` / `.newPassword` / `.password` on Apple platforms, `autofillHints` on Android).
-- Web apps SHOULD also show [1Password's save button](https://www.1password.dev/web/add-1password-button-website) (`@1password/save-button`) with a save request holding the name (`autocomplete: "username"`) and the key (`autocomplete: "new-password"`). It hands the key to the 1Password extension directly, without relying on form detection. Hide it while it stays disabled, which means the extension isn't installed.
 
 The library name is only a label: it is not part of the key, and two people may both call theirs "Personal".
 
@@ -264,7 +263,7 @@ Routes, with the `slot-auth` token: `PUT /v1/slot/{slot}` with `{"wrapped": "…
 
 The server never verifies the passkey's signature: the PRF output is the secret. Passkeys are bound to the website that created them, so they are a convenience on that site. The sync key in a password manager is what works everywhere.
 
-When creating a library, an app SHOULD offer a passkey once the key is saved, as a separate, optional step that never blocks getting into the library. The step that saves the key MUST NOT wait on the passkey: password managers, and iOS in particular, only offer to save a password when the form is submitted directly by the person's tap, so a submission made after a passkey prompt by script gets no save offer. The reference app submits the form on Continue and then shows "Add a passkey" (and "Not now") on the library screen. With 1Password's save button, closing 1Password's save dialog can count as Continue: the extension shows the dialog in a `com-1password-modal` element (or `com-1password-notification`, same pattern) and removes it on close.
+When creating a library, an app SHOULD offer a passkey once the key is saved, as a separate, optional step that never blocks getting into the library. The step that saves the key MUST NOT wait on the passkey: password managers, and iOS in particular, only offer to save a password when the form is submitted directly by the person's tap, so a submission made after a passkey prompt by script gets no save offer. The reference app submits the form on Continue and then shows "Add a passkey" (and "Not now") on the library screen.
 
 ### 7.3 Connecting an app
 
