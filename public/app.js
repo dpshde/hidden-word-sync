@@ -1,5 +1,5 @@
 import {
-  COLORS, Library, KeyError, newKey, formatKey, now, palette, topColor, parseJsonl, fromBibleRs, saveSlot, openSlot,
+  COLORS, Library, KeyError, newKey, formatKey, parseKey, now, palette, topColor, parseJsonl, fromBibleRs, saveSlot, openSlot,
   serverTransport, folderTransport,
 } from "./sync.js";
 import { labelRef, compareRefs, groupRuns } from "./refs.js";
@@ -97,15 +97,37 @@ function lock() {
   show("start");
 }
 
+let unlocking = false;
+
 $("#unlock-form").addEventListener("submit", async (e) => {
   e.preventDefault();
+  if (unlocking) return;
   const form = new FormData(e.target);
+  unlocking = true;
   try {
     await enter(form.get("password"), form.get("username").trim() || "Personal");
   } catch (error) {
     errorIn(e.target, error instanceof KeyError ? "That sync key has a typo. Check it and try again." : String(error.message));
+  } finally {
+    unlocking = false;
   }
 });
+
+// Unlock as soon as the field holds a whole, valid key, so a password manager's fill (1Password,
+// iCloud Keychain, Chrome) signs straight in without a click. The check byte means a key still
+// being typed, or one with a typo, never submits; only a complete key does.
+for (const type of ["input", "change"]) {
+  $("#password").addEventListener(type, async () => {
+    const value = $("#password").value;
+    if (unlocking || value.replace(/[\s-]/g, "").length !== 28) return;
+    try {
+      await parseKey(value);
+    } catch {
+      return;
+    }
+    if ($("#password").value === value && !$("#start").hidden) $("#unlock-form").requestSubmit();
+  });
+}
 
 $("#passkey-unlock").addEventListener("click", async () => {
   $("#start-error").textContent = "";
@@ -356,7 +378,7 @@ function row({ ref: runRef, records }) {
       tools.append(b);
     }
     const open = document.createElement("a");
-    open.href = `https://route.bible/${record.ref.toLowerCase()}`; // the run's first verse
+    open.href = `https://route.bible/${runRef.toLowerCase()}`; // the whole run, e.g. rom.5.3-5
     open.target = "_blank";
     open.rel = "noopener";
     open.textContent = "Open";
