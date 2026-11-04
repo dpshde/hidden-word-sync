@@ -3,7 +3,11 @@
 // library's own token without a lookup.
 
 /** Apps that may ask for a grant: exact origins, plus any localhost port for development. */
-export const CLIENT_ORIGINS = ["https://route.bible"];
+export const CLIENT_ORIGINS = [
+  "https://route.bible",
+  // route.bible's Workers Builds preview for this feature's branch.
+  "https://vault-highlights-route-bible.dpshade.workers.dev",
+];
 const LOOPBACK = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
 export const GRANT_DAYS = 90;
