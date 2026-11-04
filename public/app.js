@@ -9,7 +9,7 @@ import { definePassageInput, defineScripturePassage } from "./vendor/scripture-i
 import { createPasskeyPrf, getPasskeyPrf, passkeysAvailable, cancelled } from "./passkey.js";
 import { setupThemeToggle } from "./theme-toggle.js";
 import { foldersAvailable, pickFolder, saveFolder, loadFolder, forgetFolder, mayUse, folderDir } from "./folder.js";
-import { registerHiddenWordTools } from "./webmcp.js";
+import { registerSelahVaultTools } from "./webmcp.js";
 
 const $ = (sel) => document.querySelector(sel);
 const SESSION = "hidden-word:session";
@@ -984,6 +984,6 @@ async function boot() {
 
 // In-page tools for browser agents (public/webmcp.js). They act on the open library only, never see
 // the sync key, and do nothing in browsers without WebMCP.
-registerHiddenWordTools({ library: () => library, colors: () => colors, colorName, highlight, flash });
+registerSelahVaultTools({ library: () => library, colors: () => colors, colorName, highlight, flash });
 
 boot();

@@ -77,7 +77,7 @@ export function bookCode(text) {
  * deps: { library(): Library|null, colors(): [{id,name,builtIn}], colorName(c): string,
  *         highlight(verses, colorId): Promise<undo>, flash(text, action?): void }
  */
-export function buildHiddenWordTools(deps) {
+export function buildSelahVaultTools(deps) {
   const named = (id) => deps.colorName(deps.colors().find((c) => c.id === id) ?? { id, builtIn: true });
   /** A color by id or name, or null when the library has no such color. */
   const colorFor = (wanted) => {
@@ -191,10 +191,10 @@ export function buildHiddenWordTools(deps) {
 }
 
 /** Registers the tools when the browser has WebMCP. Returns a function that removes them, or null. */
-export function registerHiddenWordTools(deps, modelContext = globalThis.document?.modelContext) {
+export function registerSelahVaultTools(deps, modelContext = globalThis.document?.modelContext) {
   if (!modelContext || typeof modelContext.registerTool !== "function") return null;
   const controller = new AbortController();
-  for (const tool of buildHiddenWordTools(deps)) {
+  for (const tool of buildSelahVaultTools(deps)) {
     try {
       Promise.resolve(modelContext.registerTool(tool, { signal: controller.signal })).catch((error) =>
         console.warn(`WebMCP tool ${tool.name} did not register`, error),

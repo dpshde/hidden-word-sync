@@ -7,8 +7,8 @@ import {
   FIND_HIGHLIGHTS,
   OUTPUT_MAX_CHARS,
   PAGE_SIZE,
-  buildHiddenWordTools,
-  registerHiddenWordTools,
+  buildSelahVaultTools,
+  registerSelahVaultTools,
 } from "../public/webmcp.js";
 import schema from "../docs/webmcp/schema.json";
 
@@ -37,7 +37,7 @@ function deps(open = true) {
   };
 }
 
-const tools = (open = true) => Object.fromEntries((buildHiddenWordTools(deps(open)) as Tool[]).map((t) => [t.name, t]));
+const tools = (open = true) => Object.fromEntries((buildSelahVaultTools(deps(open)) as Tool[]).map((t) => [t.name, t]));
 const exec = (name: string, input: any = {}, open = true) => tools(open)[name]!.execute(input, { signal: new AbortController().signal });
 
 beforeEach(async () => {
@@ -48,16 +48,16 @@ beforeEach(async () => {
 
 test("registers three tools with an abort signal, and does nothing without WebMCP", () => {
   const seen: Array<{ name: string; signal: AbortSignal }> = [];
-  const unregister = registerHiddenWordTools(deps(), { registerTool: async (tool: Tool, options: any) => void seen.push({ name: tool.name, signal: options.signal }) });
+  const unregister = registerSelahVaultTools(deps(), { registerTool: async (tool: Tool, options: any) => void seen.push({ name: tool.name, signal: options.signal }) });
   expect(seen.map((s) => s.name)).toEqual([FIND_HIGHLIGHTS, ADD_HIGHLIGHT, DELETE_HIGHLIGHTS]);
   unregister!();
   expect(seen.every((s) => s.signal.aborted)).toBe(true);
-  expect(registerHiddenWordTools(deps(), undefined)).toBeNull();
-  expect(registerHiddenWordTools(deps(), {} as any)).toBeNull();
+  expect(registerSelahVaultTools(deps(), undefined)).toBeNull();
+  expect(registerSelahVaultTools(deps(), {} as any)).toBeNull();
 });
 
 test("tool definitions match docs/webmcp/schema.json and Chrome's budgets", () => {
-  const defs = (buildHiddenWordTools(deps()) as Tool[]).map(({ name, description, inputSchema, annotations }) =>
+  const defs = (buildSelahVaultTools(deps()) as Tool[]).map(({ name, description, inputSchema, annotations }) =>
     JSON.parse(JSON.stringify({ name, description, inputSchema, ...(annotations ? { annotations } : {}) })),
   );
   expect(defs).toEqual(schema.tools);
@@ -155,7 +155,7 @@ test("find_highlights paginates and stays inside the output budget", async () =>
 });
 
 test("delete_highlights is consequential, removes only highlighted verses, and can be undone", async () => {
-  const del = (buildHiddenWordTools(deps()) as Tool[]).find((t) => t.name === DELETE_HIGHLIGHTS)!;
+  const del = (buildSelahVaultTools(deps()) as Tool[]).find((t) => t.name === DELETE_HIGHLIGHTS)!;
   expect(del.annotations).toEqual({ consequentialHint: true });
   await exec(ADD_HIGHLIGHT, { reference: "Romans 5:3-5", color: "blue" });
   expect(await exec(DELETE_HIGHLIGHTS, { reference: "Romans 5:4-6" })).toEqual({ status: "deleted", reference: "Romans 5:4–6", verses: 2 });
