@@ -255,11 +255,12 @@ button.dot[aria-pressed="true"] { border-color: var(--fg); }
 @media (hover: hover) { #list .row:hover { background: var(--raised); box-shadow: inset 3px 0 0 var(--brand); } }
 .row .ref { white-space: nowrap; font-weight: 600; letter-spacing: -.015em; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 /* One link opens the row: its ::after covers the whole line, and the row's buttons sit above it. */
-.row-link { flex: 1; min-width: 0; overflow: hidden; display: flex; align-items: baseline; gap: .625rem; color: inherit; text-decoration: none; }
+.row-link { flex: 1; min-width: 0; overflow: hidden; display: flex; align-items: baseline; gap: .625rem; color: inherit; text-decoration: none; margin: 0; padding: 0; border: 0; background: transparent; font: inherit; letter-spacing: normal; text-align: left; cursor: pointer; }
+.row-link:hover { background: transparent; }
 .row-link::after { content: ""; position: absolute; inset: 0; }
 .row-link:focus-visible { outline: none; }
 .row-link:focus-visible::after { outline: 2px solid var(--focus); outline-offset: -2px; }
-.row > button, .actions > button { position: relative; z-index: 1; }
+.row > button:not(.row-link), .actions > :is(button, a) { position: relative; z-index: 1; }
 /* The row's three icons as one compact group: no gap between their 32px tap targets. */
 .actions { display: flex; align-items: center; flex: none; margin-right: 0; }
 .actions .icon { min-width: 2rem; height: 2rem; padding: 0 .4375rem; }
@@ -374,7 +375,7 @@ input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 50%; }
   --yv-muted-foreground: var(--muted);
   --yv-background: transparent;
 }
-.icon.text[aria-expanded="true"] { color: var(--fg); }
+.row-link[aria-expanded="true"] .ref { text-decoration: underline; text-decoration-color: var(--brand); text-underline-offset: .2em; }
 
 /* The start screen: passkey first when this browser has passkeys, then the key form, then a way to start. */
 button.wide { width: 100%; padding: .8125rem 1rem; }
@@ -415,3 +416,7 @@ a.shell-link:focus-visible, button.shell-link:focus-visible { color: var(--fg); 
 /* Auth status is a label, not a control. */
 .shell-status { cursor: default; }
 .shell-status[hidden] { display: none; }
+
+/* A passage still fetching shows nothing for 300ms, then its spinner: a fast answer never flashes one. */
+si-passage::part(loader) { visibility: hidden; animation: si-loader-late 0s linear .3s forwards; }
+@keyframes si-loader-late { to { visibility: visible; } }
