@@ -75,6 +75,13 @@ Offsets only mean something in the text they were counted in. To show a partial 
 
 There are no bookmarks: a highlight in a color named "Bookmarks" does the same job.
 
+#### Ranges in apps
+
+Storage stays one record per verse; ranges are how apps write and show them. The server never sees them, because it can't read refs or colors (section 9). The reference client (`public/ranges.js`, used by `public/sync.js`) defines both directions, and `test/ranges-vectors.json` holds cases for each:
+
+- **Writing a range.** `ROM.5.3-5` in one color means a highlight record for each of `ROM.5.3`, `ROM.5.4` and `ROM.5.5`. A verse already highlighted whole in that color is left as it is, so writing the same range twice changes nothing. Any other verse takes the color as a one-verse edit does: one whole-verse part, keeping the earliest `created`, with `edited` set. A range is in one chapter and runs forwards; the reference client writes at most 100 verses at once (one POST, section 5.4) and sends them in one POST, so a server keeps all of them or none.
+- **Showing ranges.** Live single-verse highlights, in canonical order, join when they are back-to-back verses of one chapter and show the same color (the newest part's, unknown ids counting as `yellow`). A gap, a new chapter or a different color starts a new range. Each range lists its verses' refs, so an app can still recolor or delete one verse.
+
 ### 1.3 Notes
 
 ```json
@@ -229,7 +236,7 @@ A server SHOULD accept at least: 100 items per POST; blobs of 379 to 21,900 char
 
 A client keeps, per server: the cursor (the last `seq` it read), the latest `seq` and the `epoch` it has seen, and which of its records the server doesn't have yet.
 
-1. **Push** every record changed on this device, or received through another transport, since the last push, in POSTs of up to 100. Records that came from this server are not sent back to it.
+1. **Push** every record changed on this device, or received through another transport, since the last push, in POSTs of up to 100. Records saved by one edit (a range, say) SHOULD go in the same POST when they fit, so the server takes all of them or none. Records that came from this server are not sent back to it.
 2. **Pull** pages from the cursor until `more` is false. A client MAY skip this after a push when the POST's answer shows nobody else wrote: if `seq` minus the number of distinct ids sent equals the cursor, those were the client's own items, so it can set the cursor to `seq` without reading them back. Merge each item (section 3). If this device's version wins against the server's, send this device's version again on the next push. That repairs a server that went back to an old version, or received one late.
 3. **Refill a server that lost data.** If an answer has a different `epoch` from the one remembered, or a `seq` lower than the latest seen, the server was erased, replaced or restored from a backup. Reset the cursor to 0, send every record (including deleted ones), and pull again.
 
@@ -361,6 +368,8 @@ Not covered: the reference web app's screens and storage, and the reference Work
 ## Changes from 1.0
 
 Compatible (section 11): a 1.0 client or server is a 1.1 one.
+
+- How apps write and show ranges of verses (1.2, "Ranges in apps"), with vectors in `test/ranges-vectors.json`. Storage is unchanged: one record per verse. A push keeps one edit's records in one POST when they fit (5.6).
 
 - The library's name syncs as a record, `{"kind":"library","ref":"name","name":…}` (section 1.5). A file's header `name` follows it, and passkey slot names give way to it (2, 7.2). A 1.0 app keeps the record as a kind it doesn't know.
 - Client fixtures for it in `conformance/fixtures.json`.

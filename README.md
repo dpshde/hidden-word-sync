@@ -16,7 +16,7 @@ The hosted app and server is at **https://vault.selah.tools**. `sync.selah.tools
 
 ## Connect an AI assistant (MCP)
 
-The Worker serves a remote MCP server (Streamable HTTP) at `https://vault.selah.tools/mcp`. It opens your library with your sync key, sent on every request as `Authorization: Bearer <sync key>` (or `X-Hidden-Word-Key: <sync key>`). Tools: `list_highlights`, `find_highlights`, `add_highlight`, `set_highlight_color`, `delete_highlight`, `list_colors`, `get_library_info`, `get_passage_link`. Changes reach your other devices on their next sync.
+The Worker serves a remote MCP server (Streamable HTTP) at `https://vault.selah.tools/mcp`. It opens your library with your sync key, sent on every request as `Authorization: Bearer <sync key>` (or `X-Hidden-Word-Key: <sync key>`). Tools: `list_highlights`, `find_highlights`, `add_highlight`, `set_highlight_color`, `delete_highlight`, `list_colors`, `get_library_info`, `get_passage_link`. `add_highlight` takes a verse or a range ("Rom 5:3-5"); `list_highlights` and `find_highlights` group back-to-back verses in one color into ranges, each listing its verses, or return one entry per verse with `group: "verses"`. Changes reach your other devices on their next sync.
 
 ```json
 {

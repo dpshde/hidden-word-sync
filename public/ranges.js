@@ -12,6 +12,12 @@
 // - Deleting is a tombstone per verse ({ kind, ref, deleted: true }). Tombstoned verses aren't live,
 //   so a run loses them: deleting a run's middle verse splits it, an end verse shrinks it.
 // - A write is stamped like Library.putMany: updated = max(now, the replaced version's updated + 1).
+// - A range write ("ROM.5.3-5" in one color) is the reverse of grouping: expandRange gives its
+//   verses, rangeWrites the records to save, all in one putMany so they reach a server in one POST
+//   (all or none). At most MAX_RANGE_VERSES verses, one POST's worth. A verse already that color,
+//   whole, is left alone, so repeating a write changes nothing; any other verse takes the color as
+//   highlightRecord does for one verse.
+// - The server never sees refs or colors (they're encrypted), so ranges exist only here, on clients.
 import { compareRefs, splitRef } from "./refs.js";
 
 export const COLORS = ["yellow", "green", "blue", "pink", "purple", "orange"];
@@ -86,6 +92,76 @@ export function editRun(records, verses, color, t, find = () => null) {
     ...records.filter((r) => !next.has(r.ref)).map((r) => tombstone(r.ref)),
     ...[...next].filter((v) => !old.has(v)).map((v) => highlightRecord(find(v), v, color, t)),
   ];
+}
+
+/** Most verses one range write may cover: one POST (SPEC 5.4), so the server takes all of them or none. */
+export const MAX_RANGE_VERSES = 100;
+
+/**
+ * A canonical verse or same-chapter range ("ROM.5.3-5", "JHN.3.16") → { ref, verses }, or { error }.
+ * `verseCount(code, chapter)`, when given, refuses verses past the chapter's end.
+ * @param {string} ref
+ * @param {{ max?: number, verseCount?: (code: string, chapter: number) => number }} [options]
+ */
+export function expandRange(ref, { max = MAX_RANGE_VERSES, verseCount } = {}) {
+  const text = String(ref ?? "");
+  const r = splitRef(text);
+  if (!r) {
+    const m = /^[1-3A-Z][A-Z0-9]{2}\.\d+\.(\d+)-(\d+)$/.exec(text);
+    if (m && Number(m[2]) < Number(m[1])) return { error: "the range runs backwards: its end is before its start" };
+    if (m && m[1] === m[2]) return { error: "a single verse is written without a range, like ROM.5.3" };
+    if (/^[^.]+\.\d+\.\d+-.*\./.test(text)) return { error: "a range stays in one chapter, like ROM.5.3-5" };
+    return { error: "not a canonical reference (like ROM.5.3-5)" };
+  }
+  if (r.verse === null) return { error: "give verses, like ROM.5.3-5, not a whole chapter" };
+  const last = r.end ?? r.verse;
+  if (last - r.verse + 1 > max) return { error: `at most ${max} verses in one range` };
+  if (verseCount && last > verseCount(r.code, r.chapter)) return { error: "past the end of the chapter" };
+  const verses = [];
+  for (let v = r.verse; v <= last; v++) verses.push(`${r.code}.${r.chapter}.${v}`);
+  return { ref: verses.length === 1 ? verses[0] : `${r.code}.${r.chapter}.${r.verse}-${last}`, verses };
+}
+
+/** Whether a record already shows as `color` over its whole verse, so highlighting it again changes nothing. */
+export function alreadyHighlighted(record, color) {
+  const parts = record?.deleted ? [] : (record?.highlights ?? []);
+  return parts.length === 1 && parts[0].color === color && !parts[0].start && parts[0].end === undefined;
+}
+
+/**
+ * The records that highlight `verses` in `color`, for one putMany: verses already that color are left
+ * out (idempotent); others keep when they were first highlighted (highlightRecord). `find(ref)` gives
+ * a verse's live record.
+ * @param {string[]} verses
+ * @param {string} color
+ * @param {number} t
+ * @param {(ref: string) => any} [find]
+ */
+export function highlightWrites(verses, color, t, find = () => null) {
+  return verses.flatMap((v) => {
+    const prev = find(v);
+    return alreadyHighlighted(prev, color) ? [] : [highlightRecord(prev, v, color, t)];
+  });
+}
+
+/**
+ * A range write: { ref, verses, records } with records for one putMany, or { error }.
+ * @param {string} ref
+ * @param {string} color
+ * @param {number} t
+ * @param {(ref: string) => any} [find]
+ * @param {{ max?: number, verseCount?: (code: string, chapter: number) => number }} [options]
+ */
+export function rangeWrites(ref, color, t, find = () => null, options = {}) {
+  if (typeof color !== "string" || !color) return { error: "a color id is required" };
+  const range = expandRange(ref, options);
+  if (range.error) return range;
+  return { ...range, records: highlightWrites(range.verses, color, t, find) };
+}
+
+/** Runs as a grouped read returns them: [{ ref, verses, color, time }], verses being each member's ref. */
+export function rangeView(runs) {
+  return runs.map(({ ref, verses, color, time }) => ({ ref, verses, color, time }));
 }
 
 /** A verse's deletion, as the vault writes it. */

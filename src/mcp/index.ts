@@ -7,7 +7,7 @@
 
 import { Library, memoryStore, palette, serverTransport as server, topColor } from "../../public/sync.js";
 import { BOOKS as books, compareRefs, labelRef, splitRef } from "../../public/refs.js";
-import { groupRuns, highlightRecord, tombstone } from "../../public/ranges.js";
+import { groupRuns, highlightWrites, tombstone } from "../../public/ranges.js";
 import { readPassage as read } from "../../public/passage.js";
 import { type Note, noNote } from "../observe";
 
@@ -95,26 +95,31 @@ export async function mcp(request: Request, syncFetch: SyncFetch, note: Note = n
 // ---- tools
 
 const COLOR = { type: "string", description: "A color id (yellow, green, blue, pink, purple, orange, or a library's own id) or a name the library gave a color, like \"Prayer\"." };
+const GROUP = {
+  type: "string",
+  enum: ["ranges", "verses"],
+  description: "\"ranges\" (the default): back-to-back verses in one color come as one passage, with each verse's ref in `verses`. \"verses\": one entry per highlighted verse.",
+};
 const REFERENCE = { type: "string", description: "A Bible reference in any common form: \"John 3:16\", \"Rom 5:3-5\", \"Psalm 23\", \"JHN.3.16-18\", or a bible.com or route.bible link." };
 
 export const TOOLS = [
   {
     name: "list_highlights",
     description: "List the library's highlights in canonical order. Back-to-back verses in one color come as one passage, like Romans 5:3–5.",
-    inputSchema: { type: "object", properties: { color: COLOR }, additionalProperties: false },
+    inputSchema: { type: "object", properties: { color: COLOR, group: GROUP }, additionalProperties: false },
   },
   {
     name: "find_highlights",
     description: "Find highlights inside a passage (\"Romans 5\", \"John 3:1-21\") or a whole book (book: \"Romans\").",
     inputSchema: {
       type: "object",
-      properties: { reference: REFERENCE, book: { type: "string", description: "A book name or USFM code, like \"Romans\" or \"ROM\"." } },
+      properties: { reference: REFERENCE, book: { type: "string", description: "A book name or USFM code, like \"Romans\" or \"ROM\"." }, group: GROUP },
       additionalProperties: false,
     },
   },
   {
     name: "add_highlight",
-    description: "Highlight every verse a reference covers, in one color (yellow when none is given). Verses already highlighted take the new color.",
+    description: "Highlight every verse a reference covers, a range like \"Rom 5:3-5\" included, in one color (yellow when none is given). Saved one record per verse, together. Verses already highlighted take the new color; verses already in that color are left as they are.",
     inputSchema: { type: "object", properties: { reference: REFERENCE, color: COLOR }, required: ["reference"], additionalProperties: false },
   },
   {
@@ -264,10 +269,11 @@ class Session {
     return (this.library.all("highlight") as Rec[]).sort((a, b) => compareRefs(a.ref, b.ref));
   }
 
-  /** Records as the app lists them: runs of back-to-back verses in one color. */
-  runs(records: Rec[]) {
+  /** Records as the app lists them: runs of back-to-back verses in one color, or one per verse. */
+  runs(records: Rec[], group: unknown = "ranges") {
+    if (group !== undefined && group !== "ranges" && group !== "verses") throw new Refusal("group is \"ranges\" or \"verses\".");
     const ids = this.colors.map((c) => c.id);
-    return groupRuns(records, (r: Rec) => topColor(r, ids)).map(({ ref, records: rs }: { ref: string; records: Rec[] }) => {
+    return groupRuns(records, group === "verses" ? (r: Rec) => r.ref : (r: Rec) => topColor(r, ids)).map(({ ref, records: rs }: { ref: string; records: Rec[] }) => {
       const color = topColor(rs[0], ids);
       return { reference: labelRef(ref), ref, color, colorName: this.colorName(color), verses: rs.map((r) => r.ref), link: link(ref) };
     });
@@ -285,7 +291,7 @@ class Session {
       case "list_highlights": {
         const color = args.color === undefined ? null : this.color(args.color);
         const records = this.highlights().filter((r) => !color || topColor(r, ids) === color);
-        return { highlights: this.runs(records) };
+        return { highlights: this.runs(records, args.group) };
       }
       case "find_highlights": {
         let inside: (ref: string) => boolean;
@@ -301,13 +307,13 @@ class Session {
           inside = (ref) => set.has(ref);
           label = found.label;
         }
-        return { reference: label, highlights: this.runs(this.highlights().filter((r) => inside(r.ref))) };
+        return { reference: label, highlights: this.runs(this.highlights().filter((r) => inside(r.ref)), args.group) };
       }
       case "add_highlight": {
         const { verses, label } = this.verses(args.reference);
         const color = this.color(args.color, "yellow");
         const t = Math.floor(Date.now() / 1000);
-        await this.save(verses.map((v) => highlightRecord(this.library.find("highlight", v), v, color, t)));
+        await this.save(highlightWrites(verses, color, t, (v: string) => this.library.find("highlight", v)));
         return { added: label, color, colorName: this.colorName(color), verses };
       }
       case "set_highlight_color": {

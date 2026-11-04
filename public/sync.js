@@ -1,12 +1,12 @@
 // Selah Vault reference client (spec v1.1). Needs only WebCrypto and fetch, so it runs in browsers,
 // Bun, Node 20+, Deno and Workers.
-import { splitRef } from "./refs.js";
+import { compareRefs, splitRef } from "./refs.js";
 
 const te = new TextEncoder();
 const td = new TextDecoder();
 const subtle = globalThis.crypto.subtle;
 
-import { COLORS, stamp, topColor } from "./ranges.js";
+import { COLORS, listRanges, rangeView, rangeWrites, stamp, topColor } from "./ranges.js";
 
 export { COLORS, topColor };
 export const KINDS = ["highlight", "note", "color", "library"];
@@ -390,19 +390,47 @@ export class Library {
   /**
    * Saves edits on this device at once and syncs in the background. Each gets `updated` = now, or
    * one second past the version it replaces when this device's clock is behind, so an edit always
-   * beats what it was made from.
+   * beats what it was made from. All or nothing: one bad record and nothing is saved. Up to 100
+   * records saved together reach a server in one POST, so it takes all of them or none.
    */
   async putMany(records) {
     const t = now();
     for (const record of records) {
       const err = checkRecord(record);
       if (err) throw new Error(err);
-      const id = await itemId(this.keys, record.kind, record.ref);
-      const r = stamp(record, this.records.get(id)?.updated, t);
-      this.write(id, r, JSON.stringify(r), null);
     }
+    const ids = await Promise.all(records.map((record) => itemId(this.keys, record.kind, record.ref)));
+    // Written back to back with nothing awaited between, so they hold consecutive change numbers.
+    const group = this.state.n + 1;
+    records.forEach((record, i) => {
+      const r = stamp(record, this.records.get(ids[i])?.updated, t);
+      this.write(ids[i], r, JSON.stringify(r), null, records.length > 1 ? group : undefined);
+    });
     this.emit();
     this.sync();
+  }
+
+  /**
+   * Highlights a canonical verse or same-chapter range ("ROM.5.3-5") in one color: one record per
+   * verse, saved together (one POST, all or none). Verses already that color stay as they are.
+   * → { ref, verses, written }. Throws on a bad range (see ranges.js expandRange).
+   */
+  async highlightRange(ref, color = "yellow", options = {}) {
+    const w = rangeWrites(ref, color, now(), (v) => this.find("highlight", v), options);
+    if (w.error) throw new Error(w.error);
+    if (w.records.length) await this.putMany(w.records);
+    return { ref: w.ref, verses: w.verses, written: w.records.map((r) => r.ref) };
+  }
+
+  /**
+   * Live highlight records in canonical order, one per verse; with { group: "ranges" }, the runs the
+   * app lists (ranges.js listRanges): [{ ref, verses, color, time }].
+   */
+  highlights({ group } = {}) {
+    const records = this.all("highlight").sort((a, b) => compareRefs(a.ref, b.ref));
+    if (group === undefined || group === "verses") return records;
+    if (group !== "ranges") throw new Error(`unknown group ${group}`);
+    return rangeView(listRanges(records, palette(this.all("color")).map((c) => c.id)));
   }
 
   remove(kind, ref) {
@@ -424,8 +452,9 @@ export class Library {
     return changed;
   }
 
-  write(id, record, text, source) {
-    this.state.items[id] = source ? { t: text, n: ++this.state.n, s: source } : { t: text, n: ++this.state.n };
+  /** `group`: the first change number of a putMany, so a push keeps its records in one POST. */
+  write(id, record, text, source, group) {
+    this.state.items[id] = source ? { t: text, n: ++this.state.n, s: source } : group ? { t: text, n: ++this.state.n, g: group } : { t: text, n: ++this.state.n };
     this.records.set(id, record);
   }
 
@@ -566,6 +595,29 @@ export function serverLostData(seen, answer) {
   return (seen.epoch !== null && answer.epoch !== seen.epoch) || (answer.seq !== undefined && answer.seq < seen.seq);
 }
 
+/**
+ * Ids (oldest change first) → POST-sized batches, in order. Ids that share a group (saved by one
+ * putMany) stay in one batch when the group fits one, so the server writes them all or none.
+ */
+export function batches(ids, groupOf = () => undefined, size = BATCH) {
+  const out = [];
+  let chunk = [];
+  for (let i = 0; i < ids.length; ) {
+    const g = groupOf(ids[i]);
+    let j = i + 1;
+    while (g !== undefined && j < ids.length && groupOf(ids[j]) === g) j++;
+    const run = ids.slice(i, j);
+    if (chunk.length && chunk.length + run.length > size && run.length <= size) (out.push(chunk), (chunk = []));
+    for (const id of run) {
+      if (chunk.length === size) (out.push(chunk), (chunk = []));
+      chunk.push(id);
+    }
+    i = j;
+  }
+  if (chunk.length) out.push(chunk);
+  return out;
+}
+
 /** A Selah Vault server. `url` "" means the site this page came from. */
 export function serverTransport({ url = "", fetch: f } = {}) {
   const name = `server ${url}`;
@@ -590,8 +642,7 @@ export function serverTransport({ url = "", fetch: f } = {}) {
   /** Sends what the server hasn't got. False when the server lost data and must be refilled. */
   async function push(lib, r) {
     const ids = lib.unsent(name);
-    for (let i = 0; i < ids.length; i += BATCH) {
-      const chunk = ids.slice(i, i + BATCH);
+    for (const chunk of batches(ids, (id) => lib.state.items[id].g)) {
       const ns = chunk.map((id) => lib.state.items[id].n);
       const items = await Promise.all(chunk.map(async (id) => ({ id, blob: await lib.blob(id) })));
       const answer = await call(lib, "POST", "", { items });
