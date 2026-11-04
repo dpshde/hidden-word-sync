@@ -138,7 +138,7 @@ main { position: relative; z-index: 2; width: 100%; max-width: 32rem; margin: 0 
    top offset, not flex centring, so adding rows or opening a group never moves
    the title; long lists just scroll past it. Never closer than safe-area + 1rem:
    iOS 26 blurs the top edge below the status bar. /connect keeps its own. */
-main:not(.oauth-main) { padding-top: max(calc(env(safe-area-inset-top) + 1rem), calc(40dvh - 110px)); }
+main:not(.oauth-main) { padding-top: max(calc(env(safe-area-inset-top) + 1rem), calc(34dvh - 110px)); }
 h1 { font-size: 1.625rem; line-height: 1.15; font-weight: 700; margin: 0 0 .5rem; letter-spacing: -.035em; }
 /* The start page's title, set like route.bible's wordmark. */
 #start h1 { font-size: 2.75rem; letter-spacing: -.07em; margin-bottom: .75rem; }
@@ -436,3 +436,18 @@ a.shell-link:focus-visible, button.shell-link:focus-visible { color: var(--fg); 
 /* A passage still fetching shows nothing for 300ms, then its spinner: a fast answer never flashes one. */
 si-passage::part(loader) { visibility: hidden; animation: si-loader-late 0s linear .3s forwards; }
 @keyframes si-loader-late { to { visibility: visible; } }
+
+/* Library view: the page never scrolls, only the highlights list does. body is a 100dvh column
+   (main, then the footer); #main is a column whose header, add field and Date/Genre toggle keep
+   their height while #list takes the rest and scrolls on its own, with expanded passages inside it.
+   Start/unlock pages keep normal flow, so they only scroll when they truly don't fit (a small phone
+   with the keyboard up). No rubber-band on the page anywhere. */
+html, body { overscroll-behavior: none; overflow-x: clip; }
+html:has(#main:not([hidden])), body:has(#main:not([hidden])) { height: 100dvh; overflow: hidden; }
+body:has(#main:not([hidden])) main { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; padding-bottom: 1rem; }
+#main:not([hidden]) { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+#main:not([hidden]) > * { flex-shrink: 0; }
+#main:not([hidden]) > #list { flex: 1 1 auto; min-height: 0; min-width: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+body:has(#main:not([hidden])) .shell-meta { flex-shrink: 0; }
+/* Short screens: pull the offset toward the safe-area floor so the list keeps a usable height. */
+@media (max-height: 40rem) { main:not(.oauth-main) { padding-top: max(calc(env(safe-area-inset-top) + 1rem), calc(34dvh - 140px)); } }
