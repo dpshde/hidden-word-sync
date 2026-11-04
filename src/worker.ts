@@ -3,6 +3,7 @@
 
 import { YV_PREFIX, yvProxy } from "./yv";
 import { mcp } from "./mcp/index";
+import { GRANT_DAYS, GRANT_TOKEN, allowedClient, grantAllows, parseScopes } from "../public/grants.js";
 import { type Note, clientErrors, errorFields, noNote, observe } from "./observe";
 
 export interface Env {
@@ -102,8 +103,11 @@ export async function handle(request: Request, env: Env, note: Note = noNote): P
   if (request.method === "OPTIONS") return empty();
   if (parts.length !== 4 || !HEX32.test(parts[3])) return fail(404, "not found");
   const token = /^Bearer (\S+)$/.exec(request.headers.get("authorization") ?? "")?.[1];
-  if (!token || !TOKEN.test(token)) return fail(401, "missing or malformed bearer token");
+  const isGrant = !!token && GRANT_TOKEN.test(token);
+  if (!token || !(isGrant || TOKEN.test(token))) return fail(401, "missing or malformed bearer token");
   const tokenHash = await sha256Hex(token);
+  if (parts[2] === "grant") return grants(request, env.DB, parts[3], tokenHash, isGrant);
+  if (isGrant) return parts[2] === "lib" ? granted(request, env.DB, parts[3], tokenHash) : fail(403, "a grant can't do that");
   if (parts[2] === "lib") return library(request, env.DB, parts[3], tokenHash);
   if (parts[2] === "slot") return slot(request, env.DB, parts[3], tokenHash);
   return fail(404, "not found");
@@ -146,6 +150,7 @@ async function library(request: Request, db: D1Database, lib: string, tokenHash:
       const [libs] = await db.batch([
         db.prepare("SELECT auth_hash FROM libs WHERE lib = ?").bind(lib),
         db.prepare("DELETE FROM items WHERE lib = ?1 AND EXISTS (SELECT 1 FROM libs WHERE lib = ?1 AND auth_hash = ?2)").bind(lib, tokenHash),
+        db.prepare("DELETE FROM grants WHERE lib = ?1 AND EXISTS (SELECT 1 FROM libs WHERE lib = ?1 AND auth_hash = ?2)").bind(lib, tokenHash),
         db.prepare("DELETE FROM libs WHERE lib = ? AND auth_hash = ?").bind(lib, tokenHash),
       ]);
       const row = libs.results[0] as { auth_hash: string } | undefined;
@@ -155,6 +160,74 @@ async function library(request: Request, db: D1Database, lib: string, tokenHash:
       return fail(405, "method not allowed");
   }
 }
+
+// ---- grants (public/grants.js): limited, expiring tokens for another app
+
+const now = () => Math.floor(Date.now() / 1000);
+
+/** A grant token's request on /v1/lib/:lib: only what its scopes allow, only until it expires. */
+async function granted(request: Request, db: D1Database, lib: string, tokenHash: string): Promise<Response> {
+  const row = await db
+    .prepare("SELECT scopes FROM grants WHERE lib = ? AND token_hash = ? AND expires > ?")
+    .bind(lib, tokenHash, now())
+    .first<{ scopes: string }>();
+  if (!row) return fail(401, "grant expired, revoked, or not for this library");
+  if (!grantAllows(row.scopes.split(" "), request.method)) return fail(403, "this grant can't do that");
+  const libRow = await db.prepare("SELECT auth_hash FROM libs WHERE lib = ?").bind(lib).first<{ auth_hash: string }>();
+  // Read as the library's owner would: the grant stands in for its token.
+  return libRow ? library(request, db, lib, libRow.auth_hash) : json({ items: [], more: false, seq: 0, epoch: null });
+}
+
+/**
+ * /v1/grant/:lib. With the library's own token: POST makes a grant ({ scopes, client }), GET lists
+ * them, DELETE ?id= revokes one. With a grant token: DELETE revokes that grant (an app disconnecting).
+ */
+async function grants(request: Request, db: D1Database, lib: string, tokenHash: string, isGrant: boolean): Promise<Response> {
+  if (isGrant) {
+    if (request.method !== "DELETE") return fail(403, "a grant can only revoke itself");
+    await db.prepare("DELETE FROM grants WHERE lib = ? AND token_hash = ?").bind(lib, tokenHash).run();
+    return empty();
+  }
+  const owner = await db.prepare("SELECT auth_hash FROM libs WHERE lib = ?").bind(lib).first<{ auth_hash: string }>();
+  if (!owner) return fail(404, "no such library");
+  if (owner.auth_hash !== tokenHash) return fail(401, "wrong token for this library");
+  switch (request.method) {
+    case "POST": {
+      const body = await readJson(request);
+      if (body instanceof Response) return body;
+      const scopes = parseScopes((body as { scopes?: unknown })?.scopes);
+      if (!scopes) return fail(400, "unknown scope");
+      const client = allowedClient((body as { client?: unknown })?.client);
+      if (!client) return fail(403, "that app isn't allowed to connect");
+      const id = hex(crypto.getRandomValues(new Uint8Array(16)));
+      const token = `g1.${b64u(crypto.getRandomValues(new Uint8Array(32)))}`;
+      const expires = now() + GRANT_DAYS * 86_400;
+      await db
+        .prepare("INSERT INTO grants (id, lib, token_hash, scopes, client, created, expires) VALUES (?, ?, ?, ?, ?, ?, ?)")
+        .bind(id, lib, await sha256Hex(token), scopes.join(" "), client, now(), expires)
+        .run();
+      return json({ id, token, scopes, client, expires });
+    }
+    case "GET": {
+      const rows = await db
+        .prepare("SELECT id, scopes, client, created, expires FROM grants WHERE lib = ? AND expires > ? ORDER BY created DESC")
+        .bind(lib, now())
+        .all<{ id: string; scopes: string; client: string; created: number; expires: number }>();
+      return json({ grants: rows.results.map((g) => ({ ...g, scopes: g.scopes.split(" ") })) });
+    }
+    case "DELETE": {
+      const id = new URL(request.url).searchParams.get("id") ?? "";
+      if (!HEX32.test(id)) return fail(400, "id is required");
+      await db.prepare("DELETE FROM grants WHERE lib = ? AND id = ?").bind(lib, id).run();
+      return empty();
+    }
+    default:
+      return fail(405, "method not allowed");
+  }
+}
+
+const hex = (b: Uint8Array) => [...b].map((x) => x.toString(16).padStart(2, "0")).join("");
+const b64u = (b: Uint8Array) => btoa(String.fromCharCode(...b)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 
 // What the library's size would be after this write: its size now, plus the new blobs, minus the
 // blobs they replace. ?1 lib, ?3 characters added, ?4 the ids being written as a JSON list.
