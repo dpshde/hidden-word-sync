@@ -366,15 +366,26 @@ input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 50%; }
 /* A row's passage text (scripture-inline's <si-passage>), under the row, in route.bible's reading type. */
 .verse-text {
   display: block;
-  padding: 0 .75rem .875rem calc(var(--gutter) + 1.5rem);
-  --scripture-font-size: .9375rem;
-  --scripture-line-height: 1.65;
+  margin: .125rem .75rem 1.125rem calc(var(--gutter) + .5rem);
+  padding: .125rem 0 .125rem 1rem;
+  border-left: 2px solid color-mix(in oklab, var(--row-color, var(--line)) 70%, transparent);
+  --scripture-font-size: 1rem;
+  --scripture-line-height: 1.75;
   --scripture-font-family: "Lexend", "Helvetica Neue", sans-serif;
   --scripture-max-width: none;
+  --vault-measure: 36rem;
   --yv-foreground: var(--fg-2);
   --yv-muted-foreground: var(--muted);
   --yv-background: transparent;
+  --vault-verse: color-mix(in oklab, var(--muted) 85%, transparent);
+  --vault-wj: color-mix(in oklab, var(--danger) 78%, var(--fg-2));
 }
+/* No copyright line (the BSB is public domain); the citation after the text shows just the version,
+   small and tracked at the bottom right. */
+.verse-text::part(attribution) { display: none; }
+.verse-text::part(citation) { display: block; max-width: var(--vault-measure); margin: .25rem 0 0; font-size: 0; line-height: 1; text-align: right; }
+.verse-text::part(version) { font: 600 .6875rem/1 var(--font-label, "Lexend", sans-serif); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+@media (max-width: 40rem) { .verse-text { margin-left: var(--gutter); margin-right: .25rem; padding-left: .875rem; --scripture-font-size: .9375rem; --scripture-line-height: 1.7; } }
 .row-link[aria-expanded="true"] .ref { text-decoration: underline; text-decoration-color: var(--brand); text-underline-offset: .2em; }
 
 /* The start screen: passkey first when this browser has passkeys, then the key form, then a way to start. */
