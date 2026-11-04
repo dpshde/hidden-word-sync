@@ -11,6 +11,7 @@ import { setupThemeToggle } from "./theme-toggle.js";
 import { foldersAvailable, pickFolder, saveFolder, loadFolder, forgetFolder, mayUse, folderDir } from "./folder.js";
 import { registerSelahVaultTools } from "./webmcp.js";
 import { armDelete } from "./confirm.js";
+import { keepLoadedOnMove, createWarmer } from "./passage-warm.js";
 
 const $ = (sel) => document.querySelector(sel);
 const SESSION = "hidden-word:session";
@@ -410,8 +411,8 @@ function renderFilters(counts) {
 
 const ICONS = {
   edit: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.17 6.81a1 1 0 0 0-3.98-3.98L3.84 16.17a2 2 0 0 0-.5.83l-1.32 4.35a.5.5 0 0 0 .62.62l4.35-1.32a2 2 0 0 0 .83-.5z"/><path d="m15 5 4 4"/></svg>',
-  text: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>',
   plus: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>',
+  globe: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>',
   trash: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
 };
 
@@ -443,14 +444,20 @@ function row({ ref: runRef, records }) {
     }),
   );
 
-  // The whole row opens the passage in route.bible: the link stretches over the line (see .row-link
-  // in style.css), and the dot and icons sit above it as their own buttons.
-  const link = document.createElement("a");
+  // The whole row opens the passage's text under it (see .row-link in style.css: its ::after covers
+  // the line, and the dot and icons sit above it as their own buttons). Without verse text it opens
+  // the passage in route.bible instead, like the globe.
+  const routeHref = `https://route.bible/${runRef.toLowerCase()}`; // the whole run, e.g. rom.5.3-5
+  const link = document.createElement("button");
+  link.type = "button";
   link.className = "row-link";
-  link.href = `https://route.bible/${runRef.toLowerCase()}`; // the whole run, e.g. rom.5.3-5
-  link.target = "_blank";
-  link.rel = "noopener";
-  link.setAttribute("aria-label", `Open ${labelRef(runRef)} in route.bible`);
+  if (verseText.key) {
+    link.setAttribute("aria-label", `Show the text of ${labelRef(runRef)}`);
+    wireTextToggle(link, li, runRef);
+  } else {
+    link.setAttribute("aria-label", `Open ${labelRef(runRef)} on route.bible`);
+    link.addEventListener("click", () => window.open(routeHref, "_blank", "noopener"));
+  }
   const ref = document.createElement("span");
   ref.className = "ref";
   ref.textContent = labelRef(runRef);
@@ -484,7 +491,7 @@ function row({ ref: runRef, records }) {
   const actions = document.createElement("span");
   actions.className = "actions";
   actions.append(edit);
-  if (verseText.key) actions.append(textButton(li, runRef));
+  actions.append(globeLink(runRef, routeHref));
   actions.append(del);
   line.append(dot, link, actions);
   li.append(line);
@@ -560,6 +567,7 @@ function editRow(li, line, run) {
 // icon doesn't show.
 
 const verseText = { key: null, open: null, passages: new Map() };
+const warmer = createWarmer(warmText);
 // A passage's text themes itself inside its shadow root, so it's told the theme on screen, not left on auto.
 const themeNow = setupThemeToggle(document.querySelectorAll(".theme-toggle"), {
   onChange: (theme) => {
@@ -573,7 +581,10 @@ const themeNow = setupThemeToggle(document.querySelectorAll(".theme-toggle"), {
 const YV_KEY = "hidden-word:yv-key";
 function useVerseKey(yvpPublicAppKey) {
   if (!yvpPublicAppKey || verseText.key === yvpPublicAppKey) return;
-  if (!verseText.key) defineScripturePassage({ yvpPublicAppKey });
+  if (!verseText.key) {
+    defineScripturePassage({ yvpPublicAppKey });
+    keepLoadedOnMove(customElements.get("si-passage"));
+  }
   verseText.key = yvpPublicAppKey;
   render();
 }
@@ -593,22 +604,32 @@ async function loadConfig(retry = true) {
   }
 }
 
-function textButton(li, runRef) {
-  const b = iconButton("button", "text", `Show the text of ${labelRef(runRef)}`);
-  b.classList.add("text");
-  b.setAttribute("aria-expanded", String(verseText.open === runRef));
-  // Start fetching while the pointer is on its way or the button has focus, so the text is there by the tap.
-  const warm = () => prefetchText(runRef);
-  b.addEventListener("pointerenter", warm);
-  b.addEventListener("focus", warm);
-  b.addEventListener("click", () => {
+/** The globe: opens the run in route.bible, in a new tab, whether or not verse text is available. */
+function globeLink(runRef, href) {
+  const a = iconButton("a", "globe", `Open ${labelRef(runRef)} on route.bible`);
+  a.classList.add("globe");
+  a.href = href;
+  a.target = "_blank";
+  a.rel = "noopener";
+  return a;
+}
+
+/** Makes `toggle` (the row) show and hide the run's text under it, warming it on the way. */
+function wireTextToggle(toggle, li, runRef) {
+  toggle.setAttribute("aria-expanded", String(verseText.open === runRef));
+  // Every row's text loads in the background once the list is up (see passage-warm.js), so a tap
+  // finds it ready; hover or focus moves this one to the front.
+  warmer.add(runRef);
+  const warm = () => (warmer.first(runRef), prefetchText(runRef));
+  toggle.addEventListener("pointerenter", warm);
+  toggle.addEventListener("focus", warm);
+  toggle.addEventListener("click", () => {
     const wasOpen = verseText.open === runRef;
     for (const other of document.querySelectorAll("#list .verse-text")) other.remove();
-    for (const other of document.querySelectorAll("#list button.text")) other.setAttribute("aria-expanded", "false");
+    for (const other of document.querySelectorAll("#list .row-link[aria-expanded]")) other.setAttribute("aria-expanded", "false");
     verseText.open = wasOpen ? null : runRef;
-    if (!wasOpen) (showText(li, runRef), b.setAttribute("aria-expanded", "true"));
+    if (!wasOpen) (showText(li, runRef), toggle.setAttribute("aria-expanded", "true"));
   });
-  return b;
 }
 
 /** The run's <si-passage>, made once and kept, so a re-render doesn't refetch. */
@@ -630,6 +651,19 @@ function passageFor(runRef) {
   return el;
 }
 
+/** Resolves once a run's text has loaded off screen (or failed, or 8s passed). */
+function warmText(runRef) {
+  const fresh = !verseText.passages.has(runRef);
+  prefetchText(runRef);
+  const el = verseText.passages.get(runRef);
+  if (!el || el.loaded || !fresh) return Promise.resolve();
+  return new Promise((done) => {
+    el.addEventListener("scripture-load", done, { once: true });
+    el.addEventListener("scripture-error", done, { once: true });
+    setTimeout(done, 8000);
+  });
+}
+
 /** Loads a run's text off screen: <si-passage> fetches when it's put in the page, and keeps what it got. */
 function prefetchText(runRef) {
   if (!verseText.key || verseText.passages.has(runRef)) return;
@@ -646,7 +680,7 @@ function prefetchText(runRef) {
 /** Puts the run's passage under its row. */
 function showText(li, runRef) {
   const el = passageFor(runRef);
-  li.querySelector("button.text")?.setAttribute("aria-controls", el.id);
+  li.querySelector(".row-link")?.setAttribute("aria-controls", el.id);
   li.append(el);
 }
 
