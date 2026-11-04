@@ -30,3 +30,8 @@ test("identifiers existing devices and clients depend on are unchanged", () => {
   expect(read("public/theme-toggle.js")).toContain('"hidden-word:theme"');
   expect(read("public/folder.js")).toContain('indexedDB.open("hidden-word", 1)');
 });
+
+test("links point at the renamed repo", () => {
+  for (const f of ["public/index.html", "README.md", "SPEC.md", "src/mcp/index.ts"]) expect(read(f)).not.toContain("github.com/dpshde/hidden-word-sync");
+  expect(read("public/index.html")).toContain("https://github.com/dpshde/selah-vault/blob/main/SPEC.md");
+});

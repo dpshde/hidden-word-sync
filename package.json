@@ -1,5 +1,6 @@
 {
-  "name": "hidden-word",
+  "name": "selah-vault",
+  "description": "Selah Vault: Bible highlights on your devices, in any app. An open format and a server that can't read them.",
   "private": true,
   "type": "module",
   "scripts": {

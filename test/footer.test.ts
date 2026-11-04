@@ -9,12 +9,12 @@ test("the footer holds the theme, the contract and the auth status, and nothing 
   const items = [...footer.matchAll(/<(button|a|span)\b[^>]*>/g)].map((m) => m[0]);
   expect(items).toHaveLength(3);
   expect(items[0]).toContain("theme-toggle");
-  expect(items[1]).toContain('href="https://github.com/dpshde/hidden-word-sync/blob/main/SPEC.md"');
+  expect(items[1]).toContain('href="https://github.com/dpshde/selah-vault/blob/main/SPEC.md"');
   expect(items[2]).toContain('id="auth-status"');
 });
 
 test("the contract link goes where For developers' spec link does", () => {
-  expect(html).toContain('Read <a href="https://github.com/dpshde/hidden-word-sync/blob/main/SPEC.md"');
+  expect(html).toContain('Read <a href="https://github.com/dpshde/selah-vault/blob/main/SPEC.md"');
 });
 
 test("the theme button lives only in the footer; the ••• menu is unchanged", () => {

@@ -12,7 +12,7 @@ A person with a library should be able to connect a new Bible app as easily as "
 
 ## Decision
 
-A Hidden Word site offers `/unlock?app=<name>&callback=<url>`. It asks the person to unlock a library (or reuse the one unlocked in that browser), then asks "Give <app> access to <library>?". Allow sends the browser to `<callback>#k=<key>&name=<name>`; Cancel sends `#error=denied`.
+A Selah Vault site offers `/unlock?app=<name>&callback=<url>`. It asks the person to unlock a library (or reuse the one unlocked in that browser), then asks "Give <app> access to <library>?". Allow sends the browser to `<callback>#k=<key>&name=<name>`; Cancel sends `#error=denied`.
 
 Callbacks must be `https:`, a custom scheme, or `http:` on loopback. `javascript:`, `data:`, `blob:`, `file:` and similar are refused, and the consent screen shows the callback's host.
 

@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "hidden-word",
+      "name": "selah-vault",
       "devDependencies": {
         "@cloudflare/workers-types": "^4.20250927.0",
         "@faith-tools/scripture-inline": "0.3.1",

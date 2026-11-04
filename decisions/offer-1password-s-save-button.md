@@ -24,7 +24,7 @@ The new-library screen shows 1Password's button above the form, filled with the 
 
 ## Consequences
 
-- People with the 1Password extension get a save that doesn't depend on detection, with the item named "Hidden Word: <library>".
+- People with the 1Password extension get a save that doesn't depend on detection, with the item named "Selah Vault: <library>".
 - It's code specific to one password manager, the first in the app. Others still rely on the form. Adding another vendor's button would follow the same pattern.
 - Updating the button means bumping the version and running `bun run vendor`; the script refuses to update the CSP if the button's styles stop being one fixed block.
 - The button's info icon links to 1Password's sign-up page. That link only shows with the extension installed.
