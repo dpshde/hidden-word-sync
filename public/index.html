@@ -97,12 +97,19 @@
     </form>
 
     <div id="filters" role="group" aria-label="Show"></div>
+    <div id="relevance-bar" class="relevance-bar" hidden>
+      <label class="relevance-label" for="relevance-ref">Passage</label>
+      <input id="relevance-ref" type="text" inputmode="text" autocomplete="off" spellcheck="false" placeholder="Rom 8:18–25" aria-label="Passage to rank highlights against">
+      <p id="relevance-error" class="error" role="alert" hidden></p>
+    </div>
     <div id="list"></div>
     <div id="list-foot" class="list-foot" hidden>
       <span id="list-total" class="list-total" role="status"></span>
-      <div id="group-by" class="segmented" role="group" aria-label="Group by" hidden>
+      <div id="group-by" class="segmented" role="group" aria-label="Sort highlights" hidden>
         <button type="button" data-mode="date" aria-pressed="true">Date</button>
         <button type="button" data-mode="genre" aria-pressed="false">Genre</button>
+        <button type="button" data-mode="relevant" aria-pressed="false">Relevant</button>
+        <button type="button" data-mode="surprising" aria-pressed="false">Surprising</button>
       </div>
     </div>
     <div id="color-pop" popover role="group" aria-label="Highlight color"></div>

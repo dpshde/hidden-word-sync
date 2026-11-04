@@ -247,13 +247,23 @@ button.dot[aria-pressed="true"] { border-color: var(--fg); }
 #list .group[open] > summary::before { transform: rotate(45deg) translate(-1px, -1px); }
 #list .group > summary:hover { background: color-mix(in oklab, var(--accent) 86%, var(--bg)); }
 #list .group > summary:focus-visible { outline-offset: 2px; }
-/* Pinned under the scrolling list: the total on the left, the Date/Genre toggle on the right. */
+/* Pinned under the scrolling list: the total on the left, the Date/Genre/Relevant/Surprising toggle on the right. */
 .list-foot { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .5rem 0 0; border-top: 1px solid var(--line-subtle); }
 .list-foot[hidden] { display: none; }
 .list-total { font-family: var(--font-label); font-size: .75rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 .list-foot .segmented { margin: 0; }
 .list-foot .segmented button { padding: .25rem .625rem; font-size: .6875rem; cursor: pointer; }
-/* Date | Genre: a compact segmented control above the list, in route.bible's small uppercase label type. */
+/* Passage field for Relevant / Surprising: one empty line, never remembered. */
+.relevance-bar { margin: 0 0 .75rem; }
+.relevance-bar[hidden] { display: none; }
+.relevance-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+#relevance-ref { font-size: .9375rem; padding: .5rem .75rem; }
+#relevance-error { margin: .375rem 0 0; font-size: .8125rem; }
+#relevance-error[hidden] { display: none; }
+.row-reason { display: block; margin: .125rem 0 0; font-size: .8125rem; color: var(--muted); font-weight: 450; line-height: 1.35; }
+/* No selection / transition animation when ranking reorders the list. */
+#list.rank-mode .group, #list.rank-mode .row { transition: none; }
+/* Date | Genre | Relevant | Surprising: a compact segmented control, in route.bible's small uppercase label type. */
 .segmented { display: inline-flex; margin: 0 0 .75rem; padding: 0; border: 1px solid var(--line); border-radius: 0; }
 .segmented[hidden] { display: none; }
 .segmented button { padding: .3125rem .75rem; font-family: var(--font-label); font-size: .75rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; background: transparent; border: 0; color: var(--muted); border-radius: 0; }

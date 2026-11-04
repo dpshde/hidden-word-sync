@@ -3,21 +3,24 @@ import {
   serverTransport,
 } from "./sync.js";
 import { labelRef, compareRefs } from "./refs.js";
-import { editRun, highlightRecord, tombstone } from "./ranges.js";
+import { editRun, highlightRecord, tombstone, groupRuns } from "./ranges.js";
 import { readPassage } from "./passage.js";
-import { MODES, groupList, startsOpen } from "./groups.js";
+import { MODES, RANK_MODES, groupList, startsOpen } from "./groups.js";
 import { definePassageInput, defineScripturePassage } from "./vendor/scripture-inline.js";
 import { createPasskeyPrf, getPasskeyPrf, passkeysAvailable, cancelled } from "./passkey.js";
 import { setupThemeToggle } from "./theme-toggle.js";
 import { registerSelahVaultTools } from "./webmcp.js";
 import { armDelete } from "./confirm.js";
 import { defineKeepingLoaded, createWarmer } from "./passage-warm.js";
+import { createBsbText } from "./bsb-text.js";
+import { createRelevance, EMPTY_RELEVANCE, totalCopy } from "./relevance.js";
 
 const $ = (sel) => document.querySelector(sel);
 const SESSION = "hidden-word:session";
 const CREATED = "hidden-word:created";
 const SAVE_LINK = "hidden-word:save-link";
-// How this device groups the list ("date" or "genre"): a display choice, kept here and not synced.
+// How this device sorts the list (date / genre / relevant / surprising): a display choice, not synced.
+// The Relevant/Surprising passage field is never stored — only the mode button is.
 const GROUP_BY = "hidden-word:group-by";
 // A library's name as this device last saw it, for the unlock form and before the library has synced.
 // The name itself syncs as a `library` record (SPEC.md 1.5): library.name is the one to show.
@@ -80,10 +83,15 @@ function paint(el, id) {
 async function enter(keyText, given) {
   library = await Library.open({ keyText, name: given, store });
   library.localName = localStorage.getItem(nameKey(library.lib)) || given;
+  highlightStamp = new Map();
+  relevance = null;
+  rankReasons = new Map();
+  clearRelevanceInput();
   showName();
   library.onChange(render);
   library.onChange(showName);
   show("main");
+  renderGroupBy(true);
   render();
   await saveFromLink();
   await connect();
@@ -324,11 +332,15 @@ async function saveFromLink() {
 
 /** What the list was last built from (see render). */
 let listSig = null;
+/** Ranked-mode verdicts for the open passage, keyed by run ref → reason. */
+let rankReasons = new Map();
+let rankPending = null;
 
 function render() {
   if (!library) return;
   colors = palette(library.all("color"));
   renderAddColor();
+  syncRelevanceCache();
 
   const ids = colors.map((c) => c.id);
   const rows = library.all("highlight").sort((a, b) => compareRefs(a.ref, b.ref));
@@ -338,41 +350,205 @@ function render() {
   renderFilters(counts);
 
   const shown = filter ? rows.filter((r) => topColor(r, ids) === filter) : rows;
+  const ranking = RANK_MODES.includes(groupBy) && relevance?.passage;
   $("#empty").hidden = rows.length > 0;
+  $("#empty").textContent = ranking && rankReasons.size === 0 && !rankPending
+    ? EMPTY_RELEVANCE
+    : "No highlights yet.";
   renderGroupBy(rows.length > 0);
   // A row being edited stays as it is until the edit ends (a sync mid-edit would wipe the field);
   // finishing the edit renders again.
   // Rebuild the list only when what it shows changed. A sync that brings nothing new (every window
   // focus runs one) still emits for its status; rebuilding then would move the open passage and
   // replay its opening animation.
-  const sig = JSON.stringify([shown, colors, groupBy, filter, verseText.key, editing]);
+  const sig = JSON.stringify([shown, colors, groupBy, filter, verseText.key, editing, ranking && relevance.passage?.ref, [...rankReasons]]);
   if (!editing && sig !== listSig) {
-    const groups = groupList(shown, groupBy, (r) => topColor(r, ids));
-    const total = groups.reduce((n, g) => n + g.runs.length, 0);
-    $("#list-total").textContent = `${total} ${total === 1 ? "highlight" : "highlights"}`;
-    $("#list").replaceChildren(...groups.map(group));
+    if (ranking) {
+      const order = [...rankReasons.keys()];
+      const runs = groupRuns(shown, (r) => topColor(r, ids));
+      const byRef = new Map(runs.map((run) => [run.ref, run]));
+      const ranked = order.map((id) => byRef.get(id)).filter(Boolean);
+      $("#list-total").textContent = totalCopy(ranked.length, shown.length);
+      $("#list").classList.add("rank-mode");
+      $("#list").replaceChildren(rankGroup(ranked));
+      $("#empty").hidden = ranked.length > 0 || rankPending;
+      if (!ranked.length && !rankPending) {
+        $("#empty").hidden = false;
+        $("#empty").textContent = EMPTY_RELEVANCE;
+      }
+    } else {
+      // Relevant/Surprising with no valid passage yet: keep Date order.
+      const mode = RANK_MODES.includes(groupBy) ? "date" : groupBy;
+      const groups = groupList(shown, mode, (r) => topColor(r, ids));
+      const total = groups.reduce((n, g) => n + g.runs.length, 0);
+      $("#list-total").textContent = `${total} ${total === 1 ? "highlight" : "highlights"}`;
+      $("#list").classList.remove("rank-mode");
+      $("#list").replaceChildren(...groups.map(group));
+    }
   }
   listSig = editing ? null : sig;
   if (!$("#colors").hidden) renderColors();
 }
 
-// ---- grouping: by date (Today, Last 7 days, Older) or by genre, each group a disclosure. Which groups
-// are open lasts for this page load; each starts as startsOpen says.
+// ---- grouping / ranking: Date and Genre group; Relevant and Surprising rank against a passage.
 
 let groupBy = MODES.includes(localStorage.getItem(GROUP_BY) ?? "") ? localStorage.getItem(GROUP_BY) : "date";
 const groupOpen = new Map();
+let relevance = null;
+const bsbText = createBsbText();
+/** ref → updated, for change-only re-judging. */
+let highlightStamp = new Map();
 
 function renderGroupBy(any) {
   $("#group-by").hidden = !any;
   $("#list-foot").hidden = !any;
+  const bar = $("#relevance-bar");
+  bar.hidden = !any || !RANK_MODES.includes(groupBy);
   for (const b of document.querySelectorAll("#group-by button")) b.setAttribute("aria-pressed", String(b.dataset.mode === groupBy));
 }
 
 for (const b of document.querySelectorAll("#group-by button")) {
   b.addEventListener("click", () => {
-    groupBy = b.dataset.mode;
+    const next = b.dataset.mode;
+    const wasRank = RANK_MODES.includes(groupBy);
+    const willRank = RANK_MODES.includes(next);
+    groupBy = next;
     localStorage.setItem(GROUP_BY, groupBy);
+    if (wasRank && !willRank) clearRelevanceInput();
+    renderGroupBy(!!$("#list-foot") && !$("#list-foot").hidden);
+    if (willRank && relevance?.passage && wasRank) {
+      // Relevant ↔ Surprising: reorder cached verdicts, no network call.
+      void reorderRelevance();
+    } else if (willRank && $("#relevance-ref").value.trim()) {
+      void runRelevance();
+    } else {
+      rankReasons = new Map();
+      render();
+    }
+  });
+}
+
+function clearRelevanceInput() {
+  const field = $("#relevance-ref");
+  field.value = "";
+  const err = $("#relevance-error");
+  err.hidden = true;
+  err.textContent = "";
+  relevance?.clearPassage();
+  rankReasons = new Map();
+  rankPending = null;
+}
+
+function syncRelevanceCache() {
+  if (!library || !relevance) return;
+  const now = new Map();
+  for (const r of library.all("highlight")) now.set(r.ref, r.updated);
+  const upserts = [];
+  const deletions = [];
+  for (const [ref, updated] of now) if (highlightStamp.get(ref) !== updated) upserts.push({ ref });
+  for (const ref of highlightStamp.keys()) if (!now.has(ref)) deletions.push(ref);
+  if (upserts.length || deletions.length) relevance.applyChanges({ upserts, deletions });
+  highlightStamp = now;
+}
+
+/** One open, untitled group for a ranked list (no Date/Genre headers). */
+function rankGroup(runs) {
+  const details = document.createElement("details");
+  details.className = "group";
+  details.dataset.group = "ranked";
+  details.open = true;
+  const summary = document.createElement("summary");
+  summary.hidden = true;
+  const list = document.createElement("ul");
+  list.className = "rows";
+  list.append(...runs.map((run) => row({ ...run, reason: rankReasons.get(run.ref) })));
+  details.append(summary, list);
+  return details;
+}
+
+async function ensureRelevance() {
+  if (!library) return null;
+  if (!relevance || relevance.lib !== library.lib) {
+    relevance = createRelevance({ lib: library.lib, verseText: bsbText });
+    relevance.lib = library.lib;
+  }
+  return relevance;
+}
+
+async function runRelevance() {
+  const session = await ensureRelevance();
+  if (!session || !RANK_MODES.includes(groupBy)) return;
+  const raw = $("#relevance-ref").value;
+  const err = $("#relevance-error");
+  if (!String(raw).trim()) {
+    err.hidden = true;
+    err.textContent = "";
+    session.clearPassage();
+    rankReasons = new Map();
     render();
+    return;
+  }
+  const found = await session.setPassageInput(raw);
+  if (found.error) {
+    err.hidden = false;
+    err.textContent = found.error;
+    rankReasons = new Map();
+    render();
+    return;
+  }
+  err.hidden = true;
+  err.textContent = "";
+  const ids = colors.map((c) => c.id);
+  const records = library.all("highlight").sort((a, b) => compareRefs(a.ref, b.ref));
+  const shown = filter ? records.filter((r) => topColor(r, ids) === filter) : records;
+  const runs = groupRuns(shown, (r) => topColor(r, ids));
+  bsbText.warm(runs.map((r) => r.ref));
+  const items = runs.map((r) => ({ id: r.ref, ref: r.ref }));
+  rankPending = true;
+  render();
+  try {
+    const { ranked } = await session.judge(items, groupBy);
+    rankReasons = new Map(ranked.map((v) => [v.id, v.reason]));
+  } catch (e) {
+    err.hidden = false;
+    err.textContent = e.message || "Couldn't rank highlights.";
+    rankReasons = new Map();
+  } finally {
+    rankPending = null;
+    render();
+  }
+}
+
+async function reorderRelevance() {
+  const session = await ensureRelevance();
+  if (!session?.passage) return render();
+  const ids = colors.map((c) => c.id);
+  const records = library.all("highlight").sort((a, b) => compareRefs(a.ref, b.ref));
+  const shown = filter ? records.filter((r) => topColor(r, ids) === filter) : records;
+  const runs = groupRuns(shown, (r) => topColor(r, ids));
+  const { ranked } = session.reorder(runs.map((r) => ({ id: r.ref, ref: r.ref })), groupBy);
+  rankReasons = new Map(ranked.map((v) => [v.id, v.reason]));
+  render();
+}
+
+{
+  let relevanceTimer = 0;
+  $("#relevance-ref").addEventListener("input", () => {
+    clearTimeout(relevanceTimer);
+    const err = $("#relevance-error");
+    // Invalid refs show inline and make no call; wait for a pause so typing doesn't flash errors.
+    relevanceTimer = setTimeout(() => void runRelevance(), 400);
+    if (!$("#relevance-ref").value.trim()) {
+      err.hidden = true;
+      err.textContent = "";
+    }
+  });
+  $("#relevance-ref").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      clearTimeout(relevanceTimer);
+      void runRelevance();
+    }
   });
 }
 
@@ -441,7 +617,7 @@ function iconButton(tag, icon, label) {
 }
 
 /** One list row: a single highlight, or a run of back-to-back verses in one color (see groupRuns). */
-function row({ ref: runRef, records }) {
+function row({ ref: runRef, records, reason }) {
   const ids = colors.map((c) => c.id);
   const li = document.createElement("li");
 
@@ -509,6 +685,12 @@ function row({ ref: runRef, records }) {
   actions.append(del);
   line.append(dot, link, actions);
   li.append(line);
+  if (reason) {
+    const why = document.createElement("p");
+    why.className = "row-reason";
+    why.textContent = reason;
+    li.append(why);
+  }
   if (verseText.open === runRef) showText(li, runRef);
   return li;
 }

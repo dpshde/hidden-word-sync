@@ -1,0 +1,25 @@
+# Reference only — deploy happens elsewhere (coordinator). Do not put secrets here.
+name = "selah-jev"
+main = "src/worker.ts"
+compatibility_date = "2026-11-04"
+workers_dev = true
+
+[observability]
+enabled = true
+
+[observability.logs]
+enabled = true
+invocation_logs = false
+
+[observability.traces]
+enabled = true
+
+# Daily spend + per-library rate counters. Create with:
+#   wrangler kv namespace create selah-jev-caps
+[[kv_namespaces]]
+binding = "CAPS"
+id = "00000000000000000000000000000000"
+preview_id = "00000000000000000000000000000000"
+
+# Secret (never commit):
+#   wrangler secret put TYPESAFE_API_KEY

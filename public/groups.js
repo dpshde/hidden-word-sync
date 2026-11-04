@@ -6,7 +6,9 @@ import { groupRuns, recordTime, runTime } from "./ranges.js";
 
 export { recordTime, runTime };
 
-export const MODES = ["date", "genre"];
+export const MODES = ["date", "genre", "relevant", "surprising"];
+export const GROUP_MODES = ["date", "genre"];
+export const RANK_MODES = ["relevant", "surprising"];
 
 /** The Protestant canon's genres, each a span of books in canonical order (BOOKS indexes). */
 export const GENRES = [
