@@ -726,5 +726,563 @@
    "delete": true,
    "expect": "{\"kind\":\"highlight\",\"ref\":\"JHN.3.16\",\"deleted\":true,\"updated\":1501}"
   }
+ ],
+ "expand": [
+  {
+   "ref": "ROM.5.3-5",
+   "expect": {
+    "ref": "ROM.5.3-5",
+    "verses": [
+     "ROM.5.3",
+     "ROM.5.4",
+     "ROM.5.5"
+    ]
+   }
+  },
+  {
+   "ref": "JHN.3.16",
+   "expect": {
+    "ref": "JHN.3.16",
+    "verses": [
+     "JHN.3.16"
+    ]
+   }
+  },
+  {
+   "ref": "PSA.119.1-100",
+   "expect": {
+    "ref": "PSA.119.1-100",
+    "verses": [
+     "PSA.119.1",
+     "PSA.119.2",
+     "PSA.119.3",
+     "PSA.119.4",
+     "PSA.119.5",
+     "PSA.119.6",
+     "PSA.119.7",
+     "PSA.119.8",
+     "PSA.119.9",
+     "PSA.119.10",
+     "PSA.119.11",
+     "PSA.119.12",
+     "PSA.119.13",
+     "PSA.119.14",
+     "PSA.119.15",
+     "PSA.119.16",
+     "PSA.119.17",
+     "PSA.119.18",
+     "PSA.119.19",
+     "PSA.119.20",
+     "PSA.119.21",
+     "PSA.119.22",
+     "PSA.119.23",
+     "PSA.119.24",
+     "PSA.119.25",
+     "PSA.119.26",
+     "PSA.119.27",
+     "PSA.119.28",
+     "PSA.119.29",
+     "PSA.119.30",
+     "PSA.119.31",
+     "PSA.119.32",
+     "PSA.119.33",
+     "PSA.119.34",
+     "PSA.119.35",
+     "PSA.119.36",
+     "PSA.119.37",
+     "PSA.119.38",
+     "PSA.119.39",
+     "PSA.119.40",
+     "PSA.119.41",
+     "PSA.119.42",
+     "PSA.119.43",
+     "PSA.119.44",
+     "PSA.119.45",
+     "PSA.119.46",
+     "PSA.119.47",
+     "PSA.119.48",
+     "PSA.119.49",
+     "PSA.119.50",
+     "PSA.119.51",
+     "PSA.119.52",
+     "PSA.119.53",
+     "PSA.119.54",
+     "PSA.119.55",
+     "PSA.119.56",
+     "PSA.119.57",
+     "PSA.119.58",
+     "PSA.119.59",
+     "PSA.119.60",
+     "PSA.119.61",
+     "PSA.119.62",
+     "PSA.119.63",
+     "PSA.119.64",
+     "PSA.119.65",
+     "PSA.119.66",
+     "PSA.119.67",
+     "PSA.119.68",
+     "PSA.119.69",
+     "PSA.119.70",
+     "PSA.119.71",
+     "PSA.119.72",
+     "PSA.119.73",
+     "PSA.119.74",
+     "PSA.119.75",
+     "PSA.119.76",
+     "PSA.119.77",
+     "PSA.119.78",
+     "PSA.119.79",
+     "PSA.119.80",
+     "PSA.119.81",
+     "PSA.119.82",
+     "PSA.119.83",
+     "PSA.119.84",
+     "PSA.119.85",
+     "PSA.119.86",
+     "PSA.119.87",
+     "PSA.119.88",
+     "PSA.119.89",
+     "PSA.119.90",
+     "PSA.119.91",
+     "PSA.119.92",
+     "PSA.119.93",
+     "PSA.119.94",
+     "PSA.119.95",
+     "PSA.119.96",
+     "PSA.119.97",
+     "PSA.119.98",
+     "PSA.119.99",
+     "PSA.119.100"
+    ]
+   }
+  },
+  {
+   "ref": "PSA.119.1-101",
+   "expect": {
+    "error": "at most 100 verses in one range"
+   }
+  },
+  {
+   "ref": "PSA.119.1-176",
+   "max": 176,
+   "expect": {
+    "ref": "PSA.119.1-176",
+    "verses": [
+     "PSA.119.1",
+     "PSA.119.2",
+     "PSA.119.3",
+     "PSA.119.4",
+     "PSA.119.5",
+     "PSA.119.6",
+     "PSA.119.7",
+     "PSA.119.8",
+     "PSA.119.9",
+     "PSA.119.10",
+     "PSA.119.11",
+     "PSA.119.12",
+     "PSA.119.13",
+     "PSA.119.14",
+     "PSA.119.15",
+     "PSA.119.16",
+     "PSA.119.17",
+     "PSA.119.18",
+     "PSA.119.19",
+     "PSA.119.20",
+     "PSA.119.21",
+     "PSA.119.22",
+     "PSA.119.23",
+     "PSA.119.24",
+     "PSA.119.25",
+     "PSA.119.26",
+     "PSA.119.27",
+     "PSA.119.28",
+     "PSA.119.29",
+     "PSA.119.30",
+     "PSA.119.31",
+     "PSA.119.32",
+     "PSA.119.33",
+     "PSA.119.34",
+     "PSA.119.35",
+     "PSA.119.36",
+     "PSA.119.37",
+     "PSA.119.38",
+     "PSA.119.39",
+     "PSA.119.40",
+     "PSA.119.41",
+     "PSA.119.42",
+     "PSA.119.43",
+     "PSA.119.44",
+     "PSA.119.45",
+     "PSA.119.46",
+     "PSA.119.47",
+     "PSA.119.48",
+     "PSA.119.49",
+     "PSA.119.50",
+     "PSA.119.51",
+     "PSA.119.52",
+     "PSA.119.53",
+     "PSA.119.54",
+     "PSA.119.55",
+     "PSA.119.56",
+     "PSA.119.57",
+     "PSA.119.58",
+     "PSA.119.59",
+     "PSA.119.60",
+     "PSA.119.61",
+     "PSA.119.62",
+     "PSA.119.63",
+     "PSA.119.64",
+     "PSA.119.65",
+     "PSA.119.66",
+     "PSA.119.67",
+     "PSA.119.68",
+     "PSA.119.69",
+     "PSA.119.70",
+     "PSA.119.71",
+     "PSA.119.72",
+     "PSA.119.73",
+     "PSA.119.74",
+     "PSA.119.75",
+     "PSA.119.76",
+     "PSA.119.77",
+     "PSA.119.78",
+     "PSA.119.79",
+     "PSA.119.80",
+     "PSA.119.81",
+     "PSA.119.82",
+     "PSA.119.83",
+     "PSA.119.84",
+     "PSA.119.85",
+     "PSA.119.86",
+     "PSA.119.87",
+     "PSA.119.88",
+     "PSA.119.89",
+     "PSA.119.90",
+     "PSA.119.91",
+     "PSA.119.92",
+     "PSA.119.93",
+     "PSA.119.94",
+     "PSA.119.95",
+     "PSA.119.96",
+     "PSA.119.97",
+     "PSA.119.98",
+     "PSA.119.99",
+     "PSA.119.100",
+     "PSA.119.101",
+     "PSA.119.102",
+     "PSA.119.103",
+     "PSA.119.104",
+     "PSA.119.105",
+     "PSA.119.106",
+     "PSA.119.107",
+     "PSA.119.108",
+     "PSA.119.109",
+     "PSA.119.110",
+     "PSA.119.111",
+     "PSA.119.112",
+     "PSA.119.113",
+     "PSA.119.114",
+     "PSA.119.115",
+     "PSA.119.116",
+     "PSA.119.117",
+     "PSA.119.118",
+     "PSA.119.119",
+     "PSA.119.120",
+     "PSA.119.121",
+     "PSA.119.122",
+     "PSA.119.123",
+     "PSA.119.124",
+     "PSA.119.125",
+     "PSA.119.126",
+     "PSA.119.127",
+     "PSA.119.128",
+     "PSA.119.129",
+     "PSA.119.130",
+     "PSA.119.131",
+     "PSA.119.132",
+     "PSA.119.133",
+     "PSA.119.134",
+     "PSA.119.135",
+     "PSA.119.136",
+     "PSA.119.137",
+     "PSA.119.138",
+     "PSA.119.139",
+     "PSA.119.140",
+     "PSA.119.141",
+     "PSA.119.142",
+     "PSA.119.143",
+     "PSA.119.144",
+     "PSA.119.145",
+     "PSA.119.146",
+     "PSA.119.147",
+     "PSA.119.148",
+     "PSA.119.149",
+     "PSA.119.150",
+     "PSA.119.151",
+     "PSA.119.152",
+     "PSA.119.153",
+     "PSA.119.154",
+     "PSA.119.155",
+     "PSA.119.156",
+     "PSA.119.157",
+     "PSA.119.158",
+     "PSA.119.159",
+     "PSA.119.160",
+     "PSA.119.161",
+     "PSA.119.162",
+     "PSA.119.163",
+     "PSA.119.164",
+     "PSA.119.165",
+     "PSA.119.166",
+     "PSA.119.167",
+     "PSA.119.168",
+     "PSA.119.169",
+     "PSA.119.170",
+     "PSA.119.171",
+     "PSA.119.172",
+     "PSA.119.173",
+     "PSA.119.174",
+     "PSA.119.175",
+     "PSA.119.176"
+    ]
+   }
+  },
+  {
+   "ref": "ROM.5",
+   "expect": {
+    "error": "give verses, like ROM.5.3-5, not a whole chapter"
+   }
+  },
+  {
+   "ref": "ROM.5.5-3",
+   "expect": {
+    "error": "the range runs backwards: its end is before its start"
+   }
+  },
+  {
+   "ref": "ROM.5.3-3",
+   "expect": {
+    "error": "a single verse is written without a range, like ROM.5.3"
+   }
+  },
+  {
+   "ref": "ROM.5.3-ROM.6.2",
+   "expect": {
+    "error": "a range stays in one chapter, like ROM.5.3-5"
+   }
+  },
+  {
+   "ref": "XYZ.1.1",
+   "expect": {
+    "error": "not a canonical reference (like ROM.5.3-5)"
+   }
+  },
+  {
+   "ref": "ROM.17.1",
+   "expect": {
+    "error": "not a canonical reference (like ROM.5.3-5)"
+   }
+  }
+ ],
+ "rangeWrites": [
+  {
+   "name": "new range",
+   "existing": [],
+   "ref": "ROM.5.3-5",
+   "color": "green",
+   "t": 1000,
+   "expect": {
+    "ref": "ROM.5.3-5",
+    "verses": [
+     "ROM.5.3",
+     "ROM.5.4",
+     "ROM.5.5"
+    ],
+    "records": [
+     "{\"kind\":\"highlight\",\"ref\":\"ROM.5.3\",\"highlights\":[{\"color\":\"green\",\"created\":1000}]}",
+     "{\"kind\":\"highlight\",\"ref\":\"ROM.5.4\",\"highlights\":[{\"color\":\"green\",\"created\":1000}]}",
+     "{\"kind\":\"highlight\",\"ref\":\"ROM.5.5\",\"highlights\":[{\"color\":\"green\",\"created\":1000}]}"
+    ]
+   }
+  },
+  {
+   "name": "repeat is a no-op",
+   "existing": [
+    {
+     "kind": "highlight",
+     "ref": "ROM.5.3",
+     "highlights": [
+      {
+       "color": "green",
+       "created": 900
+      }
+     ],
+     "updated": 900
+    },
+    {
+     "kind": "highlight",
+     "ref": "ROM.5.4",
+     "highlights": [
+      {
+       "color": "green",
+       "created": 900
+      }
+     ],
+     "updated": 900
+    },
+    {
+     "kind": "highlight",
+     "ref": "ROM.5.5",
+     "highlights": [
+      {
+       "color": "green",
+       "created": 900
+      }
+     ],
+     "updated": 900
+    }
+   ],
+   "ref": "ROM.5.3-5",
+   "color": "green",
+   "t": 1000,
+   "expect": {
+    "ref": "ROM.5.3-5",
+    "verses": [
+     "ROM.5.3",
+     "ROM.5.4",
+     "ROM.5.5"
+    ],
+    "records": []
+   }
+  },
+  {
+   "name": "some verses already that color",
+   "existing": [
+    {
+     "kind": "highlight",
+     "ref": "ROM.5.4",
+     "highlights": [
+      {
+       "color": "green",
+       "created": 900
+      }
+     ],
+     "updated": 900
+    }
+   ],
+   "ref": "ROM.5.3-5",
+   "color": "green",
+   "t": 1000,
+   "expect": {
+    "ref": "ROM.5.3-5",
+    "verses": [
+     "ROM.5.3",
+     "ROM.5.4",
+     "ROM.5.5"
+    ],
+    "records": [
+     "{\"kind\":\"highlight\",\"ref\":\"ROM.5.3\",\"highlights\":[{\"color\":\"green\",\"created\":1000}]}",
+     "{\"kind\":\"highlight\",\"ref\":\"ROM.5.5\",\"highlights\":[{\"color\":\"green\",\"created\":1000}]}"
+    ]
+   }
+  },
+  {
+   "name": "a verse in another color takes the new one",
+   "existing": [
+    {
+     "kind": "highlight",
+     "ref": "ROM.5.4",
+     "highlights": [
+      {
+       "color": "yellow",
+       "created": 900
+      }
+     ],
+     "updated": 900
+    }
+   ],
+   "ref": "ROM.5.3-5",
+   "color": "green",
+   "t": 1000,
+   "expect": {
+    "ref": "ROM.5.3-5",
+    "verses": [
+     "ROM.5.3",
+     "ROM.5.4",
+     "ROM.5.5"
+    ],
+    "records": [
+     "{\"kind\":\"highlight\",\"ref\":\"ROM.5.3\",\"highlights\":[{\"color\":\"green\",\"created\":1000}]}",
+     "{\"kind\":\"highlight\",\"ref\":\"ROM.5.4\",\"highlights\":[{\"color\":\"green\",\"created\":900,\"edited\":1000}],\"updated\":900}",
+     "{\"kind\":\"highlight\",\"ref\":\"ROM.5.5\",\"highlights\":[{\"color\":\"green\",\"created\":1000}]}"
+    ]
+   }
+  },
+  {
+   "name": "a partial highlight in that color becomes the whole verse",
+   "existing": [
+    {
+     "kind": "highlight",
+     "ref": "ROM.5.3",
+     "highlights": [
+      {
+       "color": "green",
+       "start": 4,
+       "end": 9,
+       "quote": "glory",
+       "created": 900
+      }
+     ],
+     "updated": 900
+    }
+   ],
+   "ref": "ROM.5.3-4",
+   "color": "green",
+   "t": 1000,
+   "expect": {
+    "ref": "ROM.5.3-4",
+    "verses": [
+     "ROM.5.3",
+     "ROM.5.4"
+    ],
+    "records": [
+     "{\"kind\":\"highlight\",\"ref\":\"ROM.5.3\",\"highlights\":[{\"color\":\"green\",\"created\":900,\"edited\":1000}],\"updated\":900}",
+     "{\"kind\":\"highlight\",\"ref\":\"ROM.5.4\",\"highlights\":[{\"color\":\"green\",\"created\":1000}]}"
+    ]
+   }
+  },
+  {
+   "name": "over a tombstone",
+   "existing": [
+    {
+     "kind": "highlight",
+     "ref": "ROM.5.3",
+     "deleted": true,
+     "updated": 900
+    }
+   ],
+   "ref": "ROM.5.3",
+   "color": "blue",
+   "t": 1000,
+   "expect": {
+    "ref": "ROM.5.3",
+    "verses": [
+     "ROM.5.3"
+    ],
+    "records": [
+     "{\"kind\":\"highlight\",\"ref\":\"ROM.5.3\",\"highlights\":[{\"color\":\"blue\",\"created\":1000}]}"
+    ]
+   }
+  },
+  {
+   "name": "bad range writes nothing",
+   "existing": [],
+   "ref": "ROM.5.5-3",
+   "color": "green",
+   "t": 1000,
+   "expect": {
+    "error": "the range runs backwards: its end is before its start"
+   }
+  }
  ]
 }

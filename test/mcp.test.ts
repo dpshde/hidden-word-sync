@@ -198,4 +198,24 @@ describe("MCP", () => {
     expect(bookCode("Song of Songs")).toBe("SNG");
     expect(bookCode("Narnia")).toBe(null);
   });
+
+  test("ranges: add_highlight takes a range, list/find group by default or list verses with group", async () => {
+    const s = setup();
+    const key = await formatKey(newKey());
+    const added = await call(s, key, "add_highlight", { reference: "Rom 5:3-5", color: "green" });
+    expect(added.data.verses).toEqual(["ROM.5.3", "ROM.5.4", "ROM.5.5"]);
+    const grouped = (await call(s, key, "list_highlights")).data.highlights;
+    expect(grouped.map((h: { ref: string; verses: string[] }) => [h.ref, h.verses])).toEqual([["ROM.5.3-5", ["ROM.5.3", "ROM.5.4", "ROM.5.5"]]]);
+    expect((await call(s, key, "list_highlights", { group: "ranges" })).data.highlights).toEqual(grouped);
+    const verses = (await call(s, key, "find_highlights", { book: "Romans", group: "verses" })).data.highlights;
+    expect(verses.map((h: { ref: string; verses: string[] }) => [h.ref, h.verses])).toEqual([["ROM.5.3", ["ROM.5.3"]], ["ROM.5.4", ["ROM.5.4"]], ["ROM.5.5", ["ROM.5.5"]]]);
+    expect((await call(s, key, "list_highlights", { group: "chapters" })).result.isError).toBe(true);
+    // Saying it again changes nothing: no verse is rewritten.
+    const lib = await Library.open({ keyText: key, store: memoryStore() });
+    await lib.use([serverTransport({ fetch: s.fetch as typeof fetch })]);
+    const before = lib.highlights().map((r: { updated: number }) => r.updated);
+    await call(s, key, "add_highlight", { reference: "Rom 5:3-5", color: "green" });
+    await lib.sync();
+    expect(lib.highlights().map((r: { updated: number }) => r.updated)).toEqual(before);
+  });
 });

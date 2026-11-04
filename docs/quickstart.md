@@ -106,6 +106,32 @@ refill()     = cursor = 0, seq = 0, epoch = answer.epoch, mark every record (del
 
 Run it after changes, on start, when the network returns, and every 30 seconds or so while visible. Never delete a local record because a server lacks it ([SPEC 6](../SPEC.md#6-rules-that-protect-peoples-data)).
 
+## Ranges
+
+Highlights are stored one record per verse, encrypted, so the server can't see refs or colors and can't expand or merge ranges for you. The reference client does both ([SPEC 1.2, Ranges in apps](../SPEC.md#ranges-in-apps)):
+
+```js
+import { Library, serverTransport } from "./sync.js";
+
+const lib = await Library.open({ keyText });
+await lib.use([serverTransport({ url: "https://vault.selah.tools" })]);
+
+// Write: one record per verse, saved together and sent in one POST (all or none). At most 100 verses,
+// in one chapter. Verses already that color are left alone, so repeating it writes nothing.
+await lib.highlightRange("ROM.5.3-5", "green");
+// → { ref: "ROM.5.3-5", verses: ["ROM.5.3", "ROM.5.4", "ROM.5.5"], written: ["ROM.5.3", "ROM.5.4", "ROM.5.5"] }
+
+// Read: one record per verse, as before…
+lib.highlights();
+// → [{ kind: "highlight", ref: "ROM.5.3", highlights: [{ color: "green", created: … }], updated: … }, …]
+
+// …or grouped the way the vault's list shows them.
+lib.highlights({ group: "ranges" });
+// → [{ ref: "ROM.5.3-5", verses: ["ROM.5.3", "ROM.5.4", "ROM.5.5"], color: "green", time: 1793000000 }]
+```
+
+Apps with their own client (or a grant from `/connect`, which hands over the library id, a grant token, `ek` and, for writing, `mk`) can import the same rule from `public/ranges.js`: `rangeWrites(ref, color, t, find)` gives the records to encrypt and POST together, and `listRanges(records, colorIds)` the grouped view. A grant needs `highlights:write` for the POST and `read` for the GET; the server checks the method, since it can't see what a record is.
+
 ## Check your work
 
 - `test/vectors.json`: key, derived values, item id, blob and slot values to reproduce.
