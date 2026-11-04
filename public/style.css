@@ -138,7 +138,7 @@ main { position: relative; z-index: 2; width: 100%; max-width: 32rem; margin: 0 
    top offset, not flex centring, so adding rows or opening a group never moves
    the title; long lists just scroll past it. Never closer than safe-area + 1rem:
    iOS 26 blurs the top edge below the status bar. /connect keeps its own. */
-main:not(.oauth-main) { padding-top: max(calc(env(safe-area-inset-top) + 1rem), calc(40dvh - 110px)); }
+main:not(.oauth-main) { padding-top: max(calc(env(safe-area-inset-top) + 1rem), calc(34dvh - 110px)); }
 h1 { font-size: 1.625rem; line-height: 1.15; font-weight: 700; margin: 0 0 .5rem; letter-spacing: -.035em; }
 /* The start page's title, set like route.bible's wordmark. */
 #start h1 { font-size: 2.75rem; letter-spacing: -.07em; margin-bottom: .75rem; }
