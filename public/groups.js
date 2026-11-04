@@ -6,7 +6,13 @@ import { groupRuns, recordTime, runTime } from "./ranges.js";
 
 export { recordTime, runTime };
 
-export const MODES = ["date", "genre"];
+export const MODES = ["date", "genre", "relevant", "surprising", "topic"];
+export const GROUP_MODES = ["date", "genre"];
+/** Passage-ranked modes (filter then sort). Topic is free-text sort-all — see TOPIC_MODE. */
+export const RANK_MODES = ["relevant", "surprising"];
+export const TOPIC_MODE = "topic";
+/** Any mode that uses Jev (passage rank or topic sort). */
+export const JEV_MODES = ["relevant", "surprising", "topic"];
 
 /** The Protestant canon's genres, each a span of books in canonical order (BOOKS indexes). */
 export const GENRES = [
@@ -37,8 +43,9 @@ export const DATE_GROUPS = [
   { id: "older", name: "Older" },
 ];
 
-/** Whether a group starts open: Today and Last 7 days do; Older and every genre start closed. */
-export const startsOpen = (mode, id) => mode === "date" && id !== "older";
+/** Whether a group starts open: Today and Last 7 days do; the single Jev ranked group does; Older and every genre start closed. */
+export const startsOpen = (mode, id) =>
+  (mode === "date" && id !== "older") || id === "ranked";
 
 
 /**

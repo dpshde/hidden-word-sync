@@ -3,21 +3,36 @@ import {
   serverTransport,
 } from "./sync.js";
 import { labelRef, compareRefs } from "./refs.js";
-import { editRun, highlightRecord, tombstone } from "./ranges.js";
+import { editRun, highlightRecord, tombstone, groupRuns } from "./ranges.js";
 import { readPassage } from "./passage.js";
-import { MODES, groupList, startsOpen } from "./groups.js";
+import { MODES, RANK_MODES, TOPIC_MODE, JEV_MODES, groupList, startsOpen } from "./groups.js";
 import { definePassageInput, defineScripturePassage } from "./vendor/scripture-inline.js";
 import { createPasskeyPrf, getPasskeyPrf, passkeysAvailable, cancelled } from "./passkey.js";
 import { setupThemeToggle } from "./theme-toggle.js";
 import { registerSelahVaultTools } from "./webmcp.js";
 import { armDelete } from "./confirm.js";
 import { defineKeepingLoaded, createWarmer } from "./passage-warm.js";
+import { createBsbText } from "./bsb-text.js";
+import {
+  createRelevance,
+  emptyRelevanceCopy,
+  chapterRefOf,
+  totalCopy,
+  relatedCopy,
+  topicCopy,
+  rankStatusCopy,
+  jevHintCopy,
+  rankingCopy,
+  rankErrorMessage,
+  sanitizeTopic,
+} from "./relevance.js";
 
 const $ = (sel) => document.querySelector(sel);
 const SESSION = "hidden-word:session";
 const CREATED = "hidden-word:created";
 const SAVE_LINK = "hidden-word:save-link";
-// How this device groups the list ("date" or "genre"): a display choice, kept here and not synced.
+// How this device sorts the list (date / genre / relevant / surprising / topic): a display choice, not synced.
+// The Relevant/Surprising passage and Topic phrase are never stored — only the mode button is.
 const GROUP_BY = "hidden-word:group-by";
 // A library's name as this device last saw it, for the unlock form and before the library has synced.
 // The name itself syncs as a `library` record (SPEC.md 1.5): library.name is the one to show.
@@ -80,10 +95,15 @@ function paint(el, id) {
 async function enter(keyText, given) {
   library = await Library.open({ keyText, name: given, store });
   library.localName = localStorage.getItem(nameKey(library.lib)) || given;
+  highlightStamp = new Map();
+  relevance = null;
+  rankOrder = [];
+  clearRelevanceInput();
   showName();
   library.onChange(render);
   library.onChange(showName);
   show("main");
+  renderGroupBy(true);
   render();
   await saveFromLink();
   await connect();
@@ -324,11 +344,28 @@ async function saveFromLink() {
 
 /** What the list was last built from (see render). */
 let listSig = null;
+/** Ordered highlight refs for the current Jev result (no reason/tagline attached). */
+let rankOrder = [];
+let rankPending = null;
+/** True after a ranking call failed: keep Date order and the inline error; never "0 of N relevant". */
+let rankFailed = false;
+/** Bumps whenever a new ranking run starts (or the input changes); stale responses are ignored. */
+let rankGeneration = 0;
+/**
+ * Bumps on each new final paint that may auto-expand (new query, or Relevant ↔ Surprising reorder).
+ * Separate from rankGeneration so a cache-only mode switch still re-targets the top row.
+ */
+let rankPaint = 0;
+/** Paint id we already auto-expanded for (once per paint). */
+let rankExpandPaint = -1;
+/** True after the person toggles a row open/closed during the current query — skip auto-expand. */
+let rankUserTouched = false;
 
 function render() {
   if (!library) return;
   colors = palette(library.all("color"));
   renderAddColor();
+  syncRelevanceCache();
 
   const ids = colors.map((c) => c.id);
   const rows = library.all("highlight").sort((a, b) => compareRefs(a.ref, b.ref));
@@ -338,41 +375,448 @@ function render() {
   renderFilters(counts);
 
   const shown = filter ? rows.filter((r) => topColor(r, ids) === filter) : rows;
+  const jevActive = JEV_MODES.includes(groupBy);
+  // Scope is mode-specific: a leftover Relevant passage must not count as Topic scope (and vice versa).
+  const hasScope = RANK_MODES.includes(groupBy)
+    ? !!relevance?.passage
+    : groupBy === TOPIC_MODE
+      ? !!relevance?.topic
+      : false;
+  // A failed call keeps Date order. Pending keeps Jev chrome (loading line) before the scope lands.
+  const ranking = jevActive && !rankFailed && (hasScope || rankPending);
+  // Jev mode with nothing typed yet: empty list + hint (never a stale Date "Today" header).
+  const jevWaiting = jevActive && !rankFailed && !hasScope && !rankPending;
+  const noneRelevant =
+    ranking && !rankPending && !!relevance?.passage && RANK_MODES.includes(groupBy) && rankOrder.length === 0 && shown.length > 0;
   $("#empty").hidden = rows.length > 0;
+  $("#empty").textContent = "No highlights yet.";
+  showRelevanceNone(noneRelevant ? { count: shown.length, passage: relevance.passage } : null);
+  showRankPreview(ranking && !rankPending && relevance?.passage && RANK_MODES.includes(groupBy) ? relevance.passage : null);
   renderGroupBy(rows.length > 0);
   // A row being edited stays as it is until the edit ends (a sync mid-edit would wipe the field);
   // finishing the edit renders again.
   // Rebuild the list only when what it shows changed. A sync that brings nothing new (every window
   // focus runs one) still emits for its status; rebuilding then would move the open passage and
   // replay its opening animation.
-  const sig = JSON.stringify([shown, colors, groupBy, filter, verseText.key, editing]);
+  const scopeKey = RANK_MODES.includes(groupBy)
+    ? relevance?.passage?.ref || ""
+    : groupBy === TOPIC_MODE
+      ? relevance?.topic || ""
+      : "";
+  const sig = JSON.stringify([shown, colors, groupBy, filter, verseText.key, editing, ranking && scopeKey, rankOrder, rankFailed, noneRelevant, !!rankPending, jevWaiting, verseText.open, rankPaint]);
   if (!editing && sig !== listSig) {
-    const groups = groupList(shown, groupBy, (r) => topColor(r, ids));
-    const total = groups.reduce((n, g) => n + g.runs.length, 0);
-    $("#list-total").textContent = `${total} ${total === 1 ? "highlight" : "highlights"}`;
-    $("#list").replaceChildren(...groups.map(group));
+    if (jevWaiting) {
+      // Hint lives in the list area; foot status stays empty so it never fights the mode control.
+      $("#list-total").textContent = "";
+      const hint = document.createElement("p");
+      hint.className = "rank-hint";
+      hint.setAttribute("role", "status");
+      hint.textContent = jevHintCopy(groupBy);
+      $("#list").replaceChildren(hint);
+      showRankPreview(null);
+      $("#empty").hidden = true;
+    } else if (ranking) {
+      const runs = groupRuns(shown, (r) => topColor(r, ids));
+      const byRef = new Map(runs.map((run) => [run.ref, run]));
+      const ranked = rankOrder.map((id) => byRef.get(id)).filter(Boolean);
+      if (rankPending) {
+        $("#list-total").textContent = rankingCopy();
+        $("#list").replaceChildren();
+      } else if (ranked.length) {
+        const heading =
+          groupBy === TOPIC_MODE
+            ? topicCopy(relevance?.topic)
+            : relatedCopy(relevance?.passage?.label);
+        $("#list-total").textContent = rankStatusCopy(ranked.length, shown.length, groupBy);
+        // New final paint: expand the new top unless the person toggled a row this query.
+        applyRankAutoExpand(ranked[0].ref);
+        // Same group()/row() markup as Date and Genre — only the heading text differs.
+        $("#list").replaceChildren(group({ id: "ranked", name: heading, runs: ranked }));
+      } else {
+        // Zero survivors (passage modes). Topic keeps every highlight, so this is rare.
+        // Never put topicCopy / “Sorted by closeness” in the foot with an empty list.
+        $("#list-total").textContent = RANK_MODES.includes(groupBy) ? totalCopy(0, shown.length) : "";
+        $("#list").replaceChildren();
+      }
+      $("#empty").hidden = true; // library has rows; zero relevant uses #relevance-none, not #empty
+    } else {
+      // Date/Genre, or a failed Jev call: Date/Genre grouping (failed stays in Date order).
+      const mode = jevActive ? "date" : groupBy;
+      const groups = groupList(shown, mode, (r) => topColor(r, ids));
+      const total = groups.reduce((n, g) => n + g.runs.length, 0);
+      $("#list-total").textContent = `${total} ${total === 1 ? "highlight" : "highlights"}`;
+      $("#list").replaceChildren(...groups.map(group));
+      showRankPreview(null);
+    }
   }
   listSig = editing ? null : sig;
   if (!$("#colors").hidden) renderColors();
 }
 
-// ---- grouping: by date (Today, Last 7 days, Older) or by genre, each group a disclosure. Which groups
-// are open lasts for this page load; each starts as startsOpen says.
+/** Start a new auto-expand paint (new query results, or Relevant ↔ Surprising reorder). */
+function beginRankPaint({ resetUser = false } = {}) {
+  rankPaint++;
+  rankExpandPaint = -1;
+  if (resetUser) rankUserTouched = false;
+}
+
+/**
+ * On a new final paint, open the top result once — collapsing whatever a previous paint auto-opened.
+ * If the person opened/closed a row during this query, leave their choice alone.
+ */
+function applyRankAutoExpand(topRef) {
+  if (!verseText.key || !topRef) return;
+  if (rankExpandPaint === rankPaint) return;
+  rankExpandPaint = rankPaint;
+  if (rankUserTouched) return;
+  verseText.open = topRef;
+}
+
+// ---- grouping / ranking: Date and Genre group; Relevant and Surprising rank against a passage.
 
 let groupBy = MODES.includes(localStorage.getItem(GROUP_BY) ?? "") ? localStorage.getItem(GROUP_BY) : "date";
 const groupOpen = new Map();
+let relevance = null;
+const bsbText = createBsbText();
+/** ref → updated, for change-only re-judging. */
+let highlightStamp = new Map();
 
 function renderGroupBy(any) {
   $("#group-by").hidden = !any;
   $("#list-foot").hidden = !any;
+  const bar = $("#relevance-bar");
+  const jev = JEV_MODES.includes(groupBy);
+  bar.hidden = !any || !jev;
+  const passageMode = RANK_MODES.includes(groupBy);
+  const topicMode = groupBy === TOPIC_MODE;
+  const passageField = $("#relevance-ref");
+  const topicField = $("#topic-ref");
+  const passageLabel = document.querySelector('label[for="relevance-ref"]');
+  const topicLabel = document.querySelector('label[for="topic-ref"]');
+  if (passageLabel) passageLabel.hidden = !passageMode;
+  passageField.hidden = !passageMode;
+  if (topicLabel) topicLabel.hidden = !topicMode;
+  topicField.hidden = !topicMode;
   for (const b of document.querySelectorAll("#group-by button")) b.setAttribute("aria-pressed", String(b.dataset.mode === groupBy));
 }
 
 for (const b of document.querySelectorAll("#group-by button")) {
   b.addEventListener("click", () => {
-    groupBy = b.dataset.mode;
+    const next = b.dataset.mode;
+    const wasJev = JEV_MODES.includes(groupBy);
+    const willJev = JEV_MODES.includes(next);
+    const wasPassage = RANK_MODES.includes(groupBy);
+    const willPassage = RANK_MODES.includes(next);
+    groupBy = next;
     localStorage.setItem(GROUP_BY, groupBy);
+    if (wasJev && !willJev) clearRelevanceInput();
+    renderGroupBy(!!$("#list-foot") && !$("#list-foot").hidden);
+    if (willPassage && wasPassage && relevance?.passage && !rankFailed) {
+      // Relevant ↔ Surprising: reorder cached verdicts, no network call.
+      // New final paint so auto-expand follows the new top (unless the person toggled a row).
+      beginRankPaint();
+      void reorderRelevance();
+    } else if (willPassage && refText($("#relevance-ref")).trim()) {
+      void runRelevance();
+    } else if (next === TOPIC_MODE && sanitizeTopic($("#topic-ref").value)) {
+      void runTopic();
+    } else {
+      // Crossing passage ↔ topic (or empty scope): drop the other mode's session so hasScope matches the field.
+      if (next === TOPIC_MODE) relevance?.setTopicInput("");
+      else if (willPassage) relevance?.clearPassage();
+      rankOrder = [];
+      rankFailed = false;
+      verseText.open = null;
+      beginRankPaint({ resetUser: true });
+      render();
+    }
+  });
+}
+
+function clearRelevanceInput() {
+  const field = $("#relevance-ref");
+  field.value = "";
+  $("#topic-ref").value = "";
+  const err = $("#relevance-error");
+  err.hidden = true;
+  err.textContent = "";
+  rankGeneration++; // drop any in-flight response
+  relevance?.clearPassage();
+  rankOrder = [];
+  rankPending = null;
+  rankFailed = false;
+  beginRankPaint({ resetUser: true });
+  verseText.open = null;
+  showRelevanceNone(null);
+  showRankPreview(null);
+}
+
+/** Compact preview of the input passage above Relevant/Surprising results (Topic uses header copy only). */
+function showRankPreview(passage) {
+  const panel = $("#rank-preview");
+  if (!passage?.text) {
+    panel.hidden = true;
+    return;
+  }
+  panel.querySelector(".rank-preview-ref").textContent = passage.label || labelRef(passage.ref);
+  panel.querySelector(".rank-preview-text").textContent = passage.text;
+  panel.hidden = false;
+}
+
+/** Calm panel when a valid passage returns no relevant highlights — not the error line, not #empty. */
+function showRelevanceNone(info) {
+  const panel = $("#relevance-none");
+  if (!info) {
+    panel.hidden = true;
+    return;
+  }
+  const label = info.passage.label || labelRef(info.passage.ref);
+  $("#relevance-none-copy").textContent = emptyRelevanceCopy(info.count, label);
+  panel.dataset.ref = info.passage.ref;
+  panel.dataset.label = label;
+  const chapter = chapterRefOf(info.passage.ref);
+  $("#relevance-none-chapter").hidden = !chapter || chapter === info.passage.ref;
+  panel.hidden = false;
+}
+
+$("#relevance-none-route").addEventListener("click", () => {
+  const ref = $("#relevance-none").dataset.ref;
+  if (ref) window.open(`https://route.bible/${ref.toLowerCase()}`, "_blank", "noopener");
+});
+
+$("#relevance-none-chapter").addEventListener("click", () => {
+  const ref = $("#relevance-none").dataset.ref;
+  const chapter = chapterRefOf(ref);
+  if (!chapter) return;
+  const field = $("#relevance-ref");
+  field.value = labelRef(chapter);
+  void runRelevance();
+});
+
+$("#relevance-none-date").addEventListener("click", () => {
+  const dateBtn = document.querySelector('#group-by button[data-mode="date"]');
+  dateBtn?.click();
+});
+
+function syncRelevanceCache() {
+  if (!library || !relevance) return;
+  const now = new Map();
+  for (const r of library.all("highlight")) now.set(r.ref, r.updated);
+  const upserts = [];
+  const deletions = [];
+  for (const [ref, updated] of now) if (highlightStamp.get(ref) !== updated) upserts.push({ ref });
+  for (const ref of highlightStamp.keys()) if (!now.has(ref)) deletions.push(ref);
+  if (upserts.length || deletions.length) relevance.applyChanges({ upserts, deletions });
+  highlightStamp = now;
+}
+
+async function ensureRelevance() {
+  if (!library) return null;
+  if (!relevance || relevance.lib !== library.lib) {
+    relevance = createRelevance({ lib: library.lib, verseText: bsbText });
+    relevance.lib = library.lib;
+  }
+  return relevance;
+}
+
+/** Highlight runs currently shown (respecting the color filter), warmed for BSB text. */
+function currentRuns() {
+  const ids = colors.map((c) => c.id);
+  const records = library.all("highlight").sort((a, b) => compareRefs(a.ref, b.ref));
+  const shown = filter ? records.filter((r) => topColor(r, ids) === filter) : records;
+  const runs = groupRuns(shown, (r) => topColor(r, ids));
+  bsbText.warm(runs.map((r) => r.ref));
+  return runs;
+}
+
+async function runRelevance() {
+  const session = await ensureRelevance();
+  if (!session || !RANK_MODES.includes(groupBy)) return;
+  const field = $("#relevance-ref");
+  const raw = refText(field);
+  const err = $("#relevance-error");
+  const gen = ++rankGeneration;
+  // Drop prior results immediately so a slow second call can't flash an intermediate list.
+  rankOrder = [];
+  rankFailed = false;
+  beginRankPaint({ resetUser: true });
+  verseText.open = null;
+  showRelevanceNone(null);
+  showRankPreview(null);
+  if (!String(raw).trim()) {
+    err.hidden = true;
+    err.textContent = "";
+    session.clearPassage();
+    rankPending = null;
+    if (gen === rankGeneration) render();
+    return;
+  }
+  rankPending = true;
+  render(); // loading before any network / verse fetch
+  const found = await session.setPassageInput(raw);
+  if (gen !== rankGeneration) return;
+  if (found.error) {
+    err.hidden = false;
+    err.textContent = found.error;
+    session.clearPassage();
+    rankOrder = [];
+    rankPending = null;
+    rankFailed = false;
     render();
+    return;
+  }
+  err.hidden = true;
+  err.textContent = "";
+  const runs = currentRuns();
+  const items = runs.map((r) => ({ id: r.ref, ref: r.ref }));
+  try {
+    const { ranked } = await session.judge(items, groupBy);
+    if (gen !== rankGeneration) return; // newer input or a later run owns the UI
+    rankOrder = ranked.map((v) => v.id);
+    rankFailed = false;
+    beginRankPaint({ resetUser: true }); // final paint for this query
+  } catch (e) {
+    if (gen !== rankGeneration) return;
+    err.hidden = false;
+    err.textContent = rankErrorMessage(e);
+    rankOrder = [];
+    rankFailed = true;
+  } finally {
+    if (gen === rankGeneration) {
+      rankPending = null;
+      render();
+    }
+  }
+}
+
+async function runTopic() {
+  const session = await ensureRelevance();
+  if (!session || groupBy !== TOPIC_MODE) return;
+  const raw = $("#topic-ref").value;
+  const cleaned = sanitizeTopic(raw);
+  const err = $("#relevance-error");
+  const gen = ++rankGeneration;
+  rankOrder = [];
+  rankFailed = false;
+  beginRankPaint({ resetUser: true });
+  verseText.open = null;
+  showRelevanceNone(null);
+  showRankPreview(null);
+  if (!cleaned) {
+    err.hidden = true;
+    err.textContent = "";
+    session.clearPassage();
+    rankPending = null;
+    if (gen === rankGeneration) render();
+    return;
+  }
+  rankPending = true;
+  session.setTopicInput(cleaned);
+  render(); // loading before any network
+  err.hidden = true;
+  err.textContent = "";
+  const runs = currentRuns();
+  const items = runs.map((r) => ({ id: r.ref, ref: r.ref }));
+  try {
+    const { ranked } = await session.judgeTopic(items, cleaned);
+    if (gen !== rankGeneration) return;
+    rankOrder = ranked.map((v) => v.id);
+    rankFailed = false;
+    beginRankPaint({ resetUser: true });
+  } catch (e) {
+    if (gen !== rankGeneration) return;
+    err.hidden = false;
+    err.textContent = rankErrorMessage(e);
+    rankOrder = [];
+    rankFailed = true;
+  } finally {
+    if (gen === rankGeneration) {
+      rankPending = null;
+      render();
+    }
+  }
+}
+
+async function reorderRelevance() {
+  const session = await ensureRelevance();
+  if (!session?.passage || rankFailed) return render();
+  const runs = currentRuns();
+  const { ranked } = session.reorder(runs.map((r) => ({ id: r.ref, ref: r.ref })), groupBy);
+  rankOrder = ranked.map((v) => v.id);
+  render();
+}
+
+{
+  const relevanceField = $("#relevance-ref");
+  let relevanceTimer = 0;
+  // Same suggestion field as Highlight: book / chapter / verse, keyboard-selectable.
+  relevanceField.addEventListener("input", () => {
+    clearTimeout(relevanceTimer);
+    const err = $("#relevance-error");
+    const raw = refText(relevanceField);
+    if (!String(raw).trim()) err.hidden = true, (err.textContent = "");
+    // Leave the old ranked list immediately when the passage changes; debounce the network call.
+    if (RANK_MODES.includes(groupBy)) {
+      rankGeneration++;
+      rankOrder = [];
+      rankFailed = false;
+      beginRankPaint({ resetUser: true });
+      verseText.open = null;
+      showRelevanceNone(null);
+      showRankPreview(null);
+      if (String(raw).trim()) {
+        rankPending = true;
+      } else {
+        relevance?.clearPassage();
+        rankPending = null;
+      }
+      render();
+    }
+    // Invalid refs show inline and make no call; wait for a pause so typing doesn't flash errors.
+    relevanceTimer = setTimeout(() => void runRelevance(), 400);
+  });
+  // Enter that settles a suggestion keeps typing; Enter on a full passage ranks it.
+  relevanceField.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" || e.isComposing) return;
+    if (suggesting(relevanceField)) return;
+    e.preventDefault();
+    clearTimeout(relevanceTimer);
+    void runRelevance();
+  });
+}
+
+{
+  const topicField = $("#topic-ref");
+  let topicTimer = 0;
+  topicField.addEventListener("input", () => {
+    clearTimeout(topicTimer);
+    const err = $("#relevance-error");
+    const cleaned = sanitizeTopic(topicField.value);
+    if (!cleaned) err.hidden = true, (err.textContent = "");
+    if (groupBy === TOPIC_MODE) {
+      rankGeneration++;
+      rankOrder = [];
+      rankFailed = false;
+      beginRankPaint({ resetUser: true });
+      verseText.open = null;
+      showRelevanceNone(null);
+      showRankPreview(null);
+      if (cleaned) {
+        rankPending = true;
+        relevance?.setTopicInput(cleaned);
+      } else {
+        relevance?.clearPassage();
+        rankPending = null;
+      }
+      render();
+    }
+    topicTimer = setTimeout(() => void runTopic(), 400);
+  });
+  topicField.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" || e.isComposing) return;
+    e.preventDefault();
+    clearTimeout(topicTimer);
+    void runTopic();
   });
 }
 
@@ -638,6 +1082,8 @@ function wireTextToggle(toggle, li, runRef) {
   toggle.addEventListener("pointerenter", warm);
   toggle.addEventListener("focus", warm);
   toggle.addEventListener("click", () => {
+    // Manual open/close during this query — don't let the next mode-switch paint override it.
+    if (JEV_MODES.includes(groupBy)) rankUserTouched = true;
     const wasOpen = verseText.open === runRef;
     for (const other of document.querySelectorAll("#list .verse-text")) other.remove();
     for (const other of document.querySelectorAll("#list .row-link[aria-expanded]")) other.setAttribute("aria-expanded", "false");
@@ -709,7 +1155,14 @@ function styleScripture(el) {
   if (!root.adoptedStyleSheets.includes(scriptureSheet)) root.adoptedStyleSheets = [...root.adoptedStyleSheets, scriptureSheet];
 }
 const SCRIPTURE_CSS = `
-[part="text"] { max-width: var(--vault-measure, 36rem); }
+/* Set type on the part itself: si-passage's inner .root uses all:initial, which drops host
+   custom-property inheritance and falls back to Untitled Serif / tight leading. */
+[part="text"] {
+  max-width: var(--vault-measure, 36rem);
+  font-family: "Lexend", "Helvetica Neue", sans-serif !important;
+  font-size: var(--scripture-font-size, 1rem) !important;
+  line-height: var(--scripture-line-height, 1.75) !important;
+}
 [part="text"] p { margin-block: 0 .55em; }
 [part="text"] :is(p, .p) { text-indent: 0 !important; }
 .yv-vlbl, .va { color: var(--vault-verse, currentColor) !important; font-size: .62em !important; font-weight: 600; letter-spacing: .02em;
@@ -720,6 +1173,8 @@ const SCRIPTURE_CSS = `
 /** Puts the run's passage under its row, with a rule in the row's color. */
 function showText(li, runRef) {
   const el = passageFor(runRef);
+  el.className = "verse-text";
+  styleScripture(el); // re-apply after reconnect; same path in Date/Genre/Jev
   const dot = li.querySelector(".dot");
   if (dot) el.style.setProperty("--row-color", getComputedStyle(dot).backgroundColor);
   li.querySelector(".row-link")?.setAttribute("aria-controls", el.id);
