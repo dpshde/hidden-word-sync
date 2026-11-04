@@ -4,6 +4,10 @@ Architecture decision records for Selah Vault (formerly Hidden Word), in the [Mi
 
 To change a decision, write a new record and mark the old one `Superseded by …`. Facts that arrive later can be added to a record under a dated "Update" heading.
 
+## Shared selah.tools ADRs
+
+Cross-cutting architecture decisions for the selah.tools family (vault interop, E2E encryption, shared verse ranges, USFM refs, grab-bcv, route.bible links, deploy map) live in the **selah tools** Cursor Project Agent Store at `/cursor/stores/self/docs/adrs/INDEX.md`. Add a shared ADR there when a decision affects more than one app (for example vault ↔ route.bible). Keep vault-only decisions in this folder.
+
 | Decision | Status | Date |
 |---|---|---|
 | [Keep the library on the device first](keep-the-library-on-the-device-first.md) | Accepted | 2026-11-02 |
