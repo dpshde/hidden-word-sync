@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { MIGRATIONS, d1 } from "./d1";
 import { handle } from "../src/worker";
 import { routeOf } from "../src/observe";
-import { allowedClient, grantAllows, parseScopes } from "../public/grants.js";
+import { allowedClient, clientInfo, consentLines, grantAllows, parseScopes } from "../public/grants.js";
 import { decryptRecord, deriveKeys, encryptRecord, formatKey, newKey, parseKey, readKeys } from "../public/sync.js";
 
 type Fetch = (input: string, init?: RequestInit) => Promise<Response>;
@@ -76,6 +76,7 @@ describe("grants", () => {
     expect((await grant({ scopes: ["read"], client: "http://route.bible" })).status).toBe(403);
     expect((await grant({ scopes: ["write"], client: "https://route.bible" })).status).toBe(400);
     expect((await grant({ scopes: ["highlights:add"], client: "https://route.bible" })).status).toBe(400);
+    expect((await grant({ scopes: ["read", "highlights:write"], client: "https://evil.example" })).status).toBe(403);
     const other = await deriveKeys(newKey());
     const res = await fetch(`/v1/grant/${keys.lib}`, { method: "POST", headers: bearer(other.auth), body: "{}" });
     expect(res.status).toBe(401);
@@ -101,14 +102,50 @@ describe("grants", () => {
     expect(parseScopes([])).toBeNull();
     expect(grantAllows(["read"], "GET")).toBe(true);
     expect(grantAllows(["read"], "POST")).toBe(false);
+    expect(grantAllows(["highlights:write"], "POST")).toBe(true);
+    expect(grantAllows(["read", "highlights:write"], "DELETE")).toBe(false);
+    expect(clientInfo("https://route.bible").name).toBe("route.bible");
+    expect(clientInfo("https://vault-highlights-route-bible.dpshade.workers.dev").name).toBe("route.bible (preview)");
+    expect(clientInfo("http://localhost:5173").name).toBe("Local development");
+    expect(consentLines(["read"]).map((l) => l.text)).toEqual(["View your highlights and notes", "Can't change or delete anything", "Access expires in 90 days · disconnect anytime"]);
+    expect(consentLines(["highlights:write", "read"]).map((l) => l.text)[2]).toBe("Can't delete your library or change your passkeys");
     expect(routeOf("/v1/grant/abc")).toBe("/v1/grant/:grant");
   });
 
-  test("the consent page sends keys only in the fragment and says it's read-only", () => {
+  test("a write grant saves and removes records, and can't delete the library or touch slots", async () => {
+    const { fetch, key, keys, grant } = await setup();
+    const g = await (await grant({ scopes: ["read", "highlights:write"], client: "https://route.bible" })).json();
+    expect(g.scopes).toEqual(["highlights:write", "read"]);
+    // The app writes with only the enc and mac keys from the fragment.
+    const rk = await readKeys(key);
+    expect(rk.mac).toMatch(/^[0-9a-f]{64}$/);
+    const app = await deriveKeys(key);
+    const save = await encryptRecord(app, { kind: "highlight", ref: "ROM.8.28", updated: 10, highlights: [{ color: "yellow", created: 10 }] });
+    const h = { ...bearer(g.token), "content-type": "application/json" };
+    expect((await fetch(`/v1/lib/${keys.lib}`, { method: "POST", headers: h, body: JSON.stringify({ items: [save] }) })).status).toBe(200);
+    let items = (await (await fetch(`/v1/lib/${keys.lib}`, { headers: bearer(g.token) })).json()).items;
+    expect(items.map((i: { id: string }) => i.id)).toContain(save.id);
+    const unsave = await encryptRecord(app, { kind: "highlight", ref: "ROM.8.28", updated: 11, deleted: true });
+    expect((await fetch(`/v1/lib/${keys.lib}`, { method: "POST", headers: h, body: JSON.stringify({ items: [unsave] }) })).status).toBe(200);
+    items = (await (await fetch(`/v1/lib/${keys.lib}`, { headers: bearer(g.token) })).json()).items;
+    const row = items.find((i: { id: string }) => i.id === save.id);
+    expect((await decryptRecord(app, row.id, row.blob)).deleted).toBe(true);
+    expect((await fetch(`/v1/lib/${keys.lib}`, { method: "DELETE", headers: bearer(g.token) })).status).toBe(403);
+    expect((await fetch(`/v1/slot/${keys.lib}`, { method: "PUT", headers: h, body: "{}" })).status).toBe(403);
+    expect((await fetch(`/v1/grant/${keys.lib}`, { method: "POST", headers: h, body: "{}" })).status).toBe(403);
+  });
+
+  test("the consent page: fragment-only handoff, Cancel is access_denied, an unlocked library skips the form", () => {
     const js = readFileSync("public/connect.js", "utf8");
     expect(js).toContain("url.hash =");
-    expect(js).not.toMatch(/searchParams\.set\(["'](rt|ek|k)["']/);
+    expect(js).not.toMatch(/searchParams\.set\(["'](rt|ek|mk|k)["']/);
     expect(js).toContain("history.replaceState");
-    expect(readFileSync("public/connect.html", "utf8")).toContain("can't change or delete anything");
+    expect(js).toContain('finish({ error: "access_denied" })');
+    expect(js).toMatch(/if \(session\?\.key\) consent\(/);
+    expect(js).toContain("clientInfo(back.origin)");
+    const html = readFileSync("public/connect.html", "utf8");
+    expect(html).toContain("wants to access your Selah Vault");
+    expect(html).toContain("Use sync key instead");
+    expect(html).toContain("Only allow apps you trust.");
   });
 });

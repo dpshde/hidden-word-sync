@@ -146,9 +146,13 @@ export async function deriveKeys(key) {
   };
 }
 
-/** The library id and its raw decryption key (hex), what a read grant's app needs to decrypt. */
+/** The library id, its raw decryption key and item-id key (hex): what a grant's app needs to read, and to write records. */
 export async function readKeys(key) {
-  return { lib: hex(await hkdf(key, "hidden-word/v1/lib", 16)), enc: hex(await hkdf(key, "hidden-word/v1/enc", 32)) };
+  return {
+    lib: hex(await hkdf(key, "hidden-word/v1/lib", 16)),
+    enc: hex(await hkdf(key, "hidden-word/v1/enc", 32)),
+    mac: hex(await hkdf(key, "hidden-word/v1/mac", 32)),
+  };
 }
 
 export async function itemId(keys, kind, ref) {

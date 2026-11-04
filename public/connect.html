@@ -5,46 +5,65 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
   <meta name="referrer" content="no-referrer">
-  <title>Connect an app · Selah Vault</title>
+  <title>Allow access · Selah Vault</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <script src="/theme.js"></script>
   <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/connect.css">
   <script type="module" src="/report.js"></script>
   <script type="module" src="/connect.js"></script>
 </head>
-<body>
+<body class="oauth">
 <div class="monologue-grain" aria-hidden="true"><div class="monologue-grain__tile"></div></div>
-<main>
-  <section id="bad" hidden>
-    <h1>Can't connect</h1>
-    <p class="lede">This app isn't allowed to connect to Selah Vault, or the link is incomplete.</p>
+<main class="oauth-main">
+  <section class="oauth-card" id="bad" hidden>
+    <div class="oauth-logos"><img src="/favicon.svg" alt="" width="48" height="48"></div>
+    <h1 class="oauth-title">This app can't connect</h1>
+    <p class="oauth-sub" id="bad-detail">The link is incomplete, or the app isn't on Selah Vault's list of allowed apps.</p>
+    <p class="oauth-foot">Nothing was shared.</p>
   </section>
 
-  <section id="pick" hidden>
-    <h1>Connect <span class="app-name"></span></h1>
-    <p class="lede">Unlock the library you want it to see.</p>
-    <button type="button" id="use-session" hidden></button>
-    <form id="unlock-form" autocomplete="on">
-      <label>Library <input name="username" autocomplete="username" value="Personal" required></label>
-      <label>Sync key <input name="password" type="password" autocomplete="current-password" required spellcheck="false"></label>
-      <button type="submit">Unlock</button>
-      <p class="error" role="alert"></p>
-    </form>
-    <button type="button" id="passkey-unlock" class="quiet" hidden>Unlock with passkey</button>
-  </section>
-
-  <section id="consent" hidden>
-    <h1>Let <span class="app-name"></span> use “<span id="consent-lib"></span>”?</h1>
-    <p class="lede">It will be able to:</p>
-    <ul id="consent-scopes"></ul>
-    <p class="lede">It can't change or delete anything. Access ends in <span id="consent-days"></span> days, or when you disconnect it. You'll return to <strong class="app-name"></strong>.</p>
-    <div class="row">
-      <button type="button" id="allow">Allow</button>
-      <button type="button" id="deny" class="quiet">Cancel</button>
+  <section class="oauth-card" id="card" hidden>
+    <div class="oauth-logos" aria-hidden="true">
+      <span class="oauth-logo" id="app-logo"></span>
+      <span class="oauth-link"><span></span><span></span><span></span></span>
+      <span class="oauth-logo"><img src="/favicon.svg" alt="" width="48" height="48"></span>
     </div>
-    <p class="error" role="alert" id="consent-error"></p>
+    <h1 class="oauth-title"><span class="app-name"></span> wants to access your Selah Vault</h1>
+    <p class="oauth-origin"><span class="app-name"></span> · <span id="app-origin"></span></p>
+
+    <div id="step-unlock" hidden>
+      <p class="oauth-step">Unlock your library to continue</p>
+      <button type="button" id="passkey-unlock" class="oauth-primary wide">Unlock with passkey</button>
+      <details class="oauth-key" id="key-details">
+        <summary>Use sync key instead</summary>
+        <form id="unlock-form" autocomplete="on">
+          <label>Library <input name="username" autocomplete="username" value="Personal" required></label>
+          <label>Sync key <input name="password" type="password" autocomplete="current-password" required spellcheck="false"></label>
+          <button type="submit" class="oauth-secondary wide">Unlock</button>
+        </form>
+      </details>
+      <p class="error" role="alert" id="unlock-error"></p>
+    </div>
+
+    <div id="step-consent" hidden>
+      <div class="oauth-account">
+        <span class="oauth-avatar" id="account-initial" aria-hidden="true"></span>
+        <span class="oauth-account__text">Signed in as <strong id="account-name"></strong></span>
+        <button type="button" class="oauth-switch" id="switch">Switch</button>
+      </div>
+      <p class="oauth-step">This will allow <span class="app-name"></span> to:</p>
+      <ul class="oauth-perms" id="perms"></ul>
+      <div class="oauth-actions">
+        <button type="button" id="deny" class="oauth-secondary">Cancel</button>
+        <button type="button" id="allow" class="oauth-primary">Allow</button>
+      </div>
+      <p class="error" role="alert" id="consent-error"></p>
+    </div>
+
+    <p class="oauth-foot">You'll be redirected to <span class="app-name"></span>. Only allow apps you trust.</p>
   </section>
 </main>
 </body>

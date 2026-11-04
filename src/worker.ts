@@ -172,7 +172,7 @@ async function granted(request: Request, db: D1Database, lib: string, tokenHash:
     .bind(lib, tokenHash, now())
     .first<{ scopes: string }>();
   if (!row) return fail(401, "grant expired, revoked, or not for this library");
-  if (!grantAllows(row.scopes.split(" "), request.method)) return fail(403, "this grant can only read");
+  if (!grantAllows(row.scopes.split(" "), request.method)) return fail(403, "this grant can't do that");
   const libRow = await db.prepare("SELECT auth_hash FROM libs WHERE lib = ?").bind(lib).first<{ auth_hash: string }>();
   // Read as the library's owner would: the grant stands in for its token.
   return libRow ? library(request, db, lib, libRow.auth_hash) : json({ items: [], more: false, seq: 0, epoch: null });
