@@ -13,7 +13,15 @@ import { registerSelahVaultTools } from "./webmcp.js";
 import { armDelete } from "./confirm.js";
 import { defineKeepingLoaded, createWarmer } from "./passage-warm.js";
 import { createBsbText } from "./bsb-text.js";
-import { createRelevance, emptyRelevanceCopy, chapterRefOf, totalCopy, rankErrorMessage } from "./relevance.js";
+import {
+  createRelevance,
+  emptyRelevanceCopy,
+  chapterRefOf,
+  totalCopy,
+  relatedCopy,
+  rankingCopy,
+  rankErrorMessage,
+} from "./relevance.js";
 
 const $ = (sel) => document.querySelector(sel);
 const SESSION = "hidden-word:session";
@@ -337,6 +345,8 @@ let rankReasons = new Map();
 let rankPending = null;
 /** True after a ranking call failed: keep Date order and the inline error; never "0 of N relevant". */
 let rankFailed = false;
+/** Bumps whenever a new ranking run starts (or the input changes); stale responses are ignored. */
+let rankGeneration = 0;
 
 function render() {
   if (!library) return;
@@ -353,8 +363,9 @@ function render() {
 
   const shown = filter ? rows.filter((r) => topColor(r, ids) === filter) : rows;
   // A failed call keeps the passage for retry, but the list stays in Date order (no "0 of N relevant").
-  const ranking = RANK_MODES.includes(groupBy) && relevance?.passage && !rankFailed;
-  const noneRelevant = ranking && !rankPending && rankReasons.size === 0 && shown.length > 0;
+  // Pending keeps the ranked chrome (loading line) even before setPassageInput lands.
+  const ranking = RANK_MODES.includes(groupBy) && !rankFailed && (relevance?.passage || rankPending);
+  const noneRelevant = ranking && !rankPending && !!relevance?.passage && rankReasons.size === 0 && shown.length > 0;
   $("#empty").hidden = rows.length > 0;
   $("#empty").textContent = "No highlights yet.";
   showRelevanceNone(noneRelevant ? { count: shown.length, passage: relevance.passage } : null);
@@ -364,16 +375,17 @@ function render() {
   // Rebuild the list only when what it shows changed. A sync that brings nothing new (every window
   // focus runs one) still emits for its status; rebuilding then would move the open passage and
   // replay its opening animation.
-  const sig = JSON.stringify([shown, colors, groupBy, filter, verseText.key, editing, ranking && relevance.passage?.ref, [...rankReasons], rankFailed, noneRelevant]);
+  const sig = JSON.stringify([shown, colors, groupBy, filter, verseText.key, editing, ranking && relevance.passage?.ref, [...rankReasons], rankFailed, noneRelevant, !!rankPending]);
   if (!editing && sig !== listSig) {
     if (ranking) {
       const order = [...rankReasons.keys()];
       const runs = groupRuns(shown, (r) => topColor(r, ids));
       const byRef = new Map(runs.map((run) => [run.ref, run]));
       const ranked = order.map((id) => byRef.get(id)).filter(Boolean);
-      $("#list-total").textContent = totalCopy(ranked.length, shown.length);
+      $("#list-total").textContent = rankPending ? rankingCopy() : totalCopy(ranked.length, shown.length);
       $("#list").classList.add("rank-mode");
-      if (ranked.length) $("#list").replaceChildren(rankGroup(ranked));
+      if (rankPending) $("#list").replaceChildren();
+      else if (ranked.length) $("#list").replaceChildren(rankGroup(ranked));
       else $("#list").replaceChildren();
       $("#empty").hidden = true; // library has rows; zero relevant uses #relevance-none, not #empty
     } else {
@@ -435,6 +447,7 @@ function clearRelevanceInput() {
   const err = $("#relevance-error");
   err.hidden = true;
   err.textContent = "";
+  rankGeneration++; // drop any in-flight response
   relevance?.clearPassage();
   rankReasons = new Map();
   rankPending = null;
@@ -489,14 +502,16 @@ function syncRelevanceCache() {
   highlightStamp = now;
 }
 
-/** One open, untitled group for a ranked list (no Date/Genre headers). */
+/** One open group for a ranked list, labeled with the passage (not a blank dark bar). */
 function rankGroup(runs) {
   const details = document.createElement("details");
   details.className = "group";
   details.dataset.group = "ranked";
   details.open = true;
   const summary = document.createElement("summary");
-  summary.hidden = true;
+  const title = document.createElement("span");
+  title.textContent = relatedCopy(relevance?.passage?.label);
+  summary.append(title);
   const list = document.createElement("ul");
   list.className = "rows";
   list.append(...runs.map((run) => row({ ...run, reason: rankReasons.get(run.ref) })));
@@ -519,47 +534,57 @@ async function runRelevance() {
   const field = $("#relevance-ref");
   const raw = refText(field);
   const err = $("#relevance-error");
+  const gen = ++rankGeneration;
+  // Drop prior results immediately so a slow second call can't flash an intermediate list.
+  rankReasons = new Map();
+  rankFailed = false;
+  showRelevanceNone(null);
   if (!String(raw).trim()) {
     err.hidden = true;
     err.textContent = "";
     session.clearPassage();
-    rankReasons = new Map();
-    rankFailed = false;
-    render();
+    rankPending = null;
+    if (gen === rankGeneration) render();
     return;
   }
+  rankPending = true;
+  render(); // loading before any network / verse fetch
   const found = await session.setPassageInput(raw);
+  if (gen !== rankGeneration) return;
   if (found.error) {
     err.hidden = false;
     err.textContent = found.error;
+    session.clearPassage();
     rankReasons = new Map();
+    rankPending = null;
     rankFailed = false;
     render();
     return;
   }
   err.hidden = true;
   err.textContent = "";
-  rankFailed = false;
   const ids = colors.map((c) => c.id);
   const records = library.all("highlight").sort((a, b) => compareRefs(a.ref, b.ref));
   const shown = filter ? records.filter((r) => topColor(r, ids) === filter) : records;
   const runs = groupRuns(shown, (r) => topColor(r, ids));
   bsbText.warm(runs.map((r) => r.ref));
   const items = runs.map((r) => ({ id: r.ref, ref: r.ref }));
-  rankPending = true;
-  render();
   try {
     const { ranked } = await session.judge(items, groupBy);
+    if (gen !== rankGeneration) return; // newer input or a later run owns the UI
     rankReasons = new Map(ranked.map((v) => [v.id, v.reason]));
     rankFailed = false;
   } catch (e) {
+    if (gen !== rankGeneration) return;
     err.hidden = false;
     err.textContent = rankErrorMessage(e);
     rankReasons = new Map();
     rankFailed = true;
   } finally {
-    rankPending = null;
-    render();
+    if (gen === rankGeneration) {
+      rankPending = null;
+      render();
+    }
   }
 }
 
@@ -582,12 +607,24 @@ async function reorderRelevance() {
   relevanceField.addEventListener("input", () => {
     clearTimeout(relevanceTimer);
     const err = $("#relevance-error");
+    const raw = refText(relevanceField);
+    if (!String(raw).trim()) err.hidden = true, (err.textContent = "");
+    // Leave the old ranked list immediately when the passage changes; debounce the network call.
+    if (RANK_MODES.includes(groupBy)) {
+      rankGeneration++;
+      rankReasons = new Map();
+      rankFailed = false;
+      showRelevanceNone(null);
+      if (String(raw).trim()) {
+        rankPending = true;
+      } else {
+        relevance?.clearPassage();
+        rankPending = null;
+      }
+      render();
+    }
     // Invalid refs show inline and make no call; wait for a pause so typing doesn't flash errors.
     relevanceTimer = setTimeout(() => void runRelevance(), 400);
-    if (!refText(relevanceField).trim()) {
-      err.hidden = true;
-      err.textContent = "";
-    }
   });
   // Enter that settles a suggestion keeps typing; Enter on a full passage ranks it.
   relevanceField.addEventListener("keydown", (e) => {

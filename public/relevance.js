@@ -107,6 +107,17 @@ export function totalCopy(shown, librarySize) {
   return `${shown} of ${librarySize} relevant`;
 }
 
+/** Rank-mode group header, e.g. "Related to Habakkuk 2:2". */
+export function relatedCopy(label) {
+  const named = String(label ?? "").trim();
+  return named ? `Related to ${named}` : "Related";
+}
+
+/** List-foot status while a ranking request is in flight. */
+export function rankingCopy() {
+  return "Ranking…";
+}
+
 /** Fallback when the passage label isn't known yet. Prefer emptyRelevanceCopy with a count and label. */
 export const EMPTY_RELEVANCE = "None of your highlights speak to this passage yet.";
 

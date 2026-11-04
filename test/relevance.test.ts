@@ -10,7 +10,9 @@ import {
   parseVerdicts,
   rangeHash,
   rankErrorMessage,
+  rankingCopy,
   rankVerdicts,
+  relatedCopy,
   totalCopy,
   BATCH_SIZE,
 } from "../public/relevance.js";
@@ -88,6 +90,25 @@ describe("UI copy and footer toggle", () => {
     // Distinct from the error line and from the library-empty #empty copy.
     expect(app).toContain('textContent = "No highlights yet."');
     expect(css).toContain(".relevance-none");
+  });
+
+  test("rank-mode header and loading copy; stale generations are ignored", () => {
+    expect(relatedCopy("Habakkuk 2:2")).toBe("Related to Habakkuk 2:2");
+    expect(relatedCopy("")).toBe("Related");
+    expect(rankingCopy()).toBe("Ranking…");
+    expect(app).toContain("relatedCopy(relevance?.passage?.label)");
+    expect(app).toContain("rankPending ? rankingCopy()");
+    // Blank dark bar was summary.hidden + display:flex overriding [hidden]; now a labeled summary.
+    expect(app).not.toContain("summary.hidden = true");
+    expect(css).toContain("#list .group > summary[hidden] { display: none; }");
+    // Generation token: bump on input/clear/run; apply results only when still current.
+    expect(app).toContain("let rankGeneration = 0");
+    expect(app).toContain("const gen = ++rankGeneration");
+    expect(app).toContain("if (gen !== rankGeneration) return");
+    expect(app).toContain("if (gen === rankGeneration)");
+    // Typing a new ref clears the old list and shows loading before the debounced request.
+    expect(app).toMatch(/addEventListener\("input"[\s\S]*?rankGeneration\+\+[\s\S]*?rankPending = true/);
+    expect(app).toContain('rankPending = true;\n  render(); // loading before any network / verse fetch');
   });
 
   test("network and Worker errors become human lines, not Failed to fetch", () => {
