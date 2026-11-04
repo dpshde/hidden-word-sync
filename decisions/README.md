@@ -1,6 +1,6 @@
 # Decisions
 
-Architecture decision records for Hidden Word, in the [Michael Nygard format](https://github.com/architecture-decision-record/architecture-decision-record/tree/main/locales/en-001/templates/decision-record-template-by-michael-nygard): status, context, decision, consequences. Each file holds one decision and is named with an imperative phrase, following the [architecture-decision-record](https://github.com/architecture-decision-record/architecture-decision-record) conventions.
+Architecture decision records for Selah Vault (formerly Hidden Word), in the [Michael Nygard format](https://github.com/architecture-decision-record/architecture-decision-record/tree/main/locales/en-001/templates/decision-record-template-by-michael-nygard): status, context, decision, consequences. Each file holds one decision and is named with an imperative phrase, following the [architecture-decision-record](https://github.com/architecture-decision-record/architecture-decision-record) conventions.
 
 To change a decision, write a new record and mark the old one `Superseded by …`. Facts that arrive later can be added to a record under a dated "Update" heading.
 
@@ -30,3 +30,4 @@ To change a decision, write a new record and mark the old one `Superseded by …
 | [Promise a stable 1.0 contract](promise-a-stable-1-0-contract.md) | Accepted | 2026-11-03 |
 | [Sync the library's name as a record](sync-the-library-s-name-as-a-record.md) | Accepted | 2026-11-03 |
 | [Style the app like route.bible](style-the-app-like-route-bible.md) | Accepted | 2026-11-03 |
+| [Rename the product to Selah Vault](rename-product-to-selah-vault.md) | Accepted | 2026-11-03 |

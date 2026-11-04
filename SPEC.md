@@ -1,8 +1,8 @@
-# Hidden Word, version 1.1
+# Selah Vault, version 1.1
 
 > Thy word have I hid in mine heart, that I might not sin against thee. (Psalm 119:11)
 
-Hidden Word is a small format for Bible highlights and notes, and two ways to keep them in step across devices and apps: a shared folder, or a server that can't read them. Any app that implements it shows your highlights, and you can switch apps, servers, or stop syncing at all without losing anything.
+Selah Vault (formerly Hidden Word) is a small format for Bible highlights and notes, and two ways to keep them in step across devices and apps: a shared folder, or a server that can't read them. Any app that implements it shows your highlights, and you can switch apps, servers, or stop syncing at all without losing anything.
 
 The spec has layers. Each one works without the ones after it.
 
@@ -285,7 +285,7 @@ When creating a library, an app SHOULD offer a passkey once the key is saved, as
 
 ### 7.3 Connecting an app
 
-A Hidden Word site can hand a library's key to another app, in the style of an OAuth consent screen. The app opens `https://<site>/unlock?app=<display name>&callback=<url>`. The site asks the person to unlock a library, then asks "Give <app> access to <library>?". On Allow it sends the browser to `<callback>#k=<key>&name=<name>`, or `<callback>#error=denied` on Cancel. Fragments never reach servers.
+A Selah Vault site can hand a library's key to another app, in the style of an OAuth consent screen. The app opens `https://<site>/unlock?app=<display name>&callback=<url>`. The site asks the person to unlock a library, then asks "Give <app> access to <library>?". On Allow it sends the browser to `<callback>#k=<key>&name=<name>`, or `<callback>#error=denied` on Cancel. Fragments never reach servers.
 
 `callback` MUST be `https:`, a custom scheme, or `http:` on `localhost`, `127.0.0.1` or `[::1]`. Sites MUST refuse `javascript:`, `data:`, `blob:`, `file:` and similar, and SHOULD show the callback's host. The app receives the whole key and can read, change and delete everything in the library.
 
@@ -293,7 +293,7 @@ A site MAY accept `/#k=<key>&name=<name>` to prefill its own unlock form.
 
 ### 7.4 Saving from a link
 
-A Hidden Word site MAY save a highlight from a plain link, so any app, bookmarklet or share sheet can send a verse with one `GET`:
+A Selah Vault site MAY save a highlight from a plain link, so any app, bookmarklet or share sheet can send a verse with one `GET`:
 
 ```
 https://<site>/save?ref=John+3:16&color=blue

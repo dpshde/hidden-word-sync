@@ -1,4 +1,4 @@
-# Quick start: sync with a Hidden Word server
+# Quick start: sync with a Selah Vault server
 
 Five steps from a sync key to a synced highlight, using the test-vector key from [SPEC.md section 10](../SPEC.md#10-test-vectors). Every value below is real: check your code against it.
 

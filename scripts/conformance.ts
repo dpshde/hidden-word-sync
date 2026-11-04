@@ -1,4 +1,4 @@
-// bun run conformance <base-url>: checks a Hidden Word server against SPEC.md section 5. It makes
+// bun run conformance <base-url>: checks a Selah Vault server against SPEC.md section 5. It makes
 // one library with a fresh random key, and deletes it at the end.
 import { checkServer } from "../conformance/server.js";
 
