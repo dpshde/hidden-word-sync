@@ -10,6 +10,7 @@ import { createPasskeyPrf, getPasskeyPrf, passkeysAvailable, cancelled } from ".
 import { setupThemeToggle } from "./theme-toggle.js";
 import { foldersAvailable, pickFolder, saveFolder, loadFolder, forgetFolder, mayUse, folderDir } from "./folder.js";
 import { registerSelahVaultTools } from "./webmcp.js";
+import { armDelete } from "./confirm.js";
 
 const $ = (sel) => document.querySelector(sel);
 const SESSION = "hidden-word:session";
@@ -46,7 +47,7 @@ function show(id) {
   status.hidden = false;
 }
 
-/** Shows a passing message, with an optional button such as `{ label: "Undo", run }`. */
+/** Shows a passing message, with an optional button such as `{ label: "Undo", run, ms }`. */
 function flash(text, action) {
   const el = $("#flash");
   el.replaceChildren(text);
@@ -61,7 +62,7 @@ function flash(text, action) {
     el.append(" ", button);
   }
   clearTimeout(flashTimer);
-  flashTimer = setTimeout(() => el.replaceChildren(), action ? 15_000 : 6000);
+  flashTimer = setTimeout(() => el.replaceChildren(), action ? (action.ms ?? 15_000) : 6000);
 }
 
 const errorIn = (form, text) => (form.querySelector(".error").textContent = text);
@@ -465,28 +466,18 @@ function row({ ref: runRef, records }) {
   edit.classList.add("edit");
   edit.addEventListener("click", () => editRow(li, line, { ref: runRef, records }));
 
-  // Two taps to delete: the first turns the trash into a "Delete" confirm, which resets after a moment.
+  // Two taps to delete (see confirm.js): the first turns the trash into a red "Delete" confirm, and
+  // a tap anywhere else, a scroll, Escape or 3 seconds puts it back. Deleting offers an Undo.
   const del = iconButton("button", "trash", `Delete ${labelRef(runRef)}`);
   del.classList.add("trash");
-  let reset;
-  const disarm = () => {
-    clearTimeout(reset);
-    delete del.dataset.confirm;
-    del.innerHTML = ICONS.trash;
-    del.setAttribute("aria-label", `Delete ${labelRef(runRef)}`);
-  };
-  del.addEventListener("click", () => {
-    if (del.dataset.confirm) {
-      disarm();
-      library.putMany(records.map((r) => ({ kind: "highlight", ref: r.ref, deleted: true })));
-      return;
-    }
-    del.dataset.confirm = "1";
-    del.textContent = "Delete";
-    del.setAttribute("aria-label", `Confirm delete ${labelRef(runRef)}`);
-    reset = setTimeout(disarm, 4000);
+  armDelete(del, {
+    label: labelRef(runRef),
+    idleHTML: ICONS.trash,
+    onConfirm: async () => {
+      await library.putMany(records.map((r) => ({ kind: "highlight", ref: r.ref, deleted: true })));
+      flash(`Deleted ${labelRef(runRef)}.`, { label: "Undo", run: () => library.putMany(records), ms: 5000 });
+    },
   });
-  del.addEventListener("blur", disarm);
 
   // Three icons as one compact group (see .actions in style.css). They sit above the row's link, so
   // tapping one never opens route.bible.
