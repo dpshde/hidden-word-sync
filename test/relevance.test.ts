@@ -8,6 +8,7 @@ import {
   EMPTY_RELEVANCE,
   parseVerdicts,
   rangeHash,
+  rankErrorMessage,
   rankVerdicts,
   totalCopy,
   BATCH_SIZE,
@@ -44,6 +45,7 @@ describe("UI copy and footer toggle", () => {
       "surprising",
     ]);
     expect(html).toContain('id="relevance-ref"');
+    expect(html).toContain("<si-passage-input id=\"relevance-ref\"");
     expect(html).toContain('placeholder="Rom 8:18–25"');
   });
 
@@ -52,6 +54,16 @@ describe("UI copy and footer toggle", () => {
     expect(EMPTY_RELEVANCE).toBe("None of your highlights speak to this passage yet.");
     expect(app).toContain("totalCopy");
     expect(app).toContain("EMPTY_RELEVANCE");
+    expect(app).toContain("rankFailed");
+    expect(app).toContain("rankErrorMessage");
+  });
+
+  test("network and Worker errors become human lines, not Failed to fetch", () => {
+    expect(rankErrorMessage(new Error("Failed to fetch"))).toMatch(/Couldn't reach Selah Vault ranking/);
+    expect(rankErrorMessage(new Error("upstream error"))).toMatch(/couldn't rank these highlights/i);
+    expect(rankErrorMessage(new Error("ranking unavailable"))).toMatch(/couldn't rank these highlights/i);
+    expect(rankErrorMessage(new Error("daily spend cap"))).toMatch(/budget is used up/);
+    expect(rankErrorMessage(new Error("Failed to fetch"))).not.toBe("Failed to fetch");
   });
 });
 

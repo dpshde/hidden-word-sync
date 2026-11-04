@@ -13,7 +13,7 @@ import { registerSelahVaultTools } from "./webmcp.js";
 import { armDelete } from "./confirm.js";
 import { defineKeepingLoaded, createWarmer } from "./passage-warm.js";
 import { createBsbText } from "./bsb-text.js";
-import { createRelevance, EMPTY_RELEVANCE, totalCopy } from "./relevance.js";
+import { createRelevance, EMPTY_RELEVANCE, totalCopy, rankErrorMessage } from "./relevance.js";
 
 const $ = (sel) => document.querySelector(sel);
 const SESSION = "hidden-word:session";
@@ -335,6 +335,8 @@ let listSig = null;
 /** Ranked-mode verdicts for the open passage, keyed by run ref → reason. */
 let rankReasons = new Map();
 let rankPending = null;
+/** True after a ranking call failed: keep Date order and the inline error; never "0 of N relevant". */
+let rankFailed = false;
 
 function render() {
   if (!library) return;
@@ -350,7 +352,8 @@ function render() {
   renderFilters(counts);
 
   const shown = filter ? rows.filter((r) => topColor(r, ids) === filter) : rows;
-  const ranking = RANK_MODES.includes(groupBy) && relevance?.passage;
+  // A failed call keeps the passage for retry, but the list stays in Date order (no "0 of N relevant").
+  const ranking = RANK_MODES.includes(groupBy) && relevance?.passage && !rankFailed;
   $("#empty").hidden = rows.length > 0;
   $("#empty").textContent = ranking && rankReasons.size === 0 && !rankPending
     ? EMPTY_RELEVANCE
@@ -361,7 +364,7 @@ function render() {
   // Rebuild the list only when what it shows changed. A sync that brings nothing new (every window
   // focus runs one) still emits for its status; rebuilding then would move the open passage and
   // replay its opening animation.
-  const sig = JSON.stringify([shown, colors, groupBy, filter, verseText.key, editing, ranking && relevance.passage?.ref, [...rankReasons]]);
+  const sig = JSON.stringify([shown, colors, groupBy, filter, verseText.key, editing, ranking && relevance.passage?.ref, [...rankReasons], rankFailed]);
   if (!editing && sig !== listSig) {
     if (ranking) {
       const order = [...rankReasons.keys()];
@@ -377,7 +380,7 @@ function render() {
         $("#empty").textContent = EMPTY_RELEVANCE;
       }
     } else {
-      // Relevant/Surprising with no valid passage yet: keep Date order.
+      // Relevant/Surprising with no valid passage yet (or a failed call): keep Date order.
       const mode = RANK_MODES.includes(groupBy) ? "date" : groupBy;
       const groups = groupList(shown, mode, (r) => topColor(r, ids));
       const total = groups.reduce((n, g) => n + g.runs.length, 0);
@@ -416,13 +419,14 @@ for (const b of document.querySelectorAll("#group-by button")) {
     localStorage.setItem(GROUP_BY, groupBy);
     if (wasRank && !willRank) clearRelevanceInput();
     renderGroupBy(!!$("#list-foot") && !$("#list-foot").hidden);
-    if (willRank && relevance?.passage && wasRank) {
+    if (willRank && relevance?.passage && wasRank && !rankFailed) {
       // Relevant ↔ Surprising: reorder cached verdicts, no network call.
       void reorderRelevance();
-    } else if (willRank && $("#relevance-ref").value.trim()) {
+    } else if (willRank && refText($("#relevance-ref")).trim()) {
       void runRelevance();
     } else {
       rankReasons = new Map();
+      rankFailed = false;
       render();
     }
   });
@@ -437,6 +441,7 @@ function clearRelevanceInput() {
   relevance?.clearPassage();
   rankReasons = new Map();
   rankPending = null;
+  rankFailed = false;
 }
 
 function syncRelevanceCache() {
@@ -478,13 +483,15 @@ async function ensureRelevance() {
 async function runRelevance() {
   const session = await ensureRelevance();
   if (!session || !RANK_MODES.includes(groupBy)) return;
-  const raw = $("#relevance-ref").value;
+  const field = $("#relevance-ref");
+  const raw = refText(field);
   const err = $("#relevance-error");
   if (!String(raw).trim()) {
     err.hidden = true;
     err.textContent = "";
     session.clearPassage();
     rankReasons = new Map();
+    rankFailed = false;
     render();
     return;
   }
@@ -493,11 +500,13 @@ async function runRelevance() {
     err.hidden = false;
     err.textContent = found.error;
     rankReasons = new Map();
+    rankFailed = false;
     render();
     return;
   }
   err.hidden = true;
   err.textContent = "";
+  rankFailed = false;
   const ids = colors.map((c) => c.id);
   const records = library.all("highlight").sort((a, b) => compareRefs(a.ref, b.ref));
   const shown = filter ? records.filter((r) => topColor(r, ids) === filter) : records;
@@ -509,10 +518,12 @@ async function runRelevance() {
   try {
     const { ranked } = await session.judge(items, groupBy);
     rankReasons = new Map(ranked.map((v) => [v.id, v.reason]));
+    rankFailed = false;
   } catch (e) {
     err.hidden = false;
-    err.textContent = e.message || "Couldn't rank highlights.";
+    err.textContent = rankErrorMessage(e);
     rankReasons = new Map();
+    rankFailed = true;
   } finally {
     rankPending = null;
     render();
@@ -521,7 +532,7 @@ async function runRelevance() {
 
 async function reorderRelevance() {
   const session = await ensureRelevance();
-  if (!session?.passage) return render();
+  if (!session?.passage || rankFailed) return render();
   const ids = colors.map((c) => c.id);
   const records = library.all("highlight").sort((a, b) => compareRefs(a.ref, b.ref));
   const shown = filter ? records.filter((r) => topColor(r, ids) === filter) : records;
@@ -532,23 +543,26 @@ async function reorderRelevance() {
 }
 
 {
+  const relevanceField = $("#relevance-ref");
   let relevanceTimer = 0;
-  $("#relevance-ref").addEventListener("input", () => {
+  // Same suggestion field as Highlight: book / chapter / verse, keyboard-selectable.
+  relevanceField.addEventListener("input", () => {
     clearTimeout(relevanceTimer);
     const err = $("#relevance-error");
     // Invalid refs show inline and make no call; wait for a pause so typing doesn't flash errors.
     relevanceTimer = setTimeout(() => void runRelevance(), 400);
-    if (!$("#relevance-ref").value.trim()) {
+    if (!refText(relevanceField).trim()) {
       err.hidden = true;
       err.textContent = "";
     }
   });
-  $("#relevance-ref").addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      clearTimeout(relevanceTimer);
-      void runRelevance();
-    }
+  // Enter that settles a suggestion keeps typing; Enter on a full passage ranks it.
+  relevanceField.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" || e.isComposing) return;
+    if (suggesting(relevanceField)) return;
+    e.preventDefault();
+    clearTimeout(relevanceTimer);
+    void runRelevance();
   });
 }
 

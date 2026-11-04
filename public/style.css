@@ -253,11 +253,13 @@ button.dot[aria-pressed="true"] { border-color: var(--fg); }
 .list-total { font-family: var(--font-label); font-size: .75rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 .list-foot .segmented { margin: 0; }
 .list-foot .segmented button { padding: .25rem .625rem; font-size: .6875rem; cursor: pointer; }
-/* Passage field for Relevant / Surprising: one empty line, never remembered. */
+/* Passage field for Relevant / Surprising: same suggestions as Highlight, never remembered. */
 .relevance-bar { margin: 0 0 .75rem; }
 .relevance-bar[hidden] { display: none; }
 .relevance-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
-#relevance-ref { font-size: .9375rem; padding: .5rem .75rem; }
+.relevance-bar si-passage-input { display: block; width: 100%; }
+.relevance-bar si-passage-input::part(input) { height: 2.5rem; font-size: .9375rem; padding: 0 .75rem; }
+.relevance-bar si-passage-input::part(listbox) { z-index: 40; }
 #relevance-error { margin: .375rem 0 0; font-size: .8125rem; }
 #relevance-error[hidden] { display: none; }
 .row-reason { display: block; margin: .125rem 0 0; font-size: .8125rem; color: var(--muted); font-weight: 450; line-height: 1.35; }

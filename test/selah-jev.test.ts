@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
   allowedOrigin,
-  allowedOrigin,
   DAILY_CAP_USD,
   MAX_BODY_BYTES,
   MAX_HIGHLIGHTS,
@@ -159,5 +158,20 @@ describe("selah-jev Worker", () => {
     const res = await handle(post({ ...good, extra: true }), env(), upstream);
     expect(res.status).toBe(400);
     expect(called).toBe(0);
+  });
+
+  test("upstream 401 becomes ranking unavailable with CORS; key is trimmed and never echoed", async () => {
+    let auth: string | null = null;
+    const upstream = (async (_url: string | URL | Request, init?: RequestInit) => {
+      auth = new Headers(init?.headers).get("authorization");
+      return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401 });
+    }) as typeof fetch;
+    const res = await handle(post(good), env({ TYPESAFE_API_KEY: "  test-key-not-real\n" }), upstream);
+    expect(auth).toBe("Bearer test-key-not-real");
+    expect(res.status).toBe(502);
+    expect(res.headers.get("access-control-allow-origin")).toBe(origin);
+    const body = await res.json();
+    expect(body).toEqual({ error: "ranking unavailable" });
+    expect(JSON.stringify(body)).not.toContain("test-key-not-real");
   });
 });

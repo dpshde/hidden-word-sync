@@ -203,16 +203,22 @@ export async function handle(request: Request, env: Env, upstreamFetch: typeof f
   if (hits >= RATE_PER_MIN) return fail(429, "library rate limit", origin);
   await env.CAPS.put(rk, String(hits + 1), { expirationTtl: 120 });
 
-  if (!env.TYPESAFE_API_KEY) return fail(503, "jev unavailable", origin);
+  const apiKey = String(env.TYPESAFE_API_KEY ?? "").trim();
+  if (!apiKey) return fail(503, "jev unavailable", origin);
 
-  const upstream = await upstreamFetch(UPSTREAM, {
-    method: "POST",
-    headers: {
-      authorization: `Bearer ${env.TYPESAFE_API_KEY}`,
-      "content-type": "application/json",
-    },
-    body: JSON.stringify(toSystemOne(parsed.body)),
-  });
+  let upstream: Response;
+  try {
+    upstream = await upstreamFetch(UPSTREAM, {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${apiKey}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(toSystemOne(parsed.body)),
+    });
+  } catch {
+    return fail(502, "upstream error", origin);
+  }
   const text = await upstream.text();
   let data: { answers?: unknown; usage?: { input_tokens?: number; output_tokens?: number }; model?: string };
   try {
@@ -220,7 +226,12 @@ export async function handle(request: Request, env: Env, upstreamFetch: typeof f
   } catch {
     return fail(502, "bad upstream", origin);
   }
-  if (!upstream.ok) return fail(upstream.status === 429 ? 429 : 502, "upstream error", origin);
+  if (!upstream.ok) {
+    // Never forward upstream bodies (they can mention auth). Map statuses the UI already knows.
+    if (upstream.status === 429 || upstream.status === 529) return fail(429, "upstream rate limit", origin);
+    if (upstream.status === 401 || upstream.status === 403) return fail(502, "ranking unavailable", origin);
+    return fail(502, "upstream error", origin);
+  }
 
   const usd = usdFromUsage(data.usage);
   await env.CAPS.put(dayKey(), String(spent + usd), { expirationTtl: 60 * 60 * 48 });
@@ -229,5 +240,12 @@ export async function handle(request: Request, env: Env, upstreamFetch: typeof f
 }
 
 export default {
-  fetch: (request: Request, env: Env) => handle(request, env),
+  async fetch(request: Request, env: Env): Promise<Response> {
+    try {
+      return await handle(request, env);
+    } catch {
+      // Always answer with CORS so the vault never surfaces a raw "Failed to fetch" for Worker crashes.
+      return fail(500, "jev unavailable", request.headers.get("origin"));
+    }
+  },
 } satisfies ExportedHandler<Env>;

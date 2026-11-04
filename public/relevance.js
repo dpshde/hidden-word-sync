@@ -109,6 +109,23 @@ export function totalCopy(shown, librarySize) {
 
 export const EMPTY_RELEVANCE = "None of your highlights speak to this passage yet.";
 
+/** Turn network / Worker errors into a short line under the passage field (never raw "Failed to fetch"). */
+export function rankErrorMessage(err) {
+  const raw = String(err?.message ?? err ?? "");
+  if (/failed to fetch|networkerror|load failed|network request failed/i.test(raw)) {
+    return "Couldn't reach Selah Vault ranking. Check your connection and try again.";
+  }
+  if (/daily spend cap/i.test(raw)) return "Today's ranking budget is used up. Try again tomorrow.";
+  if (/library rate limit|upstream rate limit/i.test(raw)) {
+    return "Too many ranking requests. Wait a moment and try again.";
+  }
+  if (/ranking unavailable|jev unavailable|upstream error|bad upstream/i.test(raw)) {
+    return "Selah Vault couldn't rank these highlights right now. Try again in a moment.";
+  }
+  if (/verse text/i.test(raw)) return "Couldn't load the Bible text for that passage. Try again.";
+  return raw || "Couldn't rank highlights.";
+}
+
 /**
  * Session for one library: caches verdicts, talks to selah-jev, and re-judges from a changes feed.
  *
@@ -136,11 +153,17 @@ export function createRelevance({
 
   async function postBatch(highlights) {
     const body = buildRelevanceRequest({ lib, passage, highlights });
-    const res = await fetch(jevUrl, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(body),
-    });
+    let res;
+    try {
+      res = await fetch(jevUrl, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      });
+    } catch {
+      // Browsers surface DNS/CORS/offline as TypeError "Failed to fetch" — keep that wording for the UI mapper.
+      throw new Error("Failed to fetch");
+    }
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.error || `jev ${res.status}`);
