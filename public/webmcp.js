@@ -4,7 +4,8 @@
 // Feature-detected: browsers without WebMCP never see any of this. Design notes: docs/webmcp/.
 
 import { readPassage } from "./passage.js";
-import { BOOKS, compareRefs, groupRuns, labelRef, splitRef } from "./refs.js";
+import { BOOKS, compareRefs, labelRef, splitRef } from "./refs.js";
+import { groupRuns, tombstone } from "./ranges.js";
 import { topColor } from "./sync.js";
 
 export const FIND_HIGHLIGHTS = "find_highlights";
@@ -181,7 +182,7 @@ export function buildSelahVaultTools(deps) {
       if (found.error) return found.error;
       const before = found.verses.map((v) => library.find("highlight", v)).filter(Boolean);
       if (!before.length) return fail("NOTHING_HIGHLIGHTED", `Nothing in ${found.label} is highlighted.`, "Call find_highlights to see what is highlighted.");
-      await library.putMany(before.map((r) => ({ kind: "highlight", ref: r.ref, deleted: true })));
+      await library.putMany(before.map((r) => tombstone(r.ref)));
       deps.flash(`Deleted ${found.label}.`, { label: "Undo", run: () => library.putMany(before) });
       return { status: "deleted", reference: found.label, verses: before.length };
     },

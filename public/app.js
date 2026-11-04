@@ -2,7 +2,8 @@ import {
   COLORS, Library, KeyError, newKey, formatKey, parseKey, now, palette, topColor, parseJsonl, fromBibleRs, saveSlot, openSlot,
   serverTransport, folderTransport,
 } from "./sync.js";
-import { labelRef, compareRefs, highlightRecord, editRun } from "./refs.js";
+import { labelRef, compareRefs } from "./refs.js";
+import { editRun, highlightRecord, tombstone } from "./ranges.js";
 import { readPassage } from "./passage.js";
 import { MODES, groupList, startsOpen } from "./groups.js";
 import { definePassageInput, defineScripturePassage } from "./vendor/scripture-inline.js";
@@ -256,7 +257,7 @@ async function highlight(verses, color) {
   const t = now();
   const before = verses.map((v) => library.find("highlight", v));
   await library.putMany(verses.map((v, i) => highlightRecord(before[i], v, color, t)));
-  return () => library.putMany(verses.map((v, i) => before[i] ?? { kind: "highlight", ref: v, deleted: true }));
+  return () => library.putMany(verses.map((v, i) => before[i] ?? tombstone(v)));
 }
 
 // The reference field is scripture-inline's <si-passage-input>: book, chapter and verse suggestions
@@ -489,7 +490,7 @@ function row({ ref: runRef, records }) {
     label: labelRef(runRef),
     idleHTML: ICONS.trash,
     onConfirm: async () => {
-      await library.putMany(records.map((r) => ({ kind: "highlight", ref: r.ref, deleted: true })));
+      await library.putMany(records.map((r) => tombstone(r.ref)));
       flash(`Deleted ${labelRef(runRef)}.`, { label: "Undo", run: () => library.putMany(records), ms: 5000 });
     },
   });
