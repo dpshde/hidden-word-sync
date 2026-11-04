@@ -8,7 +8,7 @@ Accepted.
 
 ## Context
 
-Hidden Word stores references, not Bible text, and opens passages in route.bible. Reading a highlight without leaving the list needs text from somewhere. [scripture-inline](https://github.com/cameronapak/scripture-inline) (Cameron Pak, MIT), already vendored for the add field, has `<si-passage>`, which shows a passage from the YouVersion Platform with its required attribution. It needs a YouVersion public app key. The key is public by design, but the repository is public too, and it shouldn't carry it.
+Selah Vault stores references, not Bible text, and opens passages in route.bible. Reading a highlight without leaving the list needs text from somewhere. [scripture-inline](https://github.com/cameronapak/scripture-inline) (Cameron Pak, MIT), already vendored for the add field, has `<si-passage>`, which shows a passage from the YouVersion Platform with its required attribution. It needs a YouVersion public app key. The key is public by design, but the repository is public too, and it shouldn't carry it.
 
 ## Decision
 

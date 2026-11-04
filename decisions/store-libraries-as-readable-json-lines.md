@@ -8,7 +8,7 @@ Accepted
 
 ## Context
 
-The format has to be portable to any language and readable without special software. A person should be able to open their library in a text editor, grep it, or keep it in git, without installing Hidden Word or any third-party app. Apps also need to round-trip data they don't understand, so one app's extensions survive another app's edits.
+The format has to be portable to any language and readable without special software. A person should be able to open their library in a text editor, grep it, or keep it in git, without installing Selah Vault or any third-party app. Apps also need to round-trip data they don't understand, so one app's extensions survive another app's edits.
 
 ## Decision
 

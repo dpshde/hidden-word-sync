@@ -8,7 +8,7 @@ Accepted
 
 ## Context
 
-Hidden Word exists so that Bible highlights follow a person between apps and devices. The person who started it does not want any app, including their own, to depend on a server they run. If the server goes down, is erased, or disappears, no client may lose data or stop working. People also read offline (on planes, in church, with no signal) and expect what they mark there to stay marked.
+Selah Vault exists so that Bible highlights follow a person between apps and devices. The person who started it does not want any app, including their own, to depend on a server they run. If the server goes down, is erased, or disappears, no client may lose data or stop working. People also read offline (on planes, in church, with no signal) and expect what they mark there to stay marked.
 
 Most sync products treat the server as the source of truth and the device as a cache. That makes the server's failures the user's failures.
 

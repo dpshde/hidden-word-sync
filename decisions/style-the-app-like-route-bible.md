@@ -8,7 +8,7 @@ Accepted.
 
 ## Context
 
-Hidden Word and route.bible are both selah.tools apps, and route.bible links into Hidden Word. They looked unrelated: Hidden Word used the system font, rounded corners and a neutral palette.
+Selah Vault and route.bible are both selah.tools apps, and route.bible links into Selah Vault. They looked unrelated: Selah Vault used the system font, rounded corners and a neutral palette.
 
 ## Decision
 

@@ -8,7 +8,7 @@ Accepted.
 
 ## Context
 
-Other apps can only build on Hidden Word if the format, the derivations and the server routes stop moving. Version 0.2 made no promise, and there was no way to check an implementation beyond `test/vectors.json`.
+Other apps can only build on Selah Vault if the format, the derivations and the server routes stop moving. Version 0.2 made no promise, and there was no way to check an implementation beyond `test/vectors.json`.
 
 ## Decision
 

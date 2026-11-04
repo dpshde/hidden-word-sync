@@ -8,7 +8,7 @@ Accepted
 
 ## Context
 
-Most Bible apps can open a URL but will never implement Hidden Word. A plain link lets any app, bookmarklet, shortcut or share sheet send a verse with no integration work. The save must feel instant, and must not need the network.
+Most Bible apps can open a URL but will never implement Selah Vault. A plain link lets any app, bookmarklet, shortcut or share sheet send a verse with no integration work. The save must feel instant, and must not need the network.
 
 ## Decision
 

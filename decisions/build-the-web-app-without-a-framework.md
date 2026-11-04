@@ -8,7 +8,7 @@ Accepted
 
 ## Context
 
-The web app is a reference and a convenience, not the product: the format is. It should be hyper-minimal, load instantly, and stay readable for anyone implementing Hidden Word elsewhere. Frameworks like Next.js add a build step, a runtime, and code that obscures the protocol.
+The web app is a reference and a convenience, not the product: the format is. It should be hyper-minimal, load instantly, and stay readable for anyone implementing Selah Vault elsewhere. Frameworks like Next.js add a build step, a runtime, and code that obscures the protocol.
 
 ## Decision
 

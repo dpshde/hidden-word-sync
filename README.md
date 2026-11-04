@@ -1,6 +1,6 @@
 # Selah Vault
 
-Formerly Hidden Word. The product is Selah Vault (Vault for short); the repo, the Worker (`hidden-word`) and the protocol's identifiers (`hidden-word/v1/…`, the `"hidden-word"` file header, `X-Hidden-Word-Key`) keep the old name so existing devices and apps keep working. See [the decision](decisions/rename-product-to-selah-vault.md).
+Formerly Hidden Word. The product is Selah Vault (Vault for short); the Worker (`hidden-word`) and the protocol's identifiers (`hidden-word/v1/…`, the `"hidden-word"` file header, `X-Hidden-Word-Key`) keep the old name so existing devices and apps keep working. The repo moved from `dpshde/hidden-word-sync` to `dpshde/selah-vault`; GitHub redirects the old URL. See [the decision](decisions/rename-product-to-selah-vault.md).
 
 Bible highlights that follow you between apps and devices. Your library lives on each device first, and reaches the others through a shared folder of plain files, a server that can't read it, both, or neither.
 

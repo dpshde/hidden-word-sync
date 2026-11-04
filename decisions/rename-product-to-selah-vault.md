@@ -22,9 +22,8 @@ The app has lived at vault.selah.tools since the domain move, beside route.bible
   - the `hidden-word:*` localStorage keys
   - the IndexedDB database and the folder picker's id (`hidden-word`)
   - the Worker (`hidden-word`), its D1 database and its old workers.dev address
-  - the repo `dpshde/hidden-word-sync`
   - the WebAuthn `rp.id`, which stays the hostname
-- Older decision records keep the name they were written with. They're history.
+- The repo moved to `dpshde/selah-vault` after this was written (GitHub redirects `dpshde/hidden-word-sync`), and the older decision records now say Selah Vault too, so one name reads through the history. This record keeps the old name where it explains the change.
 
 ## Consequences
 
