@@ -641,11 +641,13 @@ function passageFor(runRef) {
     el.id = `text-${runRef.replace(/\W/g, "-")}`;
     el.setAttribute("yvp-bible-version-id", "3034"); // Berean Standard Bible
     el.setAttribute("passage-id", runRef);
-    el.setAttribute("reference", "none");
+    // "citation" puts "<reference> <version>" after the text; style.css shows only the version (BSB).
+    el.setAttribute("reference", "citation");
     el.setAttribute("theme", themeNow());
     el.setAttribute("headings", "hide");
     // Through this site's edge-cached pass-through (src/yv.ts) rather than straight to YouVersion.
     if (location.protocol === "https:") el.setAttribute("yvp-api-host", `${location.host}/yv`);
+    styleScripture(el);
     verseText.passages.set(runRef, el);
   }
   return el;
@@ -677,9 +679,35 @@ function prefetchText(runRef) {
   holder.append(passageFor(runRef));
 }
 
-/** Puts the run's passage under its row. */
+/**
+ * The passage's inside (verse numbers, words of Jesus, measure) lives in <si-passage>'s shadow root,
+ * which outside CSS can't reach; one shared sheet is adopted there. Colors come from custom
+ * properties set on .verse-text in style.css, so both themes follow the app.
+ */
+let scriptureSheet;
+function styleScripture(el) {
+  const root = el.shadowRoot;
+  if (!root || !("adoptedStyleSheets" in root)) return;
+  if (!scriptureSheet) {
+    scriptureSheet = new CSSStyleSheet();
+    scriptureSheet.replaceSync(SCRIPTURE_CSS);
+  }
+  if (!root.adoptedStyleSheets.includes(scriptureSheet)) root.adoptedStyleSheets = [...root.adoptedStyleSheets, scriptureSheet];
+}
+const SCRIPTURE_CSS = `
+[part="text"] { max-width: var(--vault-measure, 36rem); }
+[part="text"] p { margin-block: 0 .55em; }
+[part="text"] :is(p, .p) { text-indent: 0 !important; }
+.yv-vlbl, .va { color: var(--vault-verse, currentColor) !important; font-size: .62em !important; font-weight: 600; letter-spacing: .02em;
+  vertical-align: .55em; line-height: 0; margin-inline: .2em .25em; font-style: normal; }
+.wj { color: var(--vault-wj, inherit) !important; }
+`;
+
+/** Puts the run's passage under its row, with a rule in the row's color. */
 function showText(li, runRef) {
   const el = passageFor(runRef);
+  const dot = li.querySelector(".dot");
+  if (dot) el.style.setProperty("--row-color", getComputedStyle(dot).backgroundColor);
   li.querySelector(".row-link")?.setAttribute("aria-controls", el.id);
   li.append(el);
 }
