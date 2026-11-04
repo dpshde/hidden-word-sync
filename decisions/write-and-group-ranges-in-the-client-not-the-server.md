@@ -29,3 +29,7 @@ The `/v1` routes are unchanged. No migration.
 - Clients that import `ranges.js` (or `sync.js`) get ranges without merge code of their own; others follow SPEC 1.2 and the vectors.
 - Grant scopes need nothing new: a range write is a POST (`highlights:write`), a grouped read is a GET (`read`) plus local grouping.
 - A range over 100 verses (all of Psalm 119) is two writes, so it isn't atomic as a whole.
+
+## Update 2026-11-04: a changes feed for grant clients
+
+Grants are the way apps work with a vault. `public/grant-client.js` gives them `changes(since)`: upserts and deletions since an opaque cursor (the server's `epoch` and `seq`), plus the next cursor, with the merge rule and tombstones handled in the client. For the same reason as above, it isn't a server route: the server can't tell an upsert from a deletion. It reads with `GET ?after=` (scope `read`) and writes one POST per range (`highlights:write`). Documented in [docs/connect.md](../docs/connect.md).
