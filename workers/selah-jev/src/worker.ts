@@ -10,6 +10,8 @@ export interface Env {
 
 const UPSTREAM = "https://api.typesafe.ai/v1/systemone";
 const MODEL = "jev-latest";
+/** Explicit UA so Cloudflare in front of api.typesafe.ai does not bot-block empty Worker fetches. */
+export const UPSTREAM_UA = "selah-jev/1.0";
 /** TypeSafe list price: $0.042 per million input tokens; output is free. */
 export const USD_PER_MTOK = 0.042;
 export const DAILY_CAP_USD = 0.25;
@@ -76,6 +78,31 @@ function json(body: unknown, status: number, origin: string | null): Response {
 }
 
 const fail = (status: number, error: string, origin: string | null) => json({ error }, status, origin);
+
+/**
+ * Scrub anything that looks like a key / Authorization value from an upstream body, then keep the
+ * first 300 chars for a non-secret diagnostic. Never put the Worker secret in the response or logs.
+ */
+export function scrubUpstreamBody(text: string, max = 300): string {
+  let s = String(text ?? "");
+  s = s.replace(/Bearer\s+[A-Za-z0-9._\-+=\/]+/gi, "Bearer [redacted]");
+  s = s.replace(/("?(?:authorization|api[_-]?key|access[_-]?token|secret)"?\s*[:=]\s*")([^"]*)(")/gi, "$1[redacted]$3");
+  s = s.replace(/\bsk-[A-Za-z0-9_\-]{8,}\b/g, "[redacted]");
+  s = s.replace(/\b(api[_-]?key|token|secret)\s*[:=]\s*[^\s"',}]+/gi, "$1:[redacted]");
+  return s.slice(0, max);
+}
+
+/** 502 for a non-ok TypeSafe response, with a scrubbed upstream snippet for diagnosis. */
+function upstreamFail(
+  error: string,
+  upstreamStatus: number,
+  upstreamText: string,
+  origin: string | null,
+): Response {
+  const upstream_body = scrubUpstreamBody(upstreamText);
+  console.log("selah-jev upstream non-ok", { upstream_status: upstreamStatus, upstream_body });
+  return json({ error, upstream_status: upstreamStatus, upstream_body }, 502, origin);
+}
 
 /** Reject anything that isn't the relevance shape the client sends. */
 export function parseRelevanceBody(raw: unknown): { ok: true; body: RelevanceBody } | { ok: false; error: string } {
@@ -211,8 +238,10 @@ export async function handle(request: Request, env: Env, upstreamFetch: typeof f
     upstream = await upstreamFetch(UPSTREAM, {
       method: "POST",
       headers: {
-        authorization: `Bearer ${apiKey}`,
-        "content-type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        "User-Agent": UPSTREAM_UA,
       },
       body: JSON.stringify(toSystemOne(parsed.body)),
     });
@@ -220,17 +249,19 @@ export async function handle(request: Request, env: Env, upstreamFetch: typeof f
     return fail(502, "upstream error", origin);
   }
   const text = await upstream.text();
+  if (!upstream.ok) {
+    // Rate limits stay 429 for the UI; everything else is a 502 with a scrubbed diagnostic.
+    if (upstream.status === 429 || upstream.status === 529) return fail(429, "upstream rate limit", origin);
+    if (upstream.status === 401 || upstream.status === 403) {
+      return upstreamFail("ranking unavailable", upstream.status, text, origin);
+    }
+    return upstreamFail("upstream error", upstream.status, text, origin);
+  }
   let data: { answers?: unknown; usage?: { input_tokens?: number; output_tokens?: number }; model?: string };
   try {
     data = JSON.parse(text);
   } catch {
     return fail(502, "bad upstream", origin);
-  }
-  if (!upstream.ok) {
-    // Never forward upstream bodies (they can mention auth). Map statuses the UI already knows.
-    if (upstream.status === 429 || upstream.status === 529) return fail(429, "upstream rate limit", origin);
-    if (upstream.status === 401 || upstream.status === 403) return fail(502, "ranking unavailable", origin);
-    return fail(502, "upstream error", origin);
   }
 
   const usd = usdFromUsage(data.usage);

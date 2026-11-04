@@ -4,12 +4,13 @@ main = "src/worker.ts"
 compatibility_date = "2026-11-04"
 workers_dev = true
 
+# Workers Observability: console.log (upstream diagnostics) and request logs.
 [observability]
 enabled = true
 
 [observability.logs]
 enabled = true
-invocation_logs = false
+invocation_logs = true
 
 [observability.traces]
 enabled = true
