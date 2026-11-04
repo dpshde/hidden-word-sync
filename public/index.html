@@ -130,14 +130,14 @@
       <button type="button" class="quiet" id="export">Export</button>
       <button type="button" class="quiet" id="import">Import</button>
     </div>
-    <input id="import-file" type="file" accept=".jsonl,.json,application/json,application/x-ndjson" hidden>
+    <input id="import-file" type="file" accept=".jsonl,application/x-ndjson" hidden>
     <p class="status-line" id="backup-note" role="status"></p>
     <button type="button" class="back">Done</button>
   </section>
 
   <section id="sync" hidden>
     <h1>Sync</h1>
-    <p class="lede">Your library is always on this device first. Choose how it reaches your others. Any mix works, and so does none.</p>
+    <p class="lede">Your library is always on this device first. It reaches your other devices through this site, or stays on this one.</p>
     <div class="check access">
       <span>Your key<small>The sync key opens this library on any device. A passkey opens it without typing the key, on this site.</small></span>
       <div class="row">
@@ -148,14 +148,6 @@
     <div class="key-box" id="key-reveal" hidden><code id="key-text" data-1p-ignore></code></div>
     <p class="status-line" id="access-note" role="status"></p>
     <label class="check"><input type="checkbox" id="use-server"> <span>Through this site<small>Encrypted on this device. The server can't read it.</small></span></label>
-    <div class="check folder">
-      <span>Through a folder<small id="folder-text"></small></span>
-      <div class="row">
-        <button type="button" class="quiet" id="choose-folder">Choose folder</button>
-        <button type="button" class="quiet" id="stop-folder" hidden>Stop</button>
-      </div>
-    </div>
-    <p class="quiet-text" id="no-folders" hidden>This browser can't sync a folder. Use Export and Import in Backup to move a file by hand.</p>
     <button type="button" class="back">Done</button>
     <div id="dev-links">
       <p class="dev-title">For developers</p>
@@ -163,7 +155,7 @@
     </div>
     <details id="danger">
       <summary>Danger zone</summary>
-      <p class="quiet-text">Erasing removes this library from the server, the sync folder and this device.</p>
+      <p class="quiet-text">Erasing removes this library from the server and this device.</p>
       <button type="button" id="erase" class="quiet danger">Erase library</button>
     </details>
   </section>

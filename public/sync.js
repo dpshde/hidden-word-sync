@@ -1,4 +1,4 @@
-// Selah Vault reference client (spec v1.1). Needs only WebCrypto and fetch, so it runs in browsers,
+// Selah Vault reference client (spec v1.2). Needs only WebCrypto and fetch, so it runs in browsers,
 // Bun, Node 20+, Deno and Workers.
 import { compareRefs, splitRef } from "./refs.js";
 
@@ -259,34 +259,6 @@ export function parseJsonl(text) {
   return [...out.values()];
 }
 
-const seconds = (s) => (s ? Math.floor(Date.parse(s) / 1000) || undefined : undefined);
-
-/** A bible-rs JSON export (format 1) → records. Its bookmarks have no Selah Vault kind and are left out. */
-export function fromBibleRs(doc) {
-  if (doc?.app !== "bible-rs") throw new Error("not a bible-rs export");
-  const ref = (e) => `${e.book}.${e.chapter}.${e.verse}`;
-  const verses = new Map();
-  for (const h of doc.highlights ?? []) {
-    const part = { color: h.color, created: seconds(h.created) };
-    if (h.start) part.start = h.start;
-    if (h.end !== undefined && h.end !== null) part.end = h.end;
-    if (h.quote) part.quote = h.quote;
-    if (h.edited) part.edited = seconds(h.edited);
-    const parts = verses.get(ref(h)) ?? [];
-    parts.push(part);
-    verses.set(ref(h), parts);
-  }
-  const out = [];
-  for (const [r, highlights] of verses) {
-    const updated = Math.max(...highlights.map((h) => h.edited ?? h.created ?? 0));
-    out.push({ kind: "highlight", ref: r, updated, highlights });
-  }
-  for (const n of doc.notes ?? []) {
-    out.push({ kind: "note", ref: ref(n), updated: seconds(n.updated), created: seconds(n.created), body: n.note });
-  }
-  return out;
-}
-
 // ---- a library on this device
 
 export function memoryStore() {
@@ -365,7 +337,7 @@ export class Library {
     for (const fn of this.listeners) fn(this);
   }
 
-  /** Sets how this library syncs: any mix of servers and folders, or none. */
+  /** Sets how this library syncs: through its server (`serverTransport`), or not at all (`[]`). */
   use(transports) {
     this.transports = transports;
     this.status = { state: transports.length ? "idle" : "local", remotes: {} };
@@ -493,7 +465,7 @@ export class Library {
   }
 
   remote(name) {
-    return (this.state.remotes[name] ??= { cursor: 0, seq: 0, epoch: null, sent: 0, all: false, redo: [], files: {} });
+    return (this.state.remotes[name] ??= { cursor: 0, seq: 0, epoch: null, sent: 0, all: false, redo: [] });
   }
 
   /** Ids a transport hasn't got yet, oldest change first. */
@@ -522,10 +494,8 @@ export class Library {
       // Without this, a run with nothing to await would finish before `running` is even set.
       await null;
       try {
-        let passes = 0;
         do {
           this.again = false;
-          const before = this.state.n;
           for (const t of this.transports) {
             try {
               await t.sync(this);
@@ -534,8 +504,6 @@ export class Library {
               this.status.remotes[t.name] = { state: error instanceof SyncError ? "error" : "offline", error };
             }
           }
-          // What one transport brought in goes out through the others on the next pass.
-          if (this.state.n !== before && this.transports.length > 1 && ++passes < 3) this.again = true;
         } while (this.again);
       } finally {
         this.running = null;
@@ -699,73 +667,6 @@ export function serverTransport({ url = "", fetch: f } = {}) {
     async erase(lib) {
       await call(lib, "DELETE");
     },
-  };
-}
-
-// ---- syncing through a shared folder (spec section 4)
-
-/**
- * A folder every device can reach (iCloud Drive, Dropbox, Syncthing, a USB stick). Each device
- * keeps one readable file there, `<device>.jsonl`, and reads everyone else's.
- * `dir` is { list() → [{name, stamp}], read(name) → text, write(name, text), remove(name) }.
- */
-export function folderTransport(dir, name = "folder") {
-  return {
-    name,
-    dir,
-    async sync(lib) {
-      const r = lib.remote(name);
-      const mine = `${lib.state.device}.jsonl`;
-      const files = await dir.list();
-      let changed = false;
-      for (const file of files) {
-        if (file.name === mine || !file.name.endsWith(".jsonl") || r.files[file.name] === file.stamp) continue;
-        const lines = (await dir.read(file.name)).split(/\r?\n/).filter((l) => l.trim());
-        const header = safeJson(lines[0]);
-        // Only files written for this library: a folder may hold other libraries' files too.
-        if (header?.["hidden-word"] && header.library === lib.lib) {
-          for (const line of lines.slice(1)) {
-            const record = safeJson(line);
-            if (typeof record?.kind !== "string" || typeof record.ref !== "string") continue;
-            if ((await lib.offer(record, line, name)) === "newer") changed = true;
-          }
-        }
-        r.files[file.name] = file.stamp;
-      }
-      if (changed) lib.emit();
-      if (lib.state.n > r.sent || !files.some((f) => f.name === mine)) {
-        const upTo = lib.state.n;
-        await dir.write(mine, lib.toFile({ deleted: true }));
-        r.sent = upTo;
-        lib.emit();
-      }
-    },
-    async erase(lib) {
-      for (const file of await dir.list()) {
-        const header = safeJson((await dir.read(file.name)).split("\n", 1)[0]);
-        if (header?.library === lib.lib) await dir.remove(file.name);
-      }
-    },
-  };
-}
-
-function safeJson(text) {
-  try {
-    return JSON.parse(text);
-  } catch {
-    return null;
-  }
-}
-
-/** A folder in memory, for tests and demos. Pass the same Map to share it between devices. */
-export function memoryDir(files = new Map()) {
-  let clock = 0;
-  return {
-    files,
-    list: async () => [...files].map(([name, f]) => ({ name, stamp: f.stamp })),
-    read: async (name) => files.get(name)?.text ?? "",
-    write: async (name, text) => void files.set(name, { text, stamp: `${Date.now()}-${++clock}-${Math.random()}` }),
-    remove: async (name) => void files.delete(name),
   };
 }
 

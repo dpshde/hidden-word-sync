@@ -1,6 +1,6 @@
 import {
-  COLORS, Library, KeyError, newKey, formatKey, parseKey, now, palette, topColor, parseJsonl, fromBibleRs, saveSlot, openSlot,
-  serverTransport, folderTransport,
+  COLORS, Library, KeyError, newKey, formatKey, parseKey, now, palette, topColor, parseJsonl, saveSlot, openSlot,
+  serverTransport,
 } from "./sync.js";
 import { labelRef, compareRefs } from "./refs.js";
 import { editRun, highlightRecord, tombstone } from "./ranges.js";
@@ -9,7 +9,6 @@ import { MODES, groupList, startsOpen } from "./groups.js";
 import { definePassageInput, defineScripturePassage } from "./vendor/scripture-inline.js";
 import { createPasskeyPrf, getPasskeyPrf, passkeysAvailable, cancelled } from "./passkey.js";
 import { setupThemeToggle } from "./theme-toggle.js";
-import { foldersAvailable, pickFolder, saveFolder, loadFolder, forgetFolder, mayUse, folderDir } from "./folder.js";
 import { registerSelahVaultTools } from "./webmcp.js";
 import { armDelete } from "./confirm.js";
 import { defineKeepingLoaded, createWarmer } from "./passage-warm.js";
@@ -35,7 +34,6 @@ const saveSettings = (lib, s) => localStorage.setItem(settingsKey(lib), JSON.str
 
 let library = null;
 let colors = palette([]);
-let folder = { handle: null, state: "off" };
 let filter = null;
 let flashTimer = 0;
 
@@ -94,18 +92,23 @@ async function enter(keyText, given) {
   showName();
 }
 
-/** Sets up this browser's chosen transports for the open library and syncs. */
+/** Syncs the open library through this site's server, unless this browser turned that off. */
 async function connect() {
-  const transports = [];
-  if (settings(library.lib).server) transports.push(serverTransport());
-  folder = { handle: (await loadFolder(library.lib)) ?? null, state: "off" };
-  if (folder.handle) {
-    folder.state = (await mayUse(folder.handle)) ? "on" : "paused";
-    if (folder.state === "on") transports.push(folderTransport(folderDir(folder.handle)));
-    // Paused until allowed again; the Sync screen says so. The main view never talks about sync.
-  }
   renderSync();
-  await library.use(transports);
+  await library.use(settings(library.lib).server ? [serverTransport()] : []);
+}
+
+/**
+ * Folder sync is gone (decisions/one-way-to-interoperate.md). Browsers that used it kept only the
+ * chosen folders' handles, in an IndexedDB database of their own ("hidden-word"); libraries live
+ * in localStorage and on the server. Drop that database once, quietly: nothing in it is a record.
+ */
+function forgetFolderHandles() {
+  try {
+    globalThis.indexedDB?.deleteDatabase("hidden-word");
+  } catch {
+    // Private modes may refuse IndexedDB; there's nothing to clean up there.
+  }
 }
 
 /**
@@ -835,35 +838,10 @@ $("#add-color").addEventListener("submit", async (e) => {
 function renderSync() {
   if (!library) return;
   $("#use-server").checked = settings(library.lib).server;
-  const can = foldersAvailable();
-  $("#no-folders").hidden = can;
-  $("#choose-folder").disabled = !can;
-  $("#folder-text").textContent =
-    folder.state === "on" ? `Syncing with “${folder.handle.name}”. Each device keeps a plain file there you can read.` :
-    folder.state === "paused" ? `“${folder.handle.name}” needs your permission again.` :
-    "A folder in iCloud Drive, Dropbox or Syncthing. Each device keeps a plain file there you can read.";
-  $("#choose-folder").textContent = folder.state === "paused" ? "Allow" : folder.state === "on" ? "Change" : "Choose folder";
-  $("#stop-folder").hidden = folder.state === "off";
 }
 
 $("#use-server").addEventListener("change", async (e) => {
   saveSettings(library.lib, { ...settings(library.lib), server: e.target.checked });
-  await connect();
-});
-
-$("#choose-folder").addEventListener("click", async () => {
-  try {
-    if (folder.state === "paused" && (await mayUse(folder.handle, true))) return connect();
-    const handle = await pickFolder();
-    await saveFolder(library.lib, handle);
-    await connect();
-  } catch (error) {
-    if (!cancelled(error)) flash(error.message);
-  }
-});
-
-$("#stop-folder").addEventListener("click", async () => {
-  await forgetFolder(library.lib);
   await connect();
 });
 
@@ -983,13 +961,7 @@ $("#import-file").addEventListener("change", async (e) => {
   if (!file) return;
   try {
     const text = await file.text();
-    let doc = null;
-    try {
-      doc = JSON.parse(text);
-    } catch {
-      // Not one JSON document: JSON Lines.
-    }
-    const records = doc?.app === "bible-rs" ? fromBibleRs(doc) : parseJsonl(text);
+    const records = parseJsonl(text);
     const changed = await library.merge(records);
     const older = records.length - changed;
     $("#backup-note").textContent = `Imported ${changed} ${changed === 1 ? "record" : "records"}${older ? ` (${older} unchanged: you had them, or newer)` : ""}.`;
@@ -1001,10 +973,9 @@ $("#import-file").addEventListener("change", async (e) => {
 menuAction("#lock", lock);
 
 $("#erase").addEventListener("click", async () => {
-  const ok = confirm("Erase this library from the server, the sync folder and this device? A device that still has it will put it back when it syncs.");
+  const ok = confirm("Erase this library from the server and this device? A device that still has it will put it back when it syncs.");
   if (!ok) return;
   await library.erase();
-  await forgetFolder(library.lib);
   localStorage.removeItem(settingsKey(library.lib));
   localStorage.removeItem(nameKey(library.lib));
   $("#danger").open = false;
@@ -1019,6 +990,7 @@ setInterval(() => document.visibilityState === "visible" && library?.sync(), 30_
 
 async function boot() {
   loadConfig();
+  forgetFolderHandles();
   // With passkeys, unlocking with one is the main way in and the key form is the fallback.
   if (passkeysAvailable()) {
     $("#passkey-unlock").hidden = false;

@@ -4,7 +4,7 @@ Date: 2026-11-02
 
 ## Status
 
-Accepted
+Superseded by [One way to interoperate](one-way-to-interoperate.md)
 
 ## Context
 

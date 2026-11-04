@@ -1,19 +1,19 @@
-# Selah Vault, version 1.1
+# Selah Vault, version 1.2
 
 > Thy word have I hid in mine heart, that I might not sin against thee. (Psalm 119:11)
 
-Selah Vault (formerly Hidden Word) is a small format for Bible highlights and notes, and two ways to keep them in step across devices and apps: a shared folder, or a server that can't read them. Any app that implements it shows your highlights, and you can switch apps, servers, or stop syncing at all without losing anything.
+Selah Vault (formerly Hidden Word) is a small format for Bible highlights and notes, kept in step across a person's devices by a server that can't read them.
 
-The spec has layers. Each one works without the ones after it.
+There is one way for another app to work with a library: **connect** (section 4). The person approves a grant on `/connect`, and the app reads and writes highlights with it over HTTPS. Nothing else (files, folders, the sync key) is an interop path.
 
 1. **Records**: what a highlight, note, color or the library's name looks like as JSON.
-2. **Files**: a library as one readable JSON Lines file.
+2. **Backup files**: a library as one readable JSON Lines file, to save and restore.
 3. **Merging**: one rule that decides which version of a record wins, everywhere.
-4. **Folder sync**: devices share a folder of plain files. No server.
-5. **Server sync**: a sync key, end-to-end encryption, and three HTTPS routes.
-6. **Unlocking**: password managers, passkeys, and handing a library to another app.
+4. **Connecting an app**: a grant, its scopes, and the highlights API.
+5. **Server sync**: how the vault's own devices sync: a sync key, end-to-end encryption, three HTTPS routes.
+6. **Unlocking**: password managers and passkeys.
 
-An app can stop at layer 3 and interoperate through files. Layer 4 needs only file access. Layer 5 needs only HTTPS, JSON, SHA-256, HMAC-SHA256, HKDF-SHA256 and AES-256-GCM.
+A connected app needs HTTPS, JSON, HMAC-SHA256 and AES-256-GCM, or just the reference grant client.
 
 The key words MUST, SHOULD and MAY are used as in RFC 2119. Section 11 says what stays stable.
 
@@ -123,10 +123,10 @@ A library's name for people ("Personal", "Family devotions") is a record too, so
 
 - Show this name when the library has it. Renaming the library writes this record (section 3, Writing).
 - Until it arrives, an app may show a name of its own, such as the one typed to unlock (7.1) or kept in a passkey's slot (7.2). That name is only a label: it MUST NOT be written as a newer `library` record, or unlocking on a new device would rename the library.
-- An app that has a name for a library with no `library name` record MAY write one with `updated` 0, after it has synced with every transport it uses, so the record from any other device has had the chance to arrive. Any rename beats it, and two such records settle by the tie rule.
+- An app that has a name for a library with no `library name` record MAY write one with `updated` 0, after it has synced with its server, so the record from any other device has had the chance to arrive. Any rename beats it, and two such records settle by the tie rule.
 - Apps that don't show names keep the record like any other (section 1), and never show it as a highlight or note.
 
-## 2. Files
+## 2. Backup files
 
 A library file is UTF-8 JSON Lines (`.jsonl`, media type `application/x-ndjson`), one JSON object per line, readable by people and by any JSON parser. Blank lines are ignored.
 
@@ -138,19 +138,11 @@ The first line MAY be a header, which has no `kind`:
 
 `library` is the library id (5.2), `device` names the device that wrote the file, and `name` is the library's name for people: its `library name` record (1.5) when it has one. Every other line is a record, the `library name` record included, so an import brings the name with it. Readers skip lines that aren't records.
 
-When importing a file, each record is merged into the library by the rule in section 3, as if it had arrived from another device. Within one file, a later line with the same identity replaces an earlier one. A record without `updated` is treated as written at the moment of import.
-
-### 2.1 bible-rs exports
-
-Apps MAY import a bible-rs export (JSON with `"app": "bible-rs"` and `"format": 1`):
-
-- Each entry of `highlights` (`book`, `chapter`, `verse`, `color`, `start`, `end`, `quote`, `created`, `edited`) becomes a part of the highlight record for `BOOK.chapter.verse`, with RFC 3339 times converted to Unix seconds. `updated` is the latest `edited` or `created` among its parts.
-- Each entry of `notes` becomes a `note` record with `body` set to its `note`.
-- `bookmarks` have no equivalent and are left out.
+Files are a person's own backup: export to save a copy, import to restore it. They aren't a way for apps to exchange highlights; apps connect (section 4). When importing a file, each record is merged into the library by the rule in section 3, as if it had arrived from another device. Within one file, a later line with the same identity replaces an earlier one. A record without `updated` is treated as written at the moment of import.
 
 ## 3. Merging
 
-Every device, server and file follows one rule, so a library ends up the same everywhere whatever order changes arrive in, however long a device was offline, and however it syncs.
+Every device, connected app, server and file follows one rule, so a library ends up the same everywhere whatever order changes arrive in, and however long a device was offline.
 
 **Which version wins.** Of two versions of a record, the one with the larger `updated` wins. If `updated` is equal, the one whose JSON text is larger as a sequence of UTF-8 bytes wins (compare bytes, not UTF-16 code units). A missing `updated`, or one that isn't an integer from −(2^53−1) to 2^53−1, counts as 0. The JSON text is the record exactly as its writer serialized it: the line in a file, or the plaintext of an encrypted item without its padding.
 
@@ -160,23 +152,47 @@ Every device, server and file follows one rule, so a library ends up the same ev
 
 Two devices that change the same record while apart keep the later change. Changes to different records never conflict. An app that wants to keep both versions' highlight parts MAY combine them into a new version, which then wins like any edit.
 
-## 4. Folder sync
+## 4. Connecting an app
 
-Devices that can reach the same folder (iCloud Drive, Dropbox, Google Drive, Syncthing, a network share, a USB stick) sync through it with no server and no encryption of their own: the files are as readable as an export.
+An app reads and saves a person's highlights with a **grant**: a limited, expiring token the person approves. The app never holds the sync key. [docs/connect.md](docs/connect.md) walks through it with the reference grant client, `public/grant-client.js`.
 
-- Each device keeps exactly one file in the folder, named for its device id: `<device>.jsonl`. It is a library file (section 2) with a header, and it holds every record the device has, including deleted ones.
-- A device writes only its own file, replacing it whole (write a temporary file, then rename). File sync tools never see two devices editing one file, so they never make conflicted copies of it.
-- A device reads every other `.jsonl` file in the folder whose header names the same library, and merges its records (section 3). Files for other libraries, files without a header, and everything else are left alone, so one folder can hold several libraries.
-- A device SHOULD remember each file's modification time and size, and skip files that haven't changed.
-- A device rewrites its own file whenever its library changed since it last wrote it, including by records it just merged from others.
+### 4.1 The grant
 
-Files left by old devices are harmless: anything newer elsewhere wins over them. Any one device's file is a complete backup.
+The app sends the person to `https://<site>/connect?return=<url>&state=<random>&scope=<scopes>`. `return` MUST be an origin the site allows (the reference site's list is `CLIENTS` in `public/grants.js`) or `http://localhost:<port>`. The site has the person unlock a library and approve, then sends the browser to `return` with a fragment, which never reaches a server:
 
-People who want the files encrypted at rest should choose a folder service that encrypts (for example iCloud Drive with Advanced Data Protection), or use server sync.
+```
+#vault=<site>&lib=<library id>&rt=g1.<token>&ek=<64 hex>&exp=<unix seconds>&name=<library name>&scope=<scopes>&state=<state>[&mk=<64 hex>]
+```
+
+`rt` is the bearer token for `/v1/lib/{lib}` (5.4). `ek` is the library's `enc` key and `mk` its `mac` key (5.2), so the app decrypts items and makes item ids (5.3) itself. Cancel sends `#error=access_denied&state=…`. Apps check `state`, and keep the fields like a password. A grant lasts 90 days. The app revokes its own with `DELETE /v1/grant/{lib}` and its token; the library's own token lists grants with `GET` there and revokes one with `DELETE ?id=`.
+
+### 4.2 Scopes
+
+| Scope | Lets the token | Comes with |
+|---|---|---|
+| `read` | `GET /v1/lib/{lib}` | `ek` |
+| `highlights:write` | `POST /v1/lib/{lib}` | `mk` |
+
+No grant can delete a library, touch passkey slots or make grants. The server can't see what a record is (9), so it enforces methods. Apps with `highlights:write` write only `highlight` records.
+
+### 4.3 The highlights API
+
+The reference grant client does each of these in the app, where the plaintext is. An app without it does the same over the routes in 5.4, with items as in 5.3 and versions chosen by the merge rule (3).
+
+| Operation | Grant client | Underneath | Scope |
+|---|---|---|---|
+| Changes since | `changes(cursor)` → `{ upserts, deletions, colors, next, reset }` | `GET ?after={seq}` until `more` is false. Keep `next` as the cursor. `reset` means replace everything (first call, or the server lost data, 5.6) | `read` |
+| List, find | `highlights()`, `find(ref)` | One record per verse, in canonical order | `read` |
+| Grouped read | `highlights({ group: "ranges" })` | Ranges as in 1.2, "Ranges in apps". Each lists its verses | `read` |
+| Add a verse or range | `highlightRange("ROM.5.3-5", color)` | One record per verse, one POST: all or none. At most 100 verses, in one chapter | `highlights:write` |
+| Recolor | `highlightRange(ref, newColor)` | Each verse keeps its earliest `created` | `highlights:write` |
+| Delete | `remove(refs)` | Deleted records (1), one POST | `highlights:write` |
+
+Call `changes` before writing, so each write's `updated` beats the version it replaces (3, Writing). Poll it while the app is visible.
 
 ## 5. Server sync
 
-A library can also sync through a server that only stores encrypted blobs under random-looking ids. It has no accounts, no email addresses and no passwords. Holding the sync key is the only access control.
+A person's own devices sync a library through a server that only stores encrypted blobs under random-looking ids. It has no accounts, no email addresses and no passwords. Holding the sync key is the only access control.
 
 ### 5.1 The sync key
 
@@ -236,7 +252,7 @@ A server SHOULD accept at least: 100 items per POST; blobs of 379 to 21,900 char
 
 A client keeps, per server: the cursor (the last `seq` it read), the latest `seq` and the `epoch` it has seen, and which of its records the server doesn't have yet.
 
-1. **Push** every record changed on this device, or received through another transport, since the last push, in POSTs of up to 100. Records saved by one edit (a range, say) SHOULD go in the same POST when they fit, so the server takes all of them or none. Records that came from this server are not sent back to it.
+1. **Push** every record changed on this device since the last push, in POSTs of up to 100. Records saved by one edit (a range, say) SHOULD go in the same POST when they fit, so the server takes all of them or none. Records that came from this server are not sent back to it.
 2. **Pull** pages from the cursor until `more` is false. A client MAY skip this after a push when the POST's answer shows nobody else wrote: if `seq` minus the number of distinct ids sent equals the cursor, those were the client's own items, so it can set the cursor to `seq` without reading them back. Merge each item (section 3). If this device's version wins against the server's, send this device's version again on the next push. That repairs a server that went back to an old version, or received one late.
 3. **Refill a server that lost data.** If an answer has a different `epoch` from the one remembered, or a `seq` lower than the latest seen, the server was erased, replaced or restored from a backup. Reset the cursor to 0, send every record (including deleted ones), and pull again.
 
@@ -244,16 +260,15 @@ Sync after changes, on start, when the network returns, and every 30 seconds or 
 
 ## 6. Rules that protect people's data
 
-Whatever an app's choice of sync, these keep a library safe from any server or folder going wrong:
+These keep a library safe from a server going wrong:
 
 - The copy on the device is the library. Every read and write goes to it first, and the app never waits on the network to show or save a change.
-- An app MUST NOT delete local records because a server or folder doesn't have them, answers with nothing, or fails. Only a newer deleted version (section 3) removes a record.
-- Changes made offline are kept across restarts until every transport the device uses has them.
+- An app MUST NOT delete local records because a server doesn't have them, answers with nothing, or fails. Only a newer deleted version (section 3) removes a record.
+- Changes made offline are kept across restarts until the server has them.
 - Network requests time out, and a failed sync is tried again later (on the next change, when the network returns, or on a timer).
-- Export to a file (section 2) is always available, with or without sync.
-- An app that uses several transports (a server and a folder, or two servers) syncs each in turn and passes what one brings in on to the others, so devices that share no transport still meet through one that has both.
+- Export to a backup file (section 2) is always available, with or without sync.
 
-Erasing a library removes it from the transports and the device doing the erasing. Any other device that still holds it will put it back the next time it syncs, by design: no transport can take a library away from a device.
+Erasing a library removes it from the server and the device doing the erasing. Any other device that still holds it will put it back the next time it syncs, by design: a server can't take a library away from a device.
 
 ## 7. Unlocking
 
@@ -290,15 +305,15 @@ A slot's `name` is what the library was called when the passkey was added. Once 
 
 When creating a library, an app SHOULD offer a passkey once the key is saved, as a separate, optional step that never blocks getting into the library. The step that saves the key MUST NOT wait on the passkey: password managers, and iOS in particular, only offer to save a password when the form is submitted directly by the person's tap, so a submission made after a passkey prompt by script gets no save offer. The reference app submits the form on Continue and then shows "Add a passkey" (and "Not now") on the library screen.
 
-### 7.3 Connecting an app
+### 7.3 Handing over the key (deprecated)
+
+Deprecated in 1.2: apps connect with a grant (section 4) instead. Sites keep this working for the rest of 1.x (section 11).
 
 A Selah Vault site can hand a library's key to another app, in the style of an OAuth consent screen. The app opens `https://<site>/unlock?app=<display name>&callback=<url>`. The site asks the person to unlock a library, then asks "Give <app> access to <library>?". On Allow it sends the browser to `<callback>#k=<key>&name=<name>`, or `<callback>#error=denied` on Cancel. Fragments never reach servers.
 
 `callback` MUST be `https:`, a custom scheme, or `http:` on `localhost`, `127.0.0.1` or `[::1]`. Sites MUST refuse `javascript:`, `data:`, `blob:`, `file:` and similar, and SHOULD show the callback's host. The app receives the whole key and can read, change and delete everything in the library.
 
 A site MAY accept `/#k=<key>&name=<name>` to prefill its own unlock form.
-
-Apps that shouldn't hold the whole key use a grant instead: `/connect` hands them a limited, expiring token with the decryption key and, to write, the item-id key. [docs/connect.md](docs/connect.md) describes it, along with the reference app client (`public/grant-client.js`): a changes feed with a cursor, grouped ranges, and range writes in one POST.
 
 ### 7.4 Saving from a link
 
@@ -325,7 +340,7 @@ A server learns how many items each library has, when they change, from which IP
 
 A server that also answers for an assistant with the sync key, like the reference Worker's MCP endpoint (`/mcp`), reads that library while it answers. That is the person's choice, made by giving an app the key; plain server sync never sends it. The MCP endpoint is optional and outside this spec: servers needn't offer it, and section 11's promises don't cover it.
 
-Losing the sync key and every passkey means losing access to the server copy. The files on a device or in a sync folder are still readable without it.
+Losing the sync key and every passkey means losing access to the server copy. The copy on a device, and any backup file, are still readable without it.
 
 ## 10. Test vectors
 
@@ -351,13 +366,13 @@ The `conformance/` folder checks an implementation against this spec. Passing it
 
 ## 11. Versioning
 
-This is version 1.1. Every 1.x version keeps these working the same way:
+This is version 1.2. Every 1.x version keeps these working the same way:
 
 - Records (section 1), the merge rule (3) and the writing rule for `updated`.
-- Library files and their header, `"hidden-word": 2` (2), and folder sync's layout (4).
+- Library files and their header, `"hidden-word": 2` (2).
 - The sync key's text form (5.1), every HKDF info and length (5.2, 7.2), and how item ids, blobs, padding and slots are made (5.3, 7.2).
 - The `/v1` routes, their status codes and response shapes (5.4, 7.2), and the minimum limits (5.5). A server may accept more, never less.
-- The unlock handoff (7.3) and saving from a link (7.4).
+- Grants: the `/connect` fragment, the `g1.` token and the scopes (4), the unlock handoff (7.3, deprecated) and saving from a link (7.4).
 
 **Breaking** means anything that makes a conforming 1.0 client or server stop working with another: removing or renaming a field, route or parameter, changing a response shape or status code, changing the merge rule, or changing any derivation. A breaking change needs version 2.0, with new routes under `/v2/` and new HKDF infos (`hidden-word/v2/…`), so 1.x clients and servers keep talking to each other.
 
@@ -366,6 +381,12 @@ This is version 1.1. Every 1.x version keeps these working the same way:
 **Deprecation.** A feature to be removed is first marked deprecated here, in a 1.x version, and keeps working for the rest of 1.x. It's removed only in 2.0.
 
 Not covered: the reference web app's screens and storage, and the reference Worker's extras (`/mcp`, `/config.json`, `/api/client-error`).
+
+## Changes from 1.1
+
+- One way for apps to work with a library: connect with a grant (section 4), with the highlights API in the reference grant client. The key handoff (7.3) is deprecated.
+- Folder sync (1.1 section 4) is removed, with the rule for syncing several transports (6). Only the reference web app implemented it. Strictly, 1.1's section 11 promised its file layout for all of 1.x; it's withdrawn rather than kept to 2.0, and nothing on the wire changes. Devices that used it keep their records, and sync through the server.
+- bible-rs export import (1.1 section 2.1) is removed. Library files are a personal backup only.
 
 ## Changes from 1.0
 
@@ -388,7 +409,7 @@ No wire changes: a 0.2 client or server is a 1.0 one.
 
 - One merge rule (section 3) decides every conflict, on every device. Servers no longer decide by arrival order.
 - Servers report `seq` and `epoch`, and clients refill a server that lost data.
-- Folder sync with plain, readable files (section 4).
+- Folder sync with plain, readable files (removed in 1.2).
 - Colors can be named and added (section 1.4). Bookmarks are gone.
 - Files have an optional header line.
 - Rules that protect people's data (section 6), and route.bible links (section 8).
