@@ -261,7 +261,7 @@ async function highlight(verses, color) {
 definePassageInput();
 const refField = $("#ref");
 /** What's in a passage field: its passage id when it read one, else the typed text, which readPassage reads
- * more loosely (the field won't take passages across chapters, like Genesis 1–2, but Hidden Word does). */
+ * more loosely (the field won't take passages across chapters, like Genesis 1–2, but Selah Vault does). */
 function refText(field = refField) {
   const typed = field.shadowRoot?.querySelector("input")?.value ?? "";
   return field.value && field.validity.valid ? field.value : typed;
@@ -862,7 +862,7 @@ $("#show-key").addEventListener("click", () => {
 screenAction("#export", "#backup-note", () => {
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([library.toFile()], { type: "application/x-ndjson" }));
-  a.download = `hidden-word-${new Date().toISOString().slice(0, 10)}.jsonl`;
+  a.download = `selah-vault-${new Date().toISOString().slice(0, 10)}.jsonl`;
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   return "Saved a copy of this library as a file.";

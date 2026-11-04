@@ -1,4 +1,4 @@
-// Hidden Word's MCP server: Streamable HTTP, stateless, JSON-RPC over POST at /mcp. It opens the
+// Selah Vault's MCP server: Streamable HTTP, stateless, JSON-RPC over POST at /mcp. It opens the
 // caller's library with their sync key for one request, using the reference client (public/sync.js)
 // so reads and writes follow SPEC.md exactly, and syncs through the same routes every device uses.
 //
@@ -19,7 +19,8 @@ const readPassage = read as (text: string) => { verses: string[]; label: string;
 export type SyncFetch = (request: Request) => Promise<Response>;
 
 const PROTOCOL_VERSIONS = ["2025-06-18", "2025-03-26", "2024-11-05"];
-const SERVER_INFO = { name: "hidden-word", title: "Hidden Word", version: "0.2.0" };
+// name stays "hidden-word": clients and their configs know the server by it (decisions/rename-product-to-selah-vault.md).
+const SERVER_INFO = { name: "hidden-word", title: "Selah Vault", version: "0.2.0" };
 const CORS = {
   "access-control-allow-origin": "*",
   "access-control-allow-methods": "POST, GET, OPTIONS",
@@ -176,7 +177,7 @@ class Session {
           protocolVersion: PROTOCOL_VERSIONS.includes(asked) ? asked : PROTOCOL_VERSIONS[0],
           capabilities: { tools: { listChanged: false } },
           serverInfo: SERVER_INFO,
-          instructions: "Tools for one Hidden Word library of Bible highlights, opened with its sync key. References are USFM (JHN.3.16) underneath; give them in any common form.",
+          instructions: "Tools for one Selah Vault library of Bible highlights, opened with its sync key. References are USFM (JHN.3.16) underneath; give them in any common form.",
         };
       }
       case "ping":

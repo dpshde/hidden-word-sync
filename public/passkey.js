@@ -21,7 +21,7 @@ export async function createPasskeyPrf(name) {
   const salt = await prfSalt();
   const cred = await navigator.credentials.create({
     publicKey: {
-      rp: { id: rpId, name: "Hidden Word" },
+      rp: { id: rpId, name: "Selah Vault" },
       user: { id: randomBytes(16), name, displayName: name },
       challenge: randomBytes(32),
       pubKeyCredParams: [

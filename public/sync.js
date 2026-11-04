@@ -1,4 +1,4 @@
-// Hidden Word reference client (spec v1.1). Needs only WebCrypto and fetch, so it runs in browsers,
+// Selah Vault reference client (spec v1.1). Needs only WebCrypto and fetch, so it runs in browsers,
 // Bun, Node 20+, Deno and Workers.
 import { splitRef } from "./refs.js";
 
@@ -256,7 +256,7 @@ export function parseJsonl(text) {
 
 const seconds = (s) => (s ? Math.floor(Date.parse(s) / 1000) || undefined : undefined);
 
-/** A bible-rs JSON export (format 1) → records. Its bookmarks have no Hidden Word kind and are left out. */
+/** A bible-rs JSON export (format 1) → records. Its bookmarks have no Selah Vault kind and are left out. */
 export function fromBibleRs(doc) {
   if (doc?.app !== "bible-rs") throw new Error("not a bible-rs export");
   const ref = (e) => `${e.book}.${e.chapter}.${e.verse}`;
@@ -562,7 +562,7 @@ export function serverLostData(seen, answer) {
   return (seen.epoch !== null && answer.epoch !== seen.epoch) || (answer.seq !== undefined && answer.seq < seen.seq);
 }
 
-/** A Hidden Word server. `url` "" means the site this page came from. */
+/** A Selah Vault server. `url` "" means the site this page came from. */
 export function serverTransport({ url = "", fetch: f } = {}) {
   const name = `server ${url}`;
   const call = async (lib, method, query = "", body) => {
