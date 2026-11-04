@@ -65,3 +65,20 @@ export function createWarmer(start, { concurrency = 2, gapMs = 150, idle = globa
     get waiting() { return queue.length; },
   };
 }
+
+/**
+ * Defines <si-passage> with keepLoadedOnMove applied first. The browser reads a custom element's
+ * callbacks once, when it is defined, so patching the class afterwards has no effect.
+ */
+export function defineKeepingLoaded(define, registry = globalThis.customElements) {
+  const original = registry.define;
+  registry.define = function (name, Passage, options) {
+    if (name === "si-passage") keepLoadedOnMove(Passage);
+    return original.call(this, name, Passage, options);
+  };
+  try {
+    define();
+  } finally {
+    registry.define = original;
+  }
+}

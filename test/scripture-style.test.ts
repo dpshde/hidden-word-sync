@@ -20,3 +20,8 @@ test("the passage gets a rule in its row's color and themed verse numbers and wo
   expect(css).toMatch(/\.verse-text \{[^}]*border-left: 2px solid color-mix\(in oklab, var\(--row-color/);
   expect(css).toMatch(/--vault-wj: color-mix\(in oklab, var\(--danger\)/);
 });
+
+test("the expanded row's reference has no underline; the row keeps its focus ring", () => {
+  expect(css).not.toMatch(/\.row-link\[aria-expanded="true"\][^{]*\{[^}]*text-decoration: underline/);
+  expect(css).toContain(".row-link:focus-visible::after { outline: 2px solid var(--focus); outline-offset: -2px; }");
+});

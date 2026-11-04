@@ -11,7 +11,7 @@ import { setupThemeToggle } from "./theme-toggle.js";
 import { foldersAvailable, pickFolder, saveFolder, loadFolder, forgetFolder, mayUse, folderDir } from "./folder.js";
 import { registerSelahVaultTools } from "./webmcp.js";
 import { armDelete } from "./confirm.js";
-import { keepLoadedOnMove, createWarmer } from "./passage-warm.js";
+import { defineKeepingLoaded, createWarmer } from "./passage-warm.js";
 
 const $ = (sel) => document.querySelector(sel);
 const SESSION = "hidden-word:session";
@@ -318,6 +318,9 @@ async function saveFromLink() {
   flash(`Saved ${found.label} in ${colorName(color)}.`, { label: "Undo", run: undo });
 }
 
+/** What the list was last built from (see render). */
+let listSig = null;
+
 function render() {
   if (!library) return;
   colors = palette(library.all("color"));
@@ -335,7 +338,12 @@ function render() {
   renderGroupBy(rows.length > 0);
   // A row being edited stays as it is until the edit ends (a sync mid-edit would wipe the field);
   // finishing the edit renders again.
-  if (!editing) $("#list").replaceChildren(...groupList(shown, groupBy, (r) => topColor(r, ids)).map(group));
+  // Rebuild the list only when what it shows changed. A sync that brings nothing new (every window
+  // focus runs one) still emits for its status; rebuilding then would move the open passage and
+  // replay its opening animation.
+  const sig = JSON.stringify([shown, colors, groupBy, filter, verseText.key, editing]);
+  if (!editing && sig !== listSig) $("#list").replaceChildren(...groupList(shown, groupBy, (r) => topColor(r, ids)).map(group));
+  listSig = editing ? null : sig;
   if (!$("#colors").hidden) renderColors();
 }
 
@@ -525,6 +533,7 @@ function editRow(li, line, run) {
   line.classList.add("editing");
   for (const el of line.querySelectorAll(":scope > .dot, :scope > .actions")) el.inert = true;
   editing = run.ref;
+  listSig = null; // the edit changes the row by hand, so the next render rebuilds it
   field.value = labelRef(run.ref);
   const start = refText(field);
   field.focus();
@@ -582,8 +591,7 @@ const YV_KEY = "hidden-word:yv-key";
 function useVerseKey(yvpPublicAppKey) {
   if (!yvpPublicAppKey || verseText.key === yvpPublicAppKey) return;
   if (!verseText.key) {
-    defineScripturePassage({ yvpPublicAppKey });
-    keepLoadedOnMove(customElements.get("si-passage"));
+    defineKeepingLoaded(() => defineScripturePassage({ yvpPublicAppKey }));
   }
   verseText.key = yvpPublicAppKey;
   render();
