@@ -87,9 +87,11 @@ test("by genre: canonical order inside each genre, runs within it, empty genres 
   ]);
 });
 
-test("Today and Last 7 days start open; Older and every genre start closed", () => {
+test("Today and Last 7 days start open; Older and every genre start closed; Jev ranked group starts open", () => {
   expect(startsOpen("date", "today")).toBe(true);
   expect(startsOpen("date", "week")).toBe(true);
   expect(startsOpen("date", "older")).toBe(false);
   for (const g of GENRES) expect(startsOpen("genre", g.id)).toBe(false);
+  expect(startsOpen("relevant", "ranked")).toBe(true);
+  expect(startsOpen("topic", "ranked")).toBe(true);
 });

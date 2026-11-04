@@ -294,8 +294,34 @@ button.dot[aria-pressed="true"] { border-color: var(--fg); }
   z-index: 40;
   box-shadow: var(--shadow);
 }
+/* Topic mode: plain text field (no verse autocomplete). Same height as the passage input. */
+.topic-input {
+  display: block; width: 100%; height: 2.5rem; padding: 0 .75rem;
+  font: 450 .9375rem/1.5 var(--font-sans); color: var(--fg);
+  background: var(--raised); border: 1px solid var(--line); border-radius: 0;
+}
+.topic-input:focus-visible { outline: 2px solid var(--focus); outline-offset: -1px; }
+.topic-input[hidden] { display: none; }
+#relevance-ref[hidden], si-passage-input[hidden] { display: none; }
+.relevance-label[hidden] { display: none; }
 #relevance-error { margin: .375rem 0 0; font-size: .8125rem; }
 #relevance-error[hidden] { display: none; }
+/* Input passage preview above Relevant/Surprising results (not used in Topic).
+   Compact: clamp long BSB text to a few lines; no expand control exists for this block. */
+.rank-preview {
+  margin: 0 0 .75rem; padding: .5rem .75rem;
+  background: var(--surface); border: 1px solid var(--line-subtle);
+}
+.rank-preview[hidden] { display: none; }
+.rank-preview-ref { margin: 0 0 .2rem; font-weight: 650; letter-spacing: -.015em; font-size: .9375rem; }
+.rank-preview-text {
+  margin: 0; color: var(--fg-2); font-size: .875rem; line-height: 1.4;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden;
+}
+@media (max-height: 40rem) {
+  .rank-preview { margin-bottom: .5rem; padding: .375rem .625rem; }
+  .rank-preview-text { -webkit-line-clamp: 2; font-size: .8125rem; }
+}
 /* Add-field suggestions stay under that field and don't sprawl over the list foot. */
 #add si-passage-input { position: relative; z-index: 6; }
 #add si-passage-input::part(listbox) {
@@ -309,10 +335,7 @@ button.dot[aria-pressed="true"] { border-color: var(--fg); }
 .relevance-none { margin: 0 0 .75rem; }
 .relevance-none[hidden] { display: none; }
 .relevance-none p { margin: 0 0 .625rem; color: var(--fg-2); }
-.row-reason { display: block; margin: .125rem 0 0; font-size: .8125rem; color: var(--muted); font-weight: 450; line-height: 1.35; }
-/* No selection / transition animation when ranking reorders the list. */
-#list.rank-mode .group, #list.rank-mode .row { transition: none; }
-/* Date | Genre | Relevant | Surprising: a compact segmented control, in route.bible's small uppercase label type. */
+/* Date | Genre | Relevant | Surprising | Topic: a compact segmented control, in route.bible's small uppercase label type. */
 .segmented { display: inline-flex; margin: 0 0 .75rem; padding: 0; border: 1px solid var(--line); border-radius: 0; }
 .segmented[hidden] { display: none; }
 .segmented button { padding: .3125rem .75rem; font-family: var(--font-label); font-size: .75rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; background: transparent; border: 0; color: var(--muted); border-radius: 0; }

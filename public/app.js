@@ -5,7 +5,7 @@ import {
 import { labelRef, compareRefs } from "./refs.js";
 import { editRun, highlightRecord, tombstone, groupRuns } from "./ranges.js";
 import { readPassage } from "./passage.js";
-import { MODES, RANK_MODES, groupList, startsOpen } from "./groups.js";
+import { MODES, RANK_MODES, TOPIC_MODE, JEV_MODES, groupList, startsOpen } from "./groups.js";
 import { definePassageInput, defineScripturePassage } from "./vendor/scripture-inline.js";
 import { createPasskeyPrf, getPasskeyPrf, passkeysAvailable, cancelled } from "./passkey.js";
 import { setupThemeToggle } from "./theme-toggle.js";
@@ -19,16 +19,19 @@ import {
   chapterRefOf,
   totalCopy,
   relatedCopy,
+  topicCopy,
+  rankStatusCopy,
   rankingCopy,
   rankErrorMessage,
+  sanitizeTopic,
 } from "./relevance.js";
 
 const $ = (sel) => document.querySelector(sel);
 const SESSION = "hidden-word:session";
 const CREATED = "hidden-word:created";
 const SAVE_LINK = "hidden-word:save-link";
-// How this device sorts the list (date / genre / relevant / surprising): a display choice, not synced.
-// The Relevant/Surprising passage field is never stored — only the mode button is.
+// How this device sorts the list (date / genre / relevant / surprising / topic): a display choice, not synced.
+// The Relevant/Surprising passage and Topic phrase are never stored — only the mode button is.
 const GROUP_BY = "hidden-word:group-by";
 // A library's name as this device last saw it, for the unlock form and before the library has synced.
 // The name itself syncs as a `library` record (SPEC.md 1.5): library.name is the one to show.
@@ -93,7 +96,7 @@ async function enter(keyText, given) {
   library.localName = localStorage.getItem(nameKey(library.lib)) || given;
   highlightStamp = new Map();
   relevance = null;
-  rankReasons = new Map();
+  rankOrder = [];
   clearRelevanceInput();
   showName();
   library.onChange(render);
@@ -340,13 +343,15 @@ async function saveFromLink() {
 
 /** What the list was last built from (see render). */
 let listSig = null;
-/** Ranked-mode verdicts for the open passage, keyed by run ref → reason. */
-let rankReasons = new Map();
+/** Ordered highlight refs for the current Jev result (no reason/tagline attached). */
+let rankOrder = [];
 let rankPending = null;
 /** True after a ranking call failed: keep Date order and the inline error; never "0 of N relevant". */
 let rankFailed = false;
 /** Bumps whenever a new ranking run starts (or the input changes); stale responses are ignored. */
 let rankGeneration = 0;
+/** Generation for which we already auto-expanded the top result (once per query). */
+let rankExpandGen = -1;
 
 function render() {
   if (!library) return;
@@ -362,40 +367,59 @@ function render() {
   renderFilters(counts);
 
   const shown = filter ? rows.filter((r) => topColor(r, ids) === filter) : rows;
-  // A failed call keeps the passage for retry, but the list stays in Date order (no "0 of N relevant").
-  // Pending keeps the ranked chrome (loading line) even before setPassageInput lands.
-  const ranking = RANK_MODES.includes(groupBy) && !rankFailed && (relevance?.passage || rankPending);
-  const noneRelevant = ranking && !rankPending && !!relevance?.passage && rankReasons.size === 0 && shown.length > 0;
+  const jevActive = JEV_MODES.includes(groupBy);
+  const hasScope = !!(relevance?.passage || (groupBy === TOPIC_MODE && relevance?.topic));
+  // A failed call keeps Date order. Pending keeps Jev chrome (loading line) before the scope lands.
+  const ranking = jevActive && !rankFailed && (hasScope || rankPending);
+  const noneRelevant =
+    ranking && !rankPending && !!relevance?.passage && RANK_MODES.includes(groupBy) && rankOrder.length === 0 && shown.length > 0;
   $("#empty").hidden = rows.length > 0;
   $("#empty").textContent = "No highlights yet.";
   showRelevanceNone(noneRelevant ? { count: shown.length, passage: relevance.passage } : null);
+  showRankPreview(ranking && !rankPending && relevance?.passage && RANK_MODES.includes(groupBy) ? relevance.passage : null);
   renderGroupBy(rows.length > 0);
   // A row being edited stays as it is until the edit ends (a sync mid-edit would wipe the field);
   // finishing the edit renders again.
   // Rebuild the list only when what it shows changed. A sync that brings nothing new (every window
   // focus runs one) still emits for its status; rebuilding then would move the open passage and
   // replay its opening animation.
-  const sig = JSON.stringify([shown, colors, groupBy, filter, verseText.key, editing, ranking && relevance.passage?.ref, [...rankReasons], rankFailed, noneRelevant, !!rankPending]);
+  const scopeKey = relevance?.passage?.ref || (groupBy === TOPIC_MODE ? relevance?.topic : "") || "";
+  const sig = JSON.stringify([shown, colors, groupBy, filter, verseText.key, editing, ranking && scopeKey, rankOrder, rankFailed, noneRelevant, !!rankPending, verseText.open]);
   if (!editing && sig !== listSig) {
     if (ranking) {
-      const order = [...rankReasons.keys()];
       const runs = groupRuns(shown, (r) => topColor(r, ids));
       const byRef = new Map(runs.map((run) => [run.ref, run]));
-      const ranked = order.map((id) => byRef.get(id)).filter(Boolean);
-      $("#list-total").textContent = rankPending ? rankingCopy() : totalCopy(ranked.length, shown.length);
-      $("#list").classList.add("rank-mode");
-      if (rankPending) $("#list").replaceChildren();
-      else if (ranked.length) $("#list").replaceChildren(rankGroup(ranked));
-      else $("#list").replaceChildren();
+      const ranked = rankOrder.map((id) => byRef.get(id)).filter(Boolean);
+      if (rankPending) {
+        $("#list-total").textContent = rankingCopy();
+        $("#list").replaceChildren();
+      } else if (ranked.length) {
+        const heading =
+          groupBy === TOPIC_MODE
+            ? topicCopy(relevance?.topic)
+            : relatedCopy(relevance?.passage?.label);
+        $("#list-total").textContent = rankStatusCopy(ranked.length, shown.length, groupBy);
+        // Auto-expand the top result once on the final paint for this query.
+        if (verseText.key && rankExpandGen !== rankGeneration) {
+          rankExpandGen = rankGeneration;
+          verseText.open = ranked[0].ref;
+        }
+        // Same group()/row() markup as Date and Genre — only the heading text differs.
+        $("#list").replaceChildren(group({ id: "ranked", name: heading, runs: ranked }));
+      } else {
+        $("#list-total").textContent =
+          groupBy === TOPIC_MODE ? topicCopy(relevance?.topic) : totalCopy(0, shown.length);
+        $("#list").replaceChildren();
+      }
       $("#empty").hidden = true; // library has rows; zero relevant uses #relevance-none, not #empty
     } else {
-      // Relevant/Surprising with no valid passage yet (or a failed call): keep Date order.
-      const mode = RANK_MODES.includes(groupBy) ? "date" : groupBy;
+      // Jev mode with no valid scope yet (or a failed call): keep Date order.
+      const mode = jevActive ? "date" : groupBy;
       const groups = groupList(shown, mode, (r) => topColor(r, ids));
       const total = groups.reduce((n, g) => n + g.runs.length, 0);
       $("#list-total").textContent = `${total} ${total === 1 ? "highlight" : "highlights"}`;
-      $("#list").classList.remove("rank-mode");
       $("#list").replaceChildren(...groups.map(group));
+      showRankPreview(null);
     }
   }
   listSig = editing ? null : sig;
@@ -415,26 +439,41 @@ function renderGroupBy(any) {
   $("#group-by").hidden = !any;
   $("#list-foot").hidden = !any;
   const bar = $("#relevance-bar");
-  bar.hidden = !any || !RANK_MODES.includes(groupBy);
+  const jev = JEV_MODES.includes(groupBy);
+  bar.hidden = !any || !jev;
+  const passageMode = RANK_MODES.includes(groupBy);
+  const topicMode = groupBy === TOPIC_MODE;
+  const passageField = $("#relevance-ref");
+  const topicField = $("#topic-ref");
+  const passageLabel = document.querySelector('label[for="relevance-ref"]');
+  const topicLabel = document.querySelector('label[for="topic-ref"]');
+  if (passageLabel) passageLabel.hidden = !passageMode;
+  passageField.hidden = !passageMode;
+  if (topicLabel) topicLabel.hidden = !topicMode;
+  topicField.hidden = !topicMode;
   for (const b of document.querySelectorAll("#group-by button")) b.setAttribute("aria-pressed", String(b.dataset.mode === groupBy));
 }
 
 for (const b of document.querySelectorAll("#group-by button")) {
   b.addEventListener("click", () => {
     const next = b.dataset.mode;
-    const wasRank = RANK_MODES.includes(groupBy);
-    const willRank = RANK_MODES.includes(next);
+    const wasJev = JEV_MODES.includes(groupBy);
+    const willJev = JEV_MODES.includes(next);
+    const wasPassage = RANK_MODES.includes(groupBy);
+    const willPassage = RANK_MODES.includes(next);
     groupBy = next;
     localStorage.setItem(GROUP_BY, groupBy);
-    if (wasRank && !willRank) clearRelevanceInput();
+    if (wasJev && !willJev) clearRelevanceInput();
     renderGroupBy(!!$("#list-foot") && !$("#list-foot").hidden);
-    if (willRank && relevance?.passage && wasRank && !rankFailed) {
+    if (willPassage && wasPassage && relevance?.passage && !rankFailed) {
       // Relevant ↔ Surprising: reorder cached verdicts, no network call.
       void reorderRelevance();
-    } else if (willRank && refText($("#relevance-ref")).trim()) {
+    } else if (willPassage && refText($("#relevance-ref")).trim()) {
       void runRelevance();
+    } else if (next === TOPIC_MODE && sanitizeTopic($("#topic-ref").value)) {
+      void runTopic();
     } else {
-      rankReasons = new Map();
+      rankOrder = [];
       rankFailed = false;
       render();
     }
@@ -444,15 +483,31 @@ for (const b of document.querySelectorAll("#group-by button")) {
 function clearRelevanceInput() {
   const field = $("#relevance-ref");
   field.value = "";
+  $("#topic-ref").value = "";
   const err = $("#relevance-error");
   err.hidden = true;
   err.textContent = "";
   rankGeneration++; // drop any in-flight response
   relevance?.clearPassage();
-  rankReasons = new Map();
+  rankOrder = [];
   rankPending = null;
   rankFailed = false;
+  rankExpandGen = -1;
+  verseText.open = null;
   showRelevanceNone(null);
+  showRankPreview(null);
+}
+
+/** Compact preview of the input passage above Relevant/Surprising results (Topic uses header copy only). */
+function showRankPreview(passage) {
+  const panel = $("#rank-preview");
+  if (!passage?.text) {
+    panel.hidden = true;
+    return;
+  }
+  panel.querySelector(".rank-preview-ref").textContent = passage.label || labelRef(passage.ref);
+  panel.querySelector(".rank-preview-text").textContent = passage.text;
+  panel.hidden = false;
 }
 
 /** Calm panel when a valid passage returns no relevant highlights — not the error line, not #empty. */
@@ -502,23 +557,6 @@ function syncRelevanceCache() {
   highlightStamp = now;
 }
 
-/** One open group for a ranked list, labeled with the passage (not a blank dark bar). */
-function rankGroup(runs) {
-  const details = document.createElement("details");
-  details.className = "group";
-  details.dataset.group = "ranked";
-  details.open = true;
-  const summary = document.createElement("summary");
-  const title = document.createElement("span");
-  title.textContent = relatedCopy(relevance?.passage?.label);
-  summary.append(title);
-  const list = document.createElement("ul");
-  list.className = "rows";
-  list.append(...runs.map((run) => row({ ...run, reason: rankReasons.get(run.ref) })));
-  details.append(summary, list);
-  return details;
-}
-
 async function ensureRelevance() {
   if (!library) return null;
   if (!relevance || relevance.lib !== library.lib) {
@@ -526,6 +564,16 @@ async function ensureRelevance() {
     relevance.lib = library.lib;
   }
   return relevance;
+}
+
+/** Highlight runs currently shown (respecting the color filter), warmed for BSB text. */
+function currentRuns() {
+  const ids = colors.map((c) => c.id);
+  const records = library.all("highlight").sort((a, b) => compareRefs(a.ref, b.ref));
+  const shown = filter ? records.filter((r) => topColor(r, ids) === filter) : records;
+  const runs = groupRuns(shown, (r) => topColor(r, ids));
+  bsbText.warm(runs.map((r) => r.ref));
+  return runs;
 }
 
 async function runRelevance() {
@@ -536,9 +584,12 @@ async function runRelevance() {
   const err = $("#relevance-error");
   const gen = ++rankGeneration;
   // Drop prior results immediately so a slow second call can't flash an intermediate list.
-  rankReasons = new Map();
+  rankOrder = [];
   rankFailed = false;
+  rankExpandGen = -1;
+  verseText.open = null;
   showRelevanceNone(null);
+  showRankPreview(null);
   if (!String(raw).trim()) {
     err.hidden = true;
     err.textContent = "";
@@ -555,7 +606,7 @@ async function runRelevance() {
     err.hidden = false;
     err.textContent = found.error;
     session.clearPassage();
-    rankReasons = new Map();
+    rankOrder = [];
     rankPending = null;
     rankFailed = false;
     render();
@@ -563,22 +614,65 @@ async function runRelevance() {
   }
   err.hidden = true;
   err.textContent = "";
-  const ids = colors.map((c) => c.id);
-  const records = library.all("highlight").sort((a, b) => compareRefs(a.ref, b.ref));
-  const shown = filter ? records.filter((r) => topColor(r, ids) === filter) : records;
-  const runs = groupRuns(shown, (r) => topColor(r, ids));
-  bsbText.warm(runs.map((r) => r.ref));
+  const runs = currentRuns();
   const items = runs.map((r) => ({ id: r.ref, ref: r.ref }));
   try {
     const { ranked } = await session.judge(items, groupBy);
     if (gen !== rankGeneration) return; // newer input or a later run owns the UI
-    rankReasons = new Map(ranked.map((v) => [v.id, v.reason]));
+    rankOrder = ranked.map((v) => v.id);
     rankFailed = false;
   } catch (e) {
     if (gen !== rankGeneration) return;
     err.hidden = false;
     err.textContent = rankErrorMessage(e);
-    rankReasons = new Map();
+    rankOrder = [];
+    rankFailed = true;
+  } finally {
+    if (gen === rankGeneration) {
+      rankPending = null;
+      render();
+    }
+  }
+}
+
+async function runTopic() {
+  const session = await ensureRelevance();
+  if (!session || groupBy !== TOPIC_MODE) return;
+  const raw = $("#topic-ref").value;
+  const cleaned = sanitizeTopic(raw);
+  const err = $("#relevance-error");
+  const gen = ++rankGeneration;
+  rankOrder = [];
+  rankFailed = false;
+  rankExpandGen = -1;
+  verseText.open = null;
+  showRelevanceNone(null);
+  showRankPreview(null);
+  if (!cleaned) {
+    err.hidden = true;
+    err.textContent = "";
+    session.clearPassage();
+    rankPending = null;
+    if (gen === rankGeneration) render();
+    return;
+  }
+  rankPending = true;
+  session.setTopicInput(cleaned);
+  render(); // loading before any network
+  err.hidden = true;
+  err.textContent = "";
+  const runs = currentRuns();
+  const items = runs.map((r) => ({ id: r.ref, ref: r.ref }));
+  try {
+    const { ranked } = await session.judgeTopic(items, cleaned);
+    if (gen !== rankGeneration) return;
+    rankOrder = ranked.map((v) => v.id);
+    rankFailed = false;
+  } catch (e) {
+    if (gen !== rankGeneration) return;
+    err.hidden = false;
+    err.textContent = rankErrorMessage(e);
+    rankOrder = [];
     rankFailed = true;
   } finally {
     if (gen === rankGeneration) {
@@ -591,12 +685,9 @@ async function runRelevance() {
 async function reorderRelevance() {
   const session = await ensureRelevance();
   if (!session?.passage || rankFailed) return render();
-  const ids = colors.map((c) => c.id);
-  const records = library.all("highlight").sort((a, b) => compareRefs(a.ref, b.ref));
-  const shown = filter ? records.filter((r) => topColor(r, ids) === filter) : records;
-  const runs = groupRuns(shown, (r) => topColor(r, ids));
+  const runs = currentRuns();
   const { ranked } = session.reorder(runs.map((r) => ({ id: r.ref, ref: r.ref })), groupBy);
-  rankReasons = new Map(ranked.map((v) => [v.id, v.reason]));
+  rankOrder = ranked.map((v) => v.id);
   render();
 }
 
@@ -612,9 +703,12 @@ async function reorderRelevance() {
     // Leave the old ranked list immediately when the passage changes; debounce the network call.
     if (RANK_MODES.includes(groupBy)) {
       rankGeneration++;
-      rankReasons = new Map();
+      rankOrder = [];
       rankFailed = false;
+      rankExpandGen = -1;
+      verseText.open = null;
       showRelevanceNone(null);
+      showRankPreview(null);
       if (String(raw).trim()) {
         rankPending = true;
       } else {
@@ -633,6 +727,41 @@ async function reorderRelevance() {
     e.preventDefault();
     clearTimeout(relevanceTimer);
     void runRelevance();
+  });
+}
+
+{
+  const topicField = $("#topic-ref");
+  let topicTimer = 0;
+  topicField.addEventListener("input", () => {
+    clearTimeout(topicTimer);
+    const err = $("#relevance-error");
+    const cleaned = sanitizeTopic(topicField.value);
+    if (!cleaned) err.hidden = true, (err.textContent = "");
+    if (groupBy === TOPIC_MODE) {
+      rankGeneration++;
+      rankOrder = [];
+      rankFailed = false;
+      rankExpandGen = -1;
+      verseText.open = null;
+      showRelevanceNone(null);
+      showRankPreview(null);
+      if (cleaned) {
+        rankPending = true;
+        relevance?.setTopicInput(cleaned);
+      } else {
+        relevance?.clearPassage();
+        rankPending = null;
+      }
+      render();
+    }
+    topicTimer = setTimeout(() => void runTopic(), 400);
+  });
+  topicField.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" || e.isComposing) return;
+    e.preventDefault();
+    clearTimeout(topicTimer);
+    void runTopic();
   });
 }
 
@@ -701,7 +830,7 @@ function iconButton(tag, icon, label) {
 }
 
 /** One list row: a single highlight, or a run of back-to-back verses in one color (see groupRuns). */
-function row({ ref: runRef, records, reason }) {
+function row({ ref: runRef, records }) {
   const ids = colors.map((c) => c.id);
   const li = document.createElement("li");
 
@@ -769,12 +898,6 @@ function row({ ref: runRef, records, reason }) {
   actions.append(del);
   line.append(dot, link, actions);
   li.append(line);
-  if (reason) {
-    const why = document.createElement("p");
-    why.className = "row-reason";
-    why.textContent = reason;
-    li.append(why);
-  }
   if (verseText.open === runRef) showText(li, runRef);
   return li;
 }

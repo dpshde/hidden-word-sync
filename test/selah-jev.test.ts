@@ -20,6 +20,7 @@ const origin = "https://vault.selah.tools";
 const FIXTURE_KEY = ["test", "-", "key", "-", "not", "-", "real"].join("");
 const good = {
   lib: "abcdef0123456789abcdef0123456789",
+  ask: "filter" as const,
   passage: { ref: "ROM.8.18-25", text: "I consider that our present sufferings" },
   highlights: [
     { id: "JHN.3.16", ref: "JHN.3.16", text: "For God so loved the world" },
@@ -59,7 +60,7 @@ describe("relevance request shape", () => {
     expect(parseRelevanceBody(many).ok).toBe(false);
   });
 
-  test("systemone payload holds the task once, named highlights with text, and self-contained questions", () => {
+  test("filter ask: only _relevant questions; no reason/tagline", () => {
     const req = toSystemOne(good);
     expect(req.model).toBe("jev-latest");
     expect(req.state.task).toContain("speak to `passage`");
@@ -68,8 +69,28 @@ describe("relevance request shape", () => {
     expect(JSON.stringify(req.questions["JHN.3.16_relevant"])).toContain("`highlights.h0`");
     expect(JSON.stringify(req.questions)).not.toContain("JHN.3.16 ·");
     expect(Object.keys(req.questions).filter((k) => k.endsWith("_relevant"))).toHaveLength(2);
-    expect(req.questions["JHN.3.16_reason"]).toMatchObject({ type: "choice" });
-    expect(req.questions["JHN.3.16_obviousness"]).toMatchObject({ type: "score" });
+    expect(req.questions["JHN.3.16_reason"]).toBeUndefined();
+    expect(req.questions["JHN.3.16_obviousness"]).toBeUndefined();
+    expect(JSON.stringify(req.questions)).not.toContain("_reason");
+  });
+
+  test("sort ask: only _obviousness; topic ask: only _closeness against free text", () => {
+    const sortReq = toSystemOne({ ...good, ask: "sort" });
+    expect(Object.keys(sortReq.questions)).toEqual(["JHN.3.16_obviousness", "PSA.23.1_obviousness"]);
+    expect(sortReq.questions["JHN.3.16_obviousness"]).toMatchObject({ type: "score" });
+
+    const topicBody = {
+      lib: good.lib,
+      ask: "topic" as const,
+      topic: "grace",
+      highlights: good.highlights,
+    };
+    expect(parseRelevanceBody(topicBody).ok).toBe(true);
+    const topicReq = toSystemOne(topicBody);
+    expect(topicReq.state.task).toContain("`topic`");
+    expect((topicReq.state as { topic: string }).topic).toBe("grace");
+    expect((topicReq.state as { passage?: unknown }).passage).toBeUndefined();
+    expect(Object.keys(topicReq.questions)).toEqual(["JHN.3.16_closeness", "PSA.23.1_closeness"]);
   });
 
   test("usd comes from billable input tokens at TypeSafe's rate", () => {

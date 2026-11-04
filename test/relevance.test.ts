@@ -11,8 +11,11 @@ import {
   rangeHash,
   rankErrorMessage,
   rankingCopy,
+  rankStatusCopy,
   rankVerdicts,
   relatedCopy,
+  sanitizeTopic,
+  topicCopy,
   totalCopy,
   BATCH_SIZE,
 } from "../public/relevance.js";
@@ -29,48 +32,51 @@ function verseText(map: Record<string, string>) {
   };
 }
 
-function answersFor(ids: string[], opts: { relevant?: number; obvious?: number; reason?: string } = {}) {
-  const out: Record<string, unknown> = {};
-  for (const id of ids) {
-    out[`${id}_relevant`] = { type: "noul", noul: opts.relevant ?? 0.9 };
-    out[`${id}_reason`] = { type: "choice", choice: opts.reason ?? "same_theme", confidence: 0.8, probabilities: {} };
-    out[`${id}_obviousness`] = { type: "score", score: opts.obvious ?? 2, confidence: 0.7, legend: {}, probabilities: {} };
-  }
-  return out;
-}
-
 describe("UI copy and footer toggle", () => {
-  test("the list footer offers Date · Genre · Relevant · Surprising", () => {
+  test("the list footer offers Date · Genre · Relevant · Surprising · Topic", () => {
     const bar = /<div id="group-by"[\s\S]*?<\/div>/.exec(html)?.[0] ?? "";
     expect([...bar.matchAll(/data-mode="([^"]+)"/g)].map((m) => m[1])).toEqual([
       "date",
       "genre",
       "relevant",
       "surprising",
+      "topic",
     ]);
     expect(html).toContain('id="relevance-ref"');
     expect(html).toContain("<si-passage-input id=\"relevance-ref\"");
+    expect(html).toContain('id="topic-ref"');
     expect(html).toContain('placeholder="Rom 8:18–25"');
-    // Passage field lives inside the list foot with the sort controls — not under the add form.
+    // Passage/topic field lives inside the list foot with the sort controls — not under the add form.
     const footStart = html.indexOf('id="list-foot"');
     const footEnd = html.indexOf('id="color-pop"');
     const foot = html.slice(footStart, footEnd);
     expect(footStart).toBeGreaterThan(html.indexOf('id="add"'));
     expect(foot).toContain('id="relevance-bar"');
     expect(foot).toContain('id="relevance-ref"');
+    expect(foot).toContain('id="topic-ref"');
     expect(foot).toContain('id="group-by"');
     expect(foot).toContain("list-foot-row");
     expect(html.indexOf('id="relevance-bar"')).toBeGreaterThan(footStart);
     expect(html.indexOf('id="filters"') < html.indexOf('id="relevance-bar"')).toBe(true);
-    // No floating relevance bar between filters and list anymore.
+    // Preview sits above the list; passage bar stays in the foot.
+    expect(html.indexOf('id="rank-preview"')).toBeLessThan(html.indexOf('id="list"'));
+    expect(html.indexOf('id="rank-preview"')).toBeGreaterThan(html.indexOf('id="filters"'));
     const between = html.slice(html.indexOf('id="filters"'), html.indexOf('id="list"'));
     expect(between).not.toContain('id="relevance-bar"');
+    expect(between).toContain('id="rank-preview"');
     expect(css).toContain(".list-foot-row");
     expect(css).toContain("bottom: calc(100% - 1px)");
+    expect(css).toContain(".rank-preview");
+    expect(css).toContain("-webkit-line-clamp");
   });
 
   test("count and empty-state copy", () => {
     expect(totalCopy(6, 47)).toBe("6 of 47 relevant");
+    expect(rankStatusCopy(3, 10, "relevant")).toBe("3 of 10 · closest first");
+    expect(rankStatusCopy(3, 10, "surprising")).toBe("3 of 10 · least obvious first");
+    expect(rankStatusCopy(10, 10, "topic")).toBe("10 · closest first");
+    expect(topicCopy("grace")).toBe("Sorted by closeness to “grace”");
+    expect(sanitizeTopic("  grace  ")).toBe("grace");
     expect(emptyRelevanceCopy(17, "Hab 2:2")).toBe("None of your 17 highlights connect to Hab 2:2");
     expect(emptyRelevanceCopy(1, "Romans 8:28")).toBe("None of your 1 highlight connect to Romans 8:28");
     expect(chapterRefOf("HAB.2.2")).toBe("HAB.2");
@@ -82,6 +88,7 @@ describe("UI copy and footer toggle", () => {
     expect(html).toContain("Sort by Date");
     expect(app).toContain("emptyRelevanceCopy");
     expect(app).toContain("showRelevanceNone");
+    expect(app).toContain("showRankPreview");
     expect(app).toContain("relevance-none-route");
     expect(app).toContain("relevance-none-chapter");
     expect(app).toContain("relevance-none-date");
@@ -92,12 +99,21 @@ describe("UI copy and footer toggle", () => {
     expect(css).toContain(".relevance-none");
   });
 
-  test("rank-mode header and loading copy; stale generations are ignored", () => {
+  test("rank-mode header and loading copy; stale generations are ignored; identical list markup", () => {
     expect(relatedCopy("Habakkuk 2:2")).toBe("Related to Habakkuk 2:2");
     expect(relatedCopy("")).toBe("Related");
     expect(rankingCopy()).toBe("Ranking…");
     expect(app).toContain("relatedCopy(relevance?.passage?.label)");
-    expect(app).toContain("rankPending ? rankingCopy()");
+    expect(app).toContain("topicCopy(relevance?.topic)");
+    expect(app).toContain("rankingCopy()");
+    expect(app).toMatch(/if \(rankPending\) \{[\s\S]*?rankingCopy\(\)/);
+    // Same group()/row() path as Date and Genre — no dedicated rankGroup or reason lines.
+    expect(app).toContain('group({ id: "ranked"');
+    expect(app).not.toContain("function rankGroup");
+    expect(app).not.toContain("row-reason");
+    expect(app).not.toContain("rankReasons");
+    expect(css).not.toContain(".row-reason");
+    expect(app).not.toContain("rank-mode");
     // Blank dark bar was summary.hidden + display:flex overriding [hidden]; now a labeled summary.
     expect(app).not.toContain("summary.hidden = true");
     expect(css).toContain("#list .group > summary[hidden] { display: none; }");
@@ -106,6 +122,9 @@ describe("UI copy and footer toggle", () => {
     expect(app).toContain("const gen = ++rankGeneration");
     expect(app).toContain("if (gen !== rankGeneration) return");
     expect(app).toContain("if (gen === rankGeneration)");
+    // Auto-expand top result once per query on final paint.
+    expect(app).toContain("rankExpandGen");
+    expect(app).toContain("verseText.open = ranked[0].ref");
     // Typing a new ref clears the old list and shows loading before the debounced request.
     expect(app).toMatch(/addEventListener\("input"[\s\S]*?rankGeneration\+\+[\s\S]*?rankPending = true/);
     expect(app).toContain('rankPending = true;\n  render(); // loading before any network / verse fetch');
@@ -154,15 +173,23 @@ describe("relevance session", () => {
     expect(calls).toEqual([]);
   });
 
-  test("valid ref → exactly one batched call whose payload contains passage text", async () => {
+  test("valid ref → filter then sort; payload carries passage text; no reason questions", async () => {
     const calls: unknown[] = [];
     const session = createRelevance({
       lib: "lib1",
       jevUrl: "https://jev.test",
       fetch: (async (_url, init) => {
-        calls.push(JSON.parse(String(init?.body)));
-        const body = calls[0] as { highlights: Array<{ id: string }> };
-        return new Response(JSON.stringify({ answers: answersFor(body.highlights.map((h) => h.id)) }));
+        const body = JSON.parse(String(init?.body));
+        calls.push(body);
+        const ids = body.highlights.map((h: { id: string }) => h.id);
+        if (body.ask === "filter") {
+          return new Response(JSON.stringify({
+            answers: Object.fromEntries(ids.map((id: string) => [`${id}_relevant`, { type: "noul", noul: 0.9 }])),
+          }));
+        }
+        return new Response(JSON.stringify({
+          answers: Object.fromEntries(ids.map((id: string) => [`${id}_obviousness`, { type: "score", score: 2 }])),
+        }));
       }) as typeof fetch,
       verseText: verseText({
         "ROM.8.18-25": "I consider that our present sufferings",
@@ -180,18 +207,89 @@ describe("relevance session", () => {
       ],
       "relevant",
     );
+    expect(fetched).toBe(2); // filter + sort (2 survivors)
+    expect(calls).toHaveLength(2);
+    expect(calls.map((c: { ask: string }) => c.ask)).toEqual(["filter", "sort"]);
+    const filterBody = calls[0] as ReturnType<typeof buildRelevanceRequest>;
+    expect(filterBody.passage?.text).toContain("present sufferings");
+    expect(filterBody.highlights.map((h) => h.text).join(" ")).toContain("For God so loved");
+    expect(JSON.stringify(calls)).not.toContain("_reason");
+    expect(ranked.length).toBe(2);
+    expect(ranked[0]).not.toHaveProperty("reason");
+  });
+
+  test("sort is skipped when fewer than 2 survivors", async () => {
+    const asks: string[] = [];
+    const session = createRelevance({
+      lib: "lib1",
+      jevUrl: "https://jev.test",
+      fetch: (async (_url, init) => {
+        const body = JSON.parse(String(init?.body));
+        asks.push(body.ask);
+        return new Response(JSON.stringify({
+          answers: {
+            "JHN.3.16_relevant": { type: "noul", noul: 0.9 },
+            "PSA.23.1_relevant": { type: "noul", noul: 0.1 },
+          },
+        }));
+      }) as typeof fetch,
+      verseText: verseText({
+        "ROM.8.28": "all things",
+        "JHN.3.16": "love",
+        "PSA.23.1": "shepherd",
+      }),
+    });
+    await session.setPassageInput("Rom 8:28");
+    const { ranked, fetched } = await session.judge(
+      [
+        { id: "JHN.3.16", ref: "JHN.3.16", text: "love" },
+        { id: "PSA.23.1", ref: "PSA.23.1", text: "shepherd" },
+      ],
+      "relevant",
+    );
+    expect(asks).toEqual(["filter"]);
+    expect(fetched).toBe(1);
+    expect(ranked.map((v) => v.id)).toEqual(["JHN.3.16"]);
+  });
+
+  test("topic mode: one closeness call, keeps every highlight, no passage", async () => {
+    const calls: unknown[] = [];
+    const session = createRelevance({
+      lib: "lib1",
+      jevUrl: "https://jev.test",
+      fetch: (async (_url, init) => {
+        const body = JSON.parse(String(init?.body));
+        calls.push(body);
+        return new Response(JSON.stringify({
+          answers: {
+            "JHN.3.16_closeness": { type: "score", score: 4 },
+            "PSA.23.1_closeness": { type: "score", score: 1 },
+          },
+        }));
+      }) as typeof fetch,
+      verseText: verseText({ "JHN.3.16": "love", "PSA.23.1": "shepherd" }),
+    });
+    const { ranked, fetched } = await session.judgeTopic(
+      [
+        { id: "JHN.3.16", ref: "JHN.3.16", text: "love" },
+        { id: "PSA.23.1", ref: "PSA.23.1", text: "shepherd" },
+      ],
+      "  grace  ",
+    );
     expect(fetched).toBe(1);
     expect(calls).toHaveLength(1);
-    const body = calls[0] as ReturnType<typeof buildRelevanceRequest>;
-    expect(body.passage.text).toContain("present sufferings");
-    expect(body.highlights.map((h) => h.text).join(" ")).toContain("For God so loved");
-    expect(ranked.length).toBe(2);
+    expect(calls[0]).toMatchObject({ ask: "topic", topic: "grace" });
+    expect((calls[0] as { passage?: unknown }).passage).toBeUndefined();
+    expect(ranked.map((v) => v.id)).toEqual(["JHN.3.16", "PSA.23.1"]);
+    expect(session.topic).toBe("grace");
+    expect(session.passage).toBe(null);
   });
 
   test("long ranges are truncated to the first short verses in the verse helper", async () => {
     // Covered in bsb-text.test; here the payload still carries the full ref.
     const body = buildRelevanceRequest({
       lib: "x",
+      ask: "filter",
       passage: { ref: "ROM.8.18-25", text: "passage" },
       highlights: [{ id: "PSA.119.1-176", ref: "PSA.119.1-176", text: "Blessed are those…" }],
     });
@@ -207,13 +305,20 @@ describe("relevance session", () => {
       fetch: (async (_url, init) => {
         fetches++;
         const body = JSON.parse(String(init?.body));
-        const ans = answersFor(body.highlights.map((h: { id: string }) => h.id));
-        // Make one more obvious than the other.
-        ans["A_obviousness"] = { type: "score", score: 3, confidence: 1, legend: {}, probabilities: {} };
-        ans["B_obviousness"] = { type: "score", score: 0.2, confidence: 1, legend: {}, probabilities: {} };
-        ans["A_relevant"] = { type: "noul", noul: 0.7 };
-        ans["B_relevant"] = { type: "noul", noul: 0.95 };
-        return new Response(JSON.stringify({ answers: ans }));
+        if (body.ask === "filter") {
+          return new Response(JSON.stringify({
+            answers: {
+              A_relevant: { type: "noul", noul: 0.7 },
+              B_relevant: { type: "noul", noul: 0.95 },
+            },
+          }));
+        }
+        return new Response(JSON.stringify({
+          answers: {
+            A_obviousness: { type: "score", score: 3, confidence: 1, legend: {}, probabilities: {} },
+            B_obviousness: { type: "score", score: 0.2, confidence: 1, legend: {}, probabilities: {} },
+          },
+        }));
       }) as typeof fetch,
       verseText: verseText({ A: "a", B: "b", "ROM.8.28": "all things" }),
     });
@@ -224,22 +329,33 @@ describe("relevance session", () => {
     ];
     const first = await session.judge(items, "relevant");
     expect(first.ranked.map((v) => v.id)).toEqual(["B", "A"]); // closest first
-    expect(fetches).toBe(1);
+    expect(fetches).toBe(2); // filter + sort
     const second = session.reorder(items, "surprising");
     expect(second.fetched).toBe(0);
-    expect(fetches).toBe(1);
+    expect(fetches).toBe(2);
     expect(second.ranked.map((v) => v.id)).toEqual(["B", "A"]); // B is less obvious
   });
 
   test("changes feed re-judges only changed ids", async () => {
-    let bodies: Array<{ highlights: Array<{ id: string }> }> = [];
+    let bodies: Array<{ ask: string; highlights: Array<{ id: string }> }> = [];
     const session = createRelevance({
       lib: "lib1",
       jevUrl: "https://jev.test",
       fetch: (async (_url, init) => {
         const body = JSON.parse(String(init?.body));
         bodies.push(body);
-        return new Response(JSON.stringify({ answers: answersFor(body.highlights.map((h: { id: string }) => h.id)) }));
+        if (body.ask === "filter") {
+          return new Response(JSON.stringify({
+            answers: Object.fromEntries(
+              body.highlights.map((h: { id: string }) => [`${h.id}_relevant`, { type: "noul", noul: 0.9 }]),
+            ),
+          }));
+        }
+        return new Response(JSON.stringify({
+          answers: Object.fromEntries(
+            body.highlights.map((h: { id: string }) => [`${h.id}_obviousness`, { type: "score", score: 2 }]),
+          ),
+        }));
       }) as typeof fetch,
       verseText: verseText({ "JHN.3.16": "love", "ROM.5.3": "suffering", "ROM.5.4": "endurance" }),
     });
@@ -251,7 +367,8 @@ describe("relevance session", () => {
       ],
       "relevant",
     );
-    expect(bodies).toHaveLength(1);
+    expect(bodies).toHaveLength(2);
+    expect(bodies[0].ask).toBe("filter");
     expect(bodies[0].highlights.map((h) => h.id).sort()).toEqual(["JHN.3.16", "ROM.5.3-4"]);
 
     // A verse inside the run changed: only that run is re-asked.
@@ -264,8 +381,9 @@ describe("relevance session", () => {
       ],
       "relevant",
     );
-    expect(bodies).toHaveLength(1);
+    expect(bodies.map((b) => b.ask)).toEqual(["filter", "sort"]);
     expect(bodies[0].highlights.map((h) => h.id)).toEqual(["ROM.5.3-4"]);
+    expect(bodies[1].highlights.map((h) => h.id)).toEqual(["ROM.5.3-4"]);
   });
 });
 
@@ -277,22 +395,28 @@ describe("batching and ranking helpers", () => {
     expect(batches.reduce((n, b) => n + b.length, 0)).toBe(90);
   });
 
-  test("parse and rank: relevant closest first, surprising least obvious first", () => {
+  test("parse and rank: relevant closest first, surprising least obvious first; no reasons", () => {
     const v = parseVerdicts({
       a_relevant: { type: "noul", noul: 0.9 },
-      a_reason: { type: "choice", choice: "same_promise" },
       a_obviousness: { type: "score", score: 3 },
       b_relevant: { type: "noul", noul: 0.6 },
-      b_reason: { type: "choice", choice: "contrast" },
       b_obviousness: { type: "score", score: 0.1 },
       c_relevant: { type: "noul", noul: 0.1 },
-      c_reason: { type: "choice", choice: "same_theme" },
       c_obviousness: { type: "score", score: 1 },
     });
     expect(rankVerdicts([...v.values()], "relevant").map((x) => x.id)).toEqual(["a", "b"]);
     expect(rankVerdicts([...v.values()], "surprising").map((x) => x.id)).toEqual(["b", "a"]);
-    expect(v.get("a")?.reason).toBe("Shared promise");
-    expect(v.get("c")?.reason).toBe("Same theme");
+    expect(v.get("a")).not.toHaveProperty("reason");
+    expect(v.get("c")?.relevant).toBe(false);
+  });
+
+  test("topic closeness sorts highest first and keeps all", () => {
+    const v = parseVerdicts({
+      a_closeness: { type: "score", score: 2 },
+      b_closeness: { type: "score", score: 5 },
+      c_closeness: { type: "score", score: 1 },
+    });
+    expect(rankVerdicts([...v.values()], "topic").map((x) => x.id)).toEqual(["b", "a", "c"]);
   });
 
   test("rangeHash changes when the text changes", async () => {

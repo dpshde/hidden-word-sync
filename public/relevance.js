@@ -1,12 +1,11 @@
 // Rank highlights against a passage with TypeSafe Jev (via the selah-jev Worker).
 // Everything runs under a read grant on the device: the vault server never sees verses or verdicts.
 //
-// One batched call per ~40 highlights. The selah-jev Worker puts the task, the passage and each
-// highlight's reference and text in `state` once, and asks per highlight: does it speak to the passage
-// (noul), what kind of link (choice, shown as a short reason), and how obvious the link is (score).
-// Relevant mode sorts closest first; Surprising sorts least-obvious-but-sound first. Switching
-// those two reorders the cache with no network call. Verdicts are keyed by passage+id+rangeHash+BSB;
-// a changes feed (grant-client shape) re-judges only the ids that moved.
+// Two calls per judge: (1) filter — `{id}_relevant` noul for every highlight; keep those >= RELEVANT_MIN;
+// (2) sort — `{id}_obviousness` score for survivors only (skipped when 0 or 1 remain). Relevant mode
+// orders by strongest noul first; Surprising by least-obvious first. No reason/tagline questions.
+// Switching Relevant ↔ Surprising reorders the cache with no network call. Verdicts are keyed by
+// passage+id+rangeHash+BSB; a changes feed re-judges only the ids that moved.
 
 import { readPassage } from "./passage.js";
 
@@ -16,18 +15,6 @@ export const BATCH_SIZE = 40;
 export const BATCH_TOKENS = 5_000;
 export const RELEVANT_MIN = 0.5;
 export const BIBLE = "BSB";
-
-/** Fixed one-line reasons Jev chooses among; the chosen phrase is shown under the row. */
-export const REASONS = {
-  same_theme: "Same theme",
-  same_promise: "Shared promise",
-  fulfillment: "Promise and fulfillment",
-  same_argument: "Same author's argument",
-  same_call: "Same call to act",
-  contrast: "Contrast that sharpens it",
-  none: "",
-};
-
 
 const estimateTokens = (s) => Math.ceil(String(s ?? "").length / 4);
 
@@ -60,42 +47,66 @@ export function batchHighlights(highlights, { size = BATCH_SIZE, tokens = BATCH_
   return batches;
 }
 
-/** Build the relevance request body the selah-jev Worker accepts. */
-export function buildRelevanceRequest({ lib, passage, highlights }) {
-  return {
+export const MAX_TOPIC_CHARS = 200;
+
+/** Trim and cap a free-text topic (same rules as the Worker). */
+export function sanitizeTopic(raw) {
+  const t = String(raw ?? "").replace(/\s+/g, " ").trim();
+  if (!t) return "";
+  return t.slice(0, MAX_TOPIC_CHARS);
+}
+
+/**
+ * Build the relevance request body the selah-jev Worker accepts.
+ * `ask`: `"filter"` → `{id}_relevant`; `"sort"` → `{id}_obviousness`; `"topic"` → `{id}_closeness`.
+ */
+export function buildRelevanceRequest({ lib, passage, highlights, ask, topic }) {
+  const base = {
     lib: String(lib ?? ""),
-    passage: { ref: passage.ref, text: passage.text },
     highlights: highlights.map((h) => ({ id: String(h.id), ref: h.ref, text: h.text })),
+  };
+  if (ask === "topic") {
+    return { ...base, ask: "topic", topic: sanitizeTopic(topic) };
+  }
+  return {
+    ...base,
+    ask: ask === "sort" ? "sort" : "filter",
+    passage: { ref: passage.ref, text: passage.text },
   };
 }
 
 /**
  * Parse a mocked or live Worker response into per-id verdicts:
- * `{ id → { relevant, relevance, reason, obviousness } }`.
+ * `{ id → { relevant, relevance, obviousness, closeness } }` (no reason/tagline).
  */
 export function parseVerdicts(answers = {}) {
   const byId = new Map();
   for (const [qid, ans] of Object.entries(answers)) {
-    const m = /^(.*)_(relevant|reason|obviousness)$/.exec(qid);
+    const m = /^(.*)_(relevant|obviousness|closeness)$/.exec(qid);
     if (!m) continue;
     const [, id, kind] = m;
-    const row = byId.get(id) ?? { id, relevant: false, relevance: 0, reason: "", obviousness: 1.5 };
+    const row = byId.get(id) ?? { id, relevant: false, relevance: 0, obviousness: 1.5, closeness: 0 };
     if (kind === "relevant" && ans?.type === "noul") {
       row.relevance = Number(ans.noul) || 0;
       row.relevant = row.relevance >= RELEVANT_MIN;
-    } else if (kind === "reason" && ans?.type === "choice") {
-      const key = ans.choice;
-      row.reason = REASONS[key] ?? "";
     } else if (kind === "obviousness" && ans?.type === "score") {
       row.obviousness = Number(ans.score) || 0;
+    } else if (kind === "closeness" && ans?.type === "score") {
+      row.closeness = Number(ans.score) || 0;
+      row.relevant = true; // topic mode keeps every highlight
     }
     byId.set(id, row);
   }
   return byId;
 }
 
-/** Relevant: closest first. Surprising: least obvious among the relevant, sound first. */
+/** Relevant: strongest link first. Surprising: least obvious among the relevant first. Topic: closest first. */
 export function rankVerdicts(verdicts, mode) {
+  if (mode === "topic") {
+    return [...verdicts].sort(
+      (a, b) => (b.closeness ?? 0) - (a.closeness ?? 0) || String(a.id).localeCompare(String(b.id)),
+    );
+  }
   const list = [...verdicts].filter((v) => v.relevant);
   if (mode === "surprising") {
     return list.sort((a, b) => a.obviousness - b.obviousness || b.relevance - a.relevance || String(a.id).localeCompare(String(b.id)));
@@ -111,6 +122,19 @@ export function totalCopy(shown, librarySize) {
 export function relatedCopy(label) {
   const named = String(label ?? "").trim();
   return named ? `Related to ${named}` : "Related";
+}
+
+/** Topic-mode group header, e.g. 'Sorted by closeness to “grace”'. */
+export function topicCopy(topic) {
+  const named = sanitizeTopic(topic) || "this topic";
+  return `Sorted by closeness to “${named}”`;
+}
+
+/** Sort-bar microcopy under the list: "3 of 10 · closest first". */
+export function rankStatusCopy(shown, total, mode) {
+  if (mode === "topic") return `${shown} · closest first`;
+  const order = mode === "surprising" ? "least obvious first" : "closest first";
+  return `${shown} of ${total} · ${order}`;
 }
 
 /** List-foot status while a ranking request is in flight. */
@@ -165,20 +189,39 @@ export function createRelevance({
 } = {}) {
   /** cacheKey → verdict */
   const cache = new Map();
-  /** highlightId → rangeHash last judged under the current passage */
+  /** highlightId → rangeHash last judged under the current scope */
   const hashes = new Map();
   let passage = null; // { ref, label, text }
+  let topic = ""; // sanitized free-text topic for Topic mode
   let lastFetchCount = 0;
 
-  function verdictFor(id) {
-    if (!passage) return null;
-    const hash = hashes.get(id);
-    if (!hash) return null;
-    return cache.get(cacheKey(passage.ref, id, hash)) ?? null;
+  function scopeKey() {
+    if (topic) return `topic:${topic}`;
+    return passage?.ref ?? "";
   }
 
-  async function postBatch(highlights) {
-    const body = buildRelevanceRequest({ lib, passage, highlights });
+  function verdictFor(id) {
+    const scope = scopeKey();
+    if (!scope) return null;
+    const hash = hashes.get(id);
+    if (!hash) return null;
+    return cache.get(cacheKey(scope, id, hash)) ?? null;
+  }
+
+  function writeVerdict(id, patch) {
+    const scope = scopeKey();
+    const hash = hashes.get(id);
+    if (!hash || !scope) return;
+    const key = cacheKey(scope, id, hash);
+    const prev = cache.get(key) ?? { id, relevant: false, relevance: 0, obviousness: 1.5, closeness: 0 };
+    cache.set(key, { ...prev, ...patch, id });
+  }
+
+  async function postBatch(highlights, ask) {
+    const body =
+      ask === "topic"
+        ? buildRelevanceRequest({ lib, highlights, ask: "topic", topic })
+        : buildRelevanceRequest({ lib, passage, highlights, ask });
     let res;
     try {
       res = await fetch(jevUrl, {
@@ -198,37 +241,95 @@ export function createRelevance({
     return parseVerdicts(data.answers);
   }
 
-  /**
-   * Judge `items` (`{ id, ref }` plus optional `text`) against the current passage.
-   * Cached ids are skipped. Returns ranked relevant verdicts for `mode`.
-   */
-  async function judge(items, mode = "relevant") {
-    if (!passage) return { ranked: [], total: items.length, fetched: 0 };
-    const need = [];
+  async function prepareItems(items) {
+    const prepared = [];
     for (const item of items) {
       const text = item.text ?? (await verseText.get(item.ref)).text;
       const hash = await rangeHash(text);
       hashes.set(item.id, hash);
-      const key = cacheKey(passage.ref, item.id, hash);
-      if (!cache.has(key)) need.push({ id: item.id, ref: item.ref, text });
+      prepared.push({ id: item.id, ref: item.ref, text });
     }
+    return prepared;
+  }
+
+  /**
+   * Judge `items` against the current passage (Relevant/Surprising).
+   * Call 1 filters; call 2 sorts survivors (skipped when fewer than 2).
+   */
+  async function judge(items, mode = "relevant") {
+    if (!passage) return { ranked: [], total: items.length, fetched: 0 };
+    topic = "";
+    const prepared = await prepareItems(items);
     lastFetchCount = 0;
+
+    // Call 1 — filter: noul for every highlight missing a cached filter result.
+    const needFilter = prepared.filter((h) => {
+      const v = verdictFor(h.id);
+      return !v || v._filtered !== true;
+    });
+    for (const batch of batchHighlights(needFilter)) {
+      lastFetchCount++;
+      const got = await postBatch(batch, "filter");
+      for (const [id, v] of got) {
+        writeVerdict(id, { relevance: v.relevance, relevant: v.relevant, _filtered: true });
+      }
+    }
+
+    const survivors = prepared.filter((h) => verdictFor(h.id)?.relevant);
+
+    // Call 2 — sort: obviousness for survivors only (skip when 0 or 1).
+    if (survivors.length >= 2) {
+      const needSort = survivors.filter((h) => {
+        const v = verdictFor(h.id);
+        return !v || v._sorted !== true;
+      });
+      for (const batch of batchHighlights(needSort)) {
+        lastFetchCount++;
+        const got = await postBatch(batch, "sort");
+        for (const [id, v] of got) {
+          writeVerdict(id, { obviousness: v.obviousness, _sorted: true });
+        }
+      }
+    } else if (survivors.length === 1) {
+      writeVerdict(survivors[0].id, { _sorted: true });
+    }
+
+    const verdicts = items.map((item) => verdictFor(item.id)).filter(Boolean);
+    return { ranked: rankVerdicts(verdicts, mode), total: items.length, fetched: lastFetchCount };
+  }
+
+  /**
+   * Topic mode: one sort call for every highlight (nothing filtered out). Closest first.
+   */
+  async function judgeTopic(items, rawTopic) {
+    const cleaned = sanitizeTopic(rawTopic);
+    if (!cleaned) return { ranked: [], total: items.length, fetched: 0 };
+    passage = null;
+    topic = cleaned;
+    const prepared = await prepareItems(items);
+    lastFetchCount = 0;
+    const need = prepared.filter((h) => {
+      const v = verdictFor(h.id);
+      return !v || v._topicSorted !== true;
+    });
     for (const batch of batchHighlights(need)) {
       lastFetchCount++;
-      const got = await postBatch(batch);
+      const got = await postBatch(batch, "topic");
       for (const [id, v] of got) {
-        const hash = hashes.get(id);
-        cache.set(cacheKey(passage.ref, id, hash), v);
+        writeVerdict(id, { closeness: v.closeness, relevant: true, _topicSorted: true });
       }
     }
     const verdicts = items.map((item) => verdictFor(item.id)).filter(Boolean);
-    return { ranked: rankVerdicts(verdicts, mode), total: items.length, fetched: lastFetchCount };
+    return { ranked: rankVerdicts(verdicts, "topic"), total: items.length, fetched: lastFetchCount };
   }
 
   return {
     lib,
     get passage() {
       return passage;
+    },
+    get topic() {
+      return topic;
     },
     get lastFetchCount() {
       return lastFetchCount;
@@ -238,6 +339,7 @@ export function createRelevance({
      * or `{ label, ref, verses }` after loading BSB text. Nothing is sent to Jev here.
      */
     async setPassageInput(raw) {
+      topic = "";
       const found = readPassage(raw);
       if (found.error) {
         passage = null;
@@ -260,8 +362,14 @@ export function createRelevance({
       passage = { ref, label: found.label, text, verses: found.verses };
       return { label: found.label, ref, verses: found.verses };
     },
+    setTopicInput(raw) {
+      passage = null;
+      topic = sanitizeTopic(raw);
+      return topic;
+    },
     clearPassage() {
       passage = null;
+      topic = "";
     },
     /** Reorder cached verdicts for `items` with no network call. */
     reorder(items, mode) {
@@ -270,6 +378,7 @@ export function createRelevance({
       return { ranked: rankVerdicts(verdicts, mode), total: items.length, fetched: 0 };
     },
     judge,
+    judgeTopic,
     /**
      * Apply a grant-client changes feed: drop deleted ids, and forget upserts so the next judge
      * re-asks only for those. Verse-level refs also invalidate any run id that covers them.
@@ -312,7 +421,7 @@ export function createRelevance({
     /** Test helper: seed a verdict without calling Jev. */
     put(passageRef, id, hash, verdict) {
       hashes.set(id, hash);
-      cache.set(cacheKey(passageRef, id, hash), verdict);
+      cache.set(cacheKey(passageRef, id, hash), { _filtered: true, _sorted: true, ...verdict, id });
     },
   };
 }

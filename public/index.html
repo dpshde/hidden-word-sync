@@ -105,11 +105,17 @@
         <button type="button" class="link" id="relevance-none-date">Sort by Date</button>
       </div>
     </div>
+    <div id="rank-preview" class="rank-preview" hidden>
+      <p class="rank-preview-ref"></p>
+      <p class="rank-preview-text"></p>
+    </div>
     <div id="list"></div>
     <div id="list-foot" class="list-foot" hidden>
       <div id="relevance-bar" class="relevance-bar" hidden>
         <label class="relevance-label" for="relevance-ref">Passage</label>
         <si-passage-input id="relevance-ref" placeholder="Rom 8:18–25" aria-label="Passage to rank highlights against"></si-passage-input>
+        <label class="relevance-label" for="topic-ref">Topic</label>
+        <input id="topic-ref" class="topic-input" type="text" maxlength="200" placeholder="grace, fear of the Lord…" aria-label="Topic to sort highlights by" autocomplete="off" hidden>
         <p id="relevance-error" class="error" role="alert" hidden></p>
       </div>
       <div class="list-foot-row">
@@ -119,6 +125,7 @@
           <button type="button" data-mode="genre" aria-pressed="false">Genre</button>
           <button type="button" data-mode="relevant" aria-pressed="false">Relevant</button>
           <button type="button" data-mode="surprising" aria-pressed="false">Surprising</button>
+          <button type="button" data-mode="topic" aria-pressed="false">Topic</button>
         </div>
       </div>
     </div>
