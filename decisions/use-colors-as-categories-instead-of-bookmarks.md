@@ -17,7 +17,6 @@ Drop bookmarks. Add `color` records:
 - Six built-in color ids: `yellow`, `green`, `blue`, `pink`, `purple`, `orange`. A `color` record with a built-in `ref` gives it a `name`.
 - A library can add custom colors with a random id (`c-` plus random characters), a `name`, a `hex` value, and a `created` time that orders them after the built-ins.
 - A highlight whose color is unknown or deleted shows as yellow. Apps recolor highlights before deleting a color.
-- bible-rs bookmarks are left out on import.
 
 ## Consequences
 

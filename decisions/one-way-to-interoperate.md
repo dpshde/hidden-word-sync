@@ -4,25 +4,23 @@ Date: 2026-11-04
 
 ## Status
 
-Accepted. Supersedes [Sync through a folder of plain files](sync-through-a-folder-of-plain-files.md), [Leave bible-rs out of the first clients](leave-bible-rs-out-of-the-first-clients.md) and [Connect apps with an unlock redirect](connect-apps-with-an-unlock-redirect.md).
+Accepted
 
 ## Context
 
-The contract offered several ways for apps to meet a library: folder sync, a bible-rs import, `/unlock` handing over the whole sync key, and `/connect` grants. Folder sync was the heavy one. Every client had to write its own file, keep deleted records forever, preserve unknown fields and relay between transports, which made any new client (bible-rs first) costly to add. Only the reference web app ever implemented it.
+Apps should be able to read and save a person's highlights without the person handing over their sync key, and without every app reimplementing sync, the merge rule and record bookkeeping. One small, clear contract is easier to adopt and to keep stable than several.
 
 ## Decision
 
 External apps work with a library one way: a `/connect` grant and the highlights API (SPEC 4). The grant's scopes are `read` and `highlights:write`; the API is changes since a cursor, list and find, a grouped read, add (a verse or a range), recolor and delete, done in the reference grant client because the server can't read records.
 
-- Folder sync is removed: the spec section, `folderTransport`, `public/folder.js` and the Sync screen's folder option. The vault's own devices sync through its server only.
-- The bible-rs import is removed. bible-rs, like any app, would connect with a grant.
-- `.jsonl` export and import stay, as a person's own backup and restore. They aren't an interop path.
-- `/unlock` (the key handoff) is deprecated and kept working for the rest of 1.x.
+- The vault's own devices sync through its server (SPEC 5).
+- `.jsonl` export and import are a person's own backup and restore, not an interop path.
+- `/unlock` (handing an app the whole key) is deprecated and kept working for the rest of 1.x.
 - `/save` links, the `/mcp` server and in-page WebMCP tools act inside the person's own library, with their own key or unlocked session. They're conveniences for that person, not a way for apps to interoperate.
 
 ## Consequences
 
-- One short section of the spec tells an app everything it needs. New clients need HTTPS and the grant client, not the merge rule and file bookkeeping.
-- No sync without a server: devices that only shared a folder now need server sync, or a backup file moved by hand.
-- Browsers that used folder sync drop the stored folder handles (an IndexedDB database holding nothing else) on the next load. Their records, in local storage and on the server, are untouched, and anything a folder brought in still reaches the server on the next sync.
-- Strictly, 1.1 promised folder sync's file layout for all of 1.x. It's withdrawn in 1.2 rather than kept to 2.0, because nothing outside this repo used it and nothing on the wire changes.
+- One short section of the spec tells an app everything it needs. A connected app needs HTTPS and the grant client, not the merge rule or file handling.
+- Access is scoped, expires after 90 days and can be revoked, unlike a handed-over key.
+- A library needs its server to reach a person's other devices; without it, a backup file moves by hand.

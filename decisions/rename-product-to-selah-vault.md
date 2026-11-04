@@ -8,7 +8,7 @@ Accepted.
 
 ## Context
 
-The app has lived at vault.selah.tools since the domain move, beside route.bible and the other selah.tools apps, but it still called itself Hidden Word. People see one name in the address bar and another on the page. The old name is also built into the protocol. It's in the key derivations, the library file header, the MCP server's id, the browser's storage, and the Worker and repo names. Existing devices, libraries, folder files, passkeys and connected apps depend on those exact strings.
+The app has lived at vault.selah.tools since the domain move, beside route.bible and the other selah.tools apps, but it still called itself Hidden Word. People see one name in the address bar and another on the page. The old name is also built into the protocol. It's in the key derivations, the library file header, the MCP server's id, the browser's storage, and the Worker and repo names. Existing devices, libraries, backup files, passkeys and connected apps depend on those exact strings.
 
 ## Decision
 
@@ -20,7 +20,7 @@ The app has lived at vault.selah.tools since the domain move, beside route.bible
   - the `X-Hidden-Word-Key` header and the `realm="hidden-word"` challenge
   - the MCP server's `serverInfo.name` (`hidden-word`)
   - the `hidden-word:*` localStorage keys
-  - the IndexedDB database and the folder picker's id (`hidden-word`)
+  - the IndexedDB database (`hidden-word`)
   - the Worker (`hidden-word`), its D1 database and its old workers.dev address
   - the WebAuthn `rp.id`, which stays the hostname
 - The repo moved to `dpshde/selah-vault` after this was written (GitHub redirects `dpshde/hidden-word-sync`), and the older decision records now say Selah Vault too, so one name reads through the history. This record keeps the old name where it explains the change.

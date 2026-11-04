@@ -504,19 +504,19 @@ describe("the merge rule", () => {
 });
 
 describe("syncing through the server, or not at all", () => {
-  test("a library saved while folder sync existed keeps every record and syncs through the server", async () => {
+  test("a library saved by an older version keeps every record, ignores leftover sync state, and syncs through the server", async () => {
     const { fetch } = setup();
     const keyText = await formatKey(newKey());
     const store = memoryStore();
     const before = await device(keyText, [], store);
     await before.putMany([hl("PSA.23.1", "green"), { kind: "note", ref: "PSA.23", body: "shepherd" }]);
-    // What the folder transport left in a device's saved state: its cursor, files seen, and a
-    // record it brought in (source "folder") that the server never had.
+    // Leftovers from an older version: state for a transport this app no longer has, and a
+    // record that came in through it which the server never had.
     const saved = structuredClone(before.state);
     saved.remotes.folder = { cursor: 0, seq: 0, epoch: null, sent: saved.n, all: false, redo: [], files: { "old-device.jsonl": "1:2" } };
-    const fromFolder = await device(keyText);
-    await fromFolder.put(hl("PSA.23.4", "blue"));
-    const [id, item] = Object.entries(fromFolder.state.items)[0];
+    const elsewhere = await device(keyText);
+    await elsewhere.put(hl("PSA.23.4", "blue"));
+    const [id, item] = Object.entries(elsewhere.state.items)[0];
     saved.items[id] = { ...item, n: ++saved.n, s: "folder" };
     store.save(before.lib, saved);
 

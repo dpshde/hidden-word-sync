@@ -4,7 +4,7 @@
 
 Selah Vault (formerly Hidden Word) is a small format for Bible highlights and notes, kept in step across a person's devices by a server that can't read them.
 
-There is one way for another app to work with a library: **connect** (section 4). The person approves a grant on `/connect`, and the app reads and writes highlights with it over HTTPS. Nothing else (files, folders, the sync key) is an interop path.
+There is one way for another app to work with a library: **connect** (section 4). The person approves a grant on `/connect`, and the app reads and writes highlights with it over HTTPS.
 
 1. **Records**: what a highlight, note, color or the library's name looks like as JSON.
 2. **Backup files**: a library as one readable JSON Lines file, to save and restore.
@@ -385,8 +385,7 @@ Not covered: the reference web app's screens and storage, and the reference Work
 ## Changes from 1.1
 
 - One way for apps to work with a library: connect with a grant (section 4), with the highlights API in the reference grant client. The key handoff (7.3) is deprecated.
-- Folder sync (1.1 section 4) is removed, with the rule for syncing several transports (6). Only the reference web app implemented it. Strictly, 1.1's section 11 promised its file layout for all of 1.x; it's withdrawn rather than kept to 2.0, and nothing on the wire changes. Devices that used it keep their records, and sync through the server.
-- bible-rs export import (1.1 section 2.1) is removed. Library files are a personal backup only.
+- A library syncs through its server only, and library files are a personal backup (2, 6).
 
 ## Changes from 1.0
 
@@ -409,7 +408,6 @@ No wire changes: a 0.2 client or server is a 1.0 one.
 
 - One merge rule (section 3) decides every conflict, on every device. Servers no longer decide by arrival order.
 - Servers report `seq` and `epoch`, and clients refill a server that lost data.
-- Folder sync with plain, readable files (removed in 1.2).
 - Colors can be named and added (section 1.4). Bookmarks are gone.
 - Files have an optional header line.
 - Rules that protect people's data (section 6), and route.bible links (section 8).
