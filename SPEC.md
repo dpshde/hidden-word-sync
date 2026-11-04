@@ -298,6 +298,8 @@ A Selah Vault site can hand a library's key to another app, in the style of an O
 
 A site MAY accept `/#k=<key>&name=<name>` to prefill its own unlock form.
 
+Apps that shouldn't hold the whole key use a grant instead: `/connect` hands them a limited, expiring token with the decryption key and, to write, the item-id key. [docs/connect.md](docs/connect.md) describes it, along with the reference app client (`public/grant-client.js`): a changes feed with a cursor, grouped ranges, and range writes in one POST.
+
 ### 7.4 Saving from a link
 
 A Selah Vault site MAY save a highlight from a plain link, so any app, bookmarklet or share sheet can send a verse with one `GET`:

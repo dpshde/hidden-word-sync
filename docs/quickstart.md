@@ -130,7 +130,7 @@ lib.highlights({ group: "ranges" });
 // → [{ ref: "ROM.5.3-5", verses: ["ROM.5.3", "ROM.5.4", "ROM.5.5"], color: "green", time: 1793000000 }]
 ```
 
-Apps with their own client (or a grant from `/connect`, which hands over the library id, a grant token, `ek` and, for writing, `mk`) can import the same rule from `public/ranges.js`: `rangeWrites(ref, color, t, find)` gives the records to encrypt and POST together, and `listRanges(records, colorIds)` the grouped view. A grant needs `highlights:write` for the POST and `read` for the GET; the server checks the method, since it can't see what a record is.
+Apps connected with a grant should use `public/grant-client.js` ([docs/connect.md](connect.md)): a changes feed, grouped ranges and range writes. Apps with their own client (or a grant from `/connect`, which hands over the library id, a grant token, `ek` and, for writing, `mk`) can import the same rule from `public/ranges.js`: `rangeWrites(ref, color, t, find)` gives the records to encrypt and POST together, and `listRanges(records, colorIds)` the grouped view. A grant needs `highlights:write` for the POST and `read` for the GET; the server checks the method, since it can't see what a record is.
 
 ## Check your work
 
