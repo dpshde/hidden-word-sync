@@ -35,8 +35,14 @@ let folder = { handle: null, state: "off" };
 let filter = null;
 let flashTimer = 0;
 
+// The screens with a library open. The footer says only whether one is: never the key, never sync.
+const SIGNED_IN = new Set(["main", "colors", "backup", "sync"]);
+
 function show(id) {
   for (const section of document.querySelectorAll("main > section")) section.hidden = section.id !== id;
+  const status = $("#auth-status");
+  status.textContent = SIGNED_IN.has(id) ? "Signed in" : "Signed out";
+  status.hidden = false;
 }
 
 /** Shows a passing message, with an optional button such as `{ label: "Undo", run }`. */

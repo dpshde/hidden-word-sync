@@ -47,7 +47,7 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Dark: the system's choice unless the header's theme button picked one (data-theme on <html>, set
+/* Dark: the system's choice unless the footer's theme button picked one (data-theme on <html>, set
    before first paint by /theme.js), like route.bible. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
@@ -97,7 +97,7 @@
 :root[data-theme="dark"] { color-scheme: dark; }
 
 * { box-sizing: border-box; }
-body { margin: 0; position: relative; isolation: isolate; min-height: 100vh; min-height: 100dvh; }
+body { margin: 0; position: relative; isolation: isolate; min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; }
 
 /* route.bible's grain (static/css/app.css): in dark only, a faint glow at the top (body::before) and its
    noise tile (/monologue-noise.webp, the same file) laid over the page at 5.5% with lighten, fading toward
@@ -123,7 +123,7 @@ body::after {
   :root:not([data-theme="light"]) body::before, :root:not([data-theme="light"]) body::after { content: ""; }
 }
 ::selection { background: color-mix(in oklab, var(--brand) 35%, transparent); }
-main { position: relative; z-index: 2; max-width: 32rem; margin: 0 auto; padding: 3rem 1.25rem 4rem; }
+main { position: relative; z-index: 2; width: 100%; max-width: 32rem; margin: 0 auto; padding: 3rem 1.25rem 4rem; }
 h1 { font-size: 1.625rem; line-height: 1.15; font-weight: 700; margin: 0 0 .5rem; letter-spacing: -.035em; }
 /* The start page's title, set like route.bible's wordmark. */
 #start h1 { font-size: 2.75rem; letter-spacing: -.07em; margin-bottom: .75rem; }
@@ -150,14 +150,7 @@ button.danger:not(.quiet) { background: transparent; border-color: transparent; 
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 
 header { display: flex; align-items: center; gap: .75rem; margin-bottom: 1.5rem; }
-header .theme-toggle { margin-left: auto; }
-/* The theme button, route.bible's: a square icon cell beside the ••• menu, showing the theme in use. */
-.theme-toggle { display: inline-grid; place-items: center; width: 2rem; height: 2rem; padding: 0; flex: none; background: var(--surface); border: 1px solid var(--line); border-radius: 0; color: var(--fg-2); box-shadow: none; transition: background-color var(--ease), color var(--ease), border-color var(--ease); }
-.theme-toggle:hover { background: var(--hover); border-color: var(--hover-line); color: var(--fg); }
-.theme-toggle svg { display: block; }
-/* On the start page, which has no header, it sits in the top corner. */
-#start { position: relative; }
-.theme-toggle.corner { position: absolute; top: -2rem; right: 0; }
+header #menu { margin-left: auto; }
 /* The library's name, edited in place: plain heading text until it has focus. */
 #lib-name { min-width: 2ch; max-width: 70%; overflow-wrap: anywhere; font-size: 1.25rem; font-weight: 700; letter-spacing: -.03em; line-height: 1.3; padding: .125rem .375rem; margin-left: -.375rem; border-radius: 0; outline: none; cursor: text; -webkit-user-modify: read-write-plaintext-only; transition: background-color var(--ease), box-shadow var(--ease); }
 #lib-name:focus { box-shadow: inset 0 0 0 1px var(--line); background: var(--raised); }
@@ -362,3 +355,32 @@ button.wide { width: 100%; padding: .8125rem 1rem; }
 .divider::before, .divider::after { content: ""; flex: 1; border-top: 1px solid var(--line); }
 .new-here { margin: 2.5rem 0 0; color: var(--muted); font-size: .875rem; }
 .new-here button.link { display: inline; flex: none; color: var(--fg); text-decoration: underline; text-underline-offset: .2em; font-size: inherit; }
+
+/* The footer, route.bible's .shell-meta: small square-cornered chips in a row at the bottom right, at
+   85% like its landing bar. It sits after the page in the flow (pushed to the bottom of the screen when
+   the page is short), so it never covers a row or the add field, on a phone as on a desktop. */
+.shell-meta {
+  position: relative; z-index: 2;
+  margin-top: auto;
+  display: flex; flex-wrap: nowrap; align-items: center; justify-content: flex-end; gap: 8px;
+  padding: 0 max(24px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(24px, env(safe-area-inset-left));
+  transform: scale(.85); transform-origin: bottom right;
+}
+.shell-link {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 32px; padding: 0 10px;
+  border: 1px solid var(--line); border-radius: 0; box-shadow: none;
+  background: var(--surface); color: var(--fg-2);
+  font: inherit; font-size: .68rem; font-weight: 650; letter-spacing: .06em; line-height: 1;
+  text-decoration: none; text-transform: uppercase; white-space: nowrap;
+  transition: border-color var(--ease), color var(--ease), background-color var(--ease);
+}
+a.shell-link:focus-visible, button.shell-link:focus-visible { color: var(--fg); border-color: var(--brand); background: color-mix(in oklab, var(--surface) 82%, var(--brand) 18%); }
+@media (hover: hover) {
+  a.shell-link:hover, button.shell-link:hover { color: var(--fg); border-color: var(--brand); background: color-mix(in oklab, var(--surface) 82%, var(--brand) 18%); }
+}
+.shell-meta .theme-toggle { width: 36px; min-width: 36px; flex: 0 0 36px; padding: 0; border-color: color-mix(in oklab, var(--brand) 36%, var(--line)); color: var(--fg); }
+.shell-meta .theme-toggle svg { display: block; margin: 0 auto; }
+/* Auth status is a label, not a control. */
+.shell-status { cursor: default; }
+.shell-status[hidden] { display: none; }
