@@ -3,7 +3,8 @@ body.oauth { justify-content: center; }
 .oauth-main { max-width: 26rem; padding: 2.5rem 1rem 3rem; }
 .oauth-card { background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow); padding: 1.75rem 1.5rem 1.25rem; text-align: center; }
 .oauth-logos { display: flex; align-items: center; justify-content: center; gap: .75rem; margin-bottom: 1.25rem; }
-.oauth-logo { display: inline-flex; width: 48px; height: 48px; align-items: center; justify-content: center; background: var(--raised); border: 1px solid var(--line-subtle); overflow: hidden; }
+.oauth-logo { display: inline-flex; width: 48px; height: 48px; align-items: center; justify-content: center; overflow: hidden; }
+/* Both tiles are 100x100 SVGs with rx 22 and a 22% glyph inset (route.bible's favicon), so the pair matches. */
 .oauth-logo img { width: 100%; height: 100%; display: block; }
 .oauth-logo .oauth-letter { font-family: var(--font-sans); font-weight: 700; font-size: 1.25rem; color: var(--fg); }
 .oauth-link { display: inline-flex; gap: 4px; }
