@@ -262,6 +262,10 @@ button.dot[aria-pressed="true"] { border-color: var(--fg); }
 .relevance-bar si-passage-input::part(listbox) { z-index: 40; }
 #relevance-error { margin: .375rem 0 0; font-size: .8125rem; }
 #relevance-error[hidden] { display: none; }
+/* Valid ref, zero relevant: calm offer panel, distinct from the error line and from "No highlights yet". */
+.relevance-none { margin: 0 0 .75rem; }
+.relevance-none[hidden] { display: none; }
+.relevance-none p { margin: 0 0 .625rem; color: var(--fg-2); }
 .row-reason { display: block; margin: .125rem 0 0; font-size: .8125rem; color: var(--muted); font-weight: 450; line-height: 1.35; }
 /* No selection / transition animation when ranking reorders the list. */
 #list.rank-mode .group, #list.rank-mode .row { transition: none; }

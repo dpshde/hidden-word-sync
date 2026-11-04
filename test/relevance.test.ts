@@ -4,8 +4,9 @@ import { readFileSync } from "node:fs";
 import {
   batchHighlights,
   buildRelevanceRequest,
+  chapterRefOf,
   createRelevance,
-  EMPTY_RELEVANCE,
+  emptyRelevanceCopy,
   parseVerdicts,
   rangeHash,
   rankErrorMessage,
@@ -16,6 +17,7 @@ import {
 
 const html = readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
 const app = readFileSync(new URL("../public/app.js", import.meta.url), "utf8");
+const css = readFileSync(new URL("../public/style.css", import.meta.url), "utf8");
 
 function verseText(map: Record<string, string>) {
   return {
@@ -51,11 +53,25 @@ describe("UI copy and footer toggle", () => {
 
   test("count and empty-state copy", () => {
     expect(totalCopy(6, 47)).toBe("6 of 47 relevant");
-    expect(EMPTY_RELEVANCE).toBe("None of your highlights speak to this passage yet.");
-    expect(app).toContain("totalCopy");
-    expect(app).toContain("EMPTY_RELEVANCE");
+    expect(emptyRelevanceCopy(17, "Hab 2:2")).toBe("None of your 17 highlights connect to Hab 2:2");
+    expect(emptyRelevanceCopy(1, "Romans 8:28")).toBe("None of your 1 highlight connect to Romans 8:28");
+    expect(chapterRefOf("HAB.2.2")).toBe("HAB.2");
+    expect(chapterRefOf("ROM.8.18-25")).toBe("ROM.8");
+    expect(chapterRefOf("PSA.23")).toBe("PSA.23");
+    expect(html).toContain('id="relevance-none"');
+    expect(html).toContain("Open on route.bible");
+    expect(html).toContain("Try the whole chapter");
+    expect(html).toContain("Sort by Date");
+    expect(app).toContain("emptyRelevanceCopy");
+    expect(app).toContain("showRelevanceNone");
+    expect(app).toContain("relevance-none-route");
+    expect(app).toContain("relevance-none-chapter");
+    expect(app).toContain("relevance-none-date");
     expect(app).toContain("rankFailed");
     expect(app).toContain("rankErrorMessage");
+    // Distinct from the error line and from the library-empty #empty copy.
+    expect(app).toContain('textContent = "No highlights yet."');
+    expect(css).toContain(".relevance-none");
   });
 
   test("network and Worker errors become human lines, not Failed to fetch", () => {

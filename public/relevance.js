@@ -107,7 +107,22 @@ export function totalCopy(shown, librarySize) {
   return `${shown} of ${librarySize} relevant`;
 }
 
+/** Fallback when the passage label isn't known yet. Prefer emptyRelevanceCopy with a count and label. */
 export const EMPTY_RELEVANCE = "None of your highlights speak to this passage yet.";
+
+/** Calm no-results line naming the library size and the passage, e.g. "None of your 17 highlights connect to Hab 2:2". */
+export function emptyRelevanceCopy(count, label) {
+  const n = Number(count) || 0;
+  const what = n === 1 ? "highlight" : "highlights";
+  const named = String(label ?? "").trim() || "this passage";
+  return `None of your ${n} ${what} connect to ${named}`;
+}
+
+/** The whole-chapter reference for "try the chapter" (HAB.2.2 → HAB.2; ROM.8.18-25 → ROM.8). */
+export function chapterRefOf(ref) {
+  const m = /^([1-3A-Z][A-Z0-9]{2})\.(\d+)/.exec(String(ref ?? ""));
+  return m ? `${m[1]}.${m[2]}` : null;
+}
 
 /** Turn network / Worker errors into a short line under the passage field (never raw "Failed to fetch"). */
 export function rankErrorMessage(err) {

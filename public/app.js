@@ -13,7 +13,7 @@ import { registerSelahVaultTools } from "./webmcp.js";
 import { armDelete } from "./confirm.js";
 import { defineKeepingLoaded, createWarmer } from "./passage-warm.js";
 import { createBsbText } from "./bsb-text.js";
-import { createRelevance, EMPTY_RELEVANCE, totalCopy, rankErrorMessage } from "./relevance.js";
+import { createRelevance, emptyRelevanceCopy, chapterRefOf, totalCopy, rankErrorMessage } from "./relevance.js";
 
 const $ = (sel) => document.querySelector(sel);
 const SESSION = "hidden-word:session";
@@ -354,17 +354,17 @@ function render() {
   const shown = filter ? rows.filter((r) => topColor(r, ids) === filter) : rows;
   // A failed call keeps the passage for retry, but the list stays in Date order (no "0 of N relevant").
   const ranking = RANK_MODES.includes(groupBy) && relevance?.passage && !rankFailed;
+  const noneRelevant = ranking && !rankPending && rankReasons.size === 0 && shown.length > 0;
   $("#empty").hidden = rows.length > 0;
-  $("#empty").textContent = ranking && rankReasons.size === 0 && !rankPending
-    ? EMPTY_RELEVANCE
-    : "No highlights yet.";
+  $("#empty").textContent = "No highlights yet.";
+  showRelevanceNone(noneRelevant ? { count: shown.length, passage: relevance.passage } : null);
   renderGroupBy(rows.length > 0);
   // A row being edited stays as it is until the edit ends (a sync mid-edit would wipe the field);
   // finishing the edit renders again.
   // Rebuild the list only when what it shows changed. A sync that brings nothing new (every window
   // focus runs one) still emits for its status; rebuilding then would move the open passage and
   // replay its opening animation.
-  const sig = JSON.stringify([shown, colors, groupBy, filter, verseText.key, editing, ranking && relevance.passage?.ref, [...rankReasons], rankFailed]);
+  const sig = JSON.stringify([shown, colors, groupBy, filter, verseText.key, editing, ranking && relevance.passage?.ref, [...rankReasons], rankFailed, noneRelevant]);
   if (!editing && sig !== listSig) {
     if (ranking) {
       const order = [...rankReasons.keys()];
@@ -373,12 +373,9 @@ function render() {
       const ranked = order.map((id) => byRef.get(id)).filter(Boolean);
       $("#list-total").textContent = totalCopy(ranked.length, shown.length);
       $("#list").classList.add("rank-mode");
-      $("#list").replaceChildren(rankGroup(ranked));
-      $("#empty").hidden = ranked.length > 0 || rankPending;
-      if (!ranked.length && !rankPending) {
-        $("#empty").hidden = false;
-        $("#empty").textContent = EMPTY_RELEVANCE;
-      }
+      if (ranked.length) $("#list").replaceChildren(rankGroup(ranked));
+      else $("#list").replaceChildren();
+      $("#empty").hidden = true; // library has rows; zero relevant uses #relevance-none, not #empty
     } else {
       // Relevant/Surprising with no valid passage yet (or a failed call): keep Date order.
       const mode = RANK_MODES.includes(groupBy) ? "date" : groupBy;
@@ -442,7 +439,43 @@ function clearRelevanceInput() {
   rankReasons = new Map();
   rankPending = null;
   rankFailed = false;
+  showRelevanceNone(null);
 }
+
+/** Calm panel when a valid passage returns no relevant highlights — not the error line, not #empty. */
+function showRelevanceNone(info) {
+  const panel = $("#relevance-none");
+  if (!info) {
+    panel.hidden = true;
+    return;
+  }
+  const label = info.passage.label || labelRef(info.passage.ref);
+  $("#relevance-none-copy").textContent = emptyRelevanceCopy(info.count, label);
+  panel.dataset.ref = info.passage.ref;
+  panel.dataset.label = label;
+  const chapter = chapterRefOf(info.passage.ref);
+  $("#relevance-none-chapter").hidden = !chapter || chapter === info.passage.ref;
+  panel.hidden = false;
+}
+
+$("#relevance-none-route").addEventListener("click", () => {
+  const ref = $("#relevance-none").dataset.ref;
+  if (ref) window.open(`https://route.bible/${ref.toLowerCase()}`, "_blank", "noopener");
+});
+
+$("#relevance-none-chapter").addEventListener("click", () => {
+  const ref = $("#relevance-none").dataset.ref;
+  const chapter = chapterRefOf(ref);
+  if (!chapter) return;
+  const field = $("#relevance-ref");
+  field.value = labelRef(chapter);
+  void runRelevance();
+});
+
+$("#relevance-none-date").addEventListener("click", () => {
+  const dateBtn = document.querySelector('#group-by button[data-mode="date"]');
+  dateBtn?.click();
+});
 
 function syncRelevanceCache() {
   if (!library || !relevance) return;
