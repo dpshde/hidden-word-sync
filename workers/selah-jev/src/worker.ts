@@ -18,9 +18,16 @@ export const MAX_HIGHLIGHTS = 40;
 export const RATE_PER_MIN = 12;
 export const VAULT_ORIGINS = new Set([
   "https://vault.selah.tools",
+  "https://sync.selah.tools",
   "http://localhost:8787",
   "http://127.0.0.1:8787",
 ]);
+
+/** Preview versions of the vault Worker, e.g. https://1a2b3c4d-hidden-word.dpshade.workers.dev. */
+const PREVIEW_ORIGIN = /^https:\/\/[a-z0-9-]+-hidden-word\.dpshade\.workers\.dev$/;
+
+export const allowedOrigin = (origin: string | null): boolean =>
+  !!origin && (VAULT_ORIGINS.has(origin) || PREVIEW_ORIGIN.test(origin));
 
 // Labels are kept aligned with REASONS in public/relevance.js, which shows the chosen one under the row.
 const TASK =
@@ -51,7 +58,7 @@ type Highlight = { id: string; ref: string; text: string };
 export type RelevanceBody = { lib: string; passage: Passage; highlights: Highlight[] };
 
 function cors(origin: string | null): HeadersInit {
-  const allow = origin && VAULT_ORIGINS.has(origin) ? origin : "https://vault.selah.tools";
+  const allow = allowedOrigin(origin) ? origin : "https://vault.selah.tools";
   return {
     "access-control-allow-origin": allow,
     "access-control-allow-methods": "POST, OPTIONS",
@@ -168,11 +175,11 @@ export function memoryCaps(store = new Map<string, string>()) {
 export async function handle(request: Request, env: Env, upstreamFetch: typeof fetch = fetch): Promise<Response> {
   const origin = request.headers.get("origin");
   if (request.method === "OPTIONS") {
-    if (origin && !VAULT_ORIGINS.has(origin)) return new Response(null, { status: 403 });
+    if (origin && !allowedOrigin(origin)) return new Response(null, { status: 403 });
     return new Response(null, { status: 204, headers: cors(origin) });
   }
   if (request.method !== "POST") return fail(405, "POST only", origin);
-  if (origin && !VAULT_ORIGINS.has(origin)) return fail(403, "origin not allowed", origin);
+  if (origin && !allowedOrigin(origin)) return fail(403, "origin not allowed", origin);
 
   const declared = Number(request.headers.get("content-length") ?? 0);
   if (declared > MAX_BODY_BYTES) return fail(413, "body too large", origin);
