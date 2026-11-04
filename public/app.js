@@ -376,7 +376,12 @@ function render() {
 
   const shown = filter ? rows.filter((r) => topColor(r, ids) === filter) : rows;
   const jevActive = JEV_MODES.includes(groupBy);
-  const hasScope = !!(relevance?.passage || (groupBy === TOPIC_MODE && relevance?.topic));
+  // Scope is mode-specific: a leftover Relevant passage must not count as Topic scope (and vice versa).
+  const hasScope = RANK_MODES.includes(groupBy)
+    ? !!relevance?.passage
+    : groupBy === TOPIC_MODE
+      ? !!relevance?.topic
+      : false;
   // A failed call keeps Date order. Pending keeps Jev chrome (loading line) before the scope lands.
   const ranking = jevActive && !rankFailed && (hasScope || rankPending);
   // Jev mode with nothing typed yet: empty list + hint (never a stale Date "Today" header).
@@ -393,7 +398,11 @@ function render() {
   // Rebuild the list only when what it shows changed. A sync that brings nothing new (every window
   // focus runs one) still emits for its status; rebuilding then would move the open passage and
   // replay its opening animation.
-  const scopeKey = relevance?.passage?.ref || (groupBy === TOPIC_MODE ? relevance?.topic : "") || "";
+  const scopeKey = RANK_MODES.includes(groupBy)
+    ? relevance?.passage?.ref || ""
+    : groupBy === TOPIC_MODE
+      ? relevance?.topic || ""
+      : "";
   const sig = JSON.stringify([shown, colors, groupBy, filter, verseText.key, editing, ranking && scopeKey, rankOrder, rankFailed, noneRelevant, !!rankPending, jevWaiting, verseText.open, rankPaint]);
   if (!editing && sig !== listSig) {
     if (jevWaiting) {
@@ -424,8 +433,9 @@ function render() {
         // Same group()/row() markup as Date and Genre — only the heading text differs.
         $("#list").replaceChildren(group({ id: "ranked", name: heading, runs: ranked }));
       } else {
-        $("#list-total").textContent =
-          groupBy === TOPIC_MODE ? topicCopy(relevance?.topic) : totalCopy(0, shown.length);
+        // Zero survivors (passage modes). Topic keeps every highlight, so this is rare.
+        // Never put topicCopy / “Sorted by closeness” in the foot with an empty list.
+        $("#list-total").textContent = RANK_MODES.includes(groupBy) ? totalCopy(0, shown.length) : "";
         $("#list").replaceChildren();
       }
       $("#empty").hidden = true; // library has rows; zero relevant uses #relevance-none, not #empty
@@ -511,6 +521,9 @@ for (const b of document.querySelectorAll("#group-by button")) {
     } else if (next === TOPIC_MODE && sanitizeTopic($("#topic-ref").value)) {
       void runTopic();
     } else {
+      // Crossing passage ↔ topic (or empty scope): drop the other mode's session so hasScope matches the field.
+      if (next === TOPIC_MODE) relevance?.setTopicInput("");
+      else if (willPassage) relevance?.clearPassage();
       rankOrder = [];
       rankFailed = false;
       verseText.open = null;

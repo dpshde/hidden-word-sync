@@ -135,11 +135,16 @@ describe("UI copy and footer toggle", () => {
     // Mode switch Relevant ↔ Surprising starts a new paint so the new top expands.
     expect(app).toMatch(/beginRankPaint\(\);\s*void reorderRelevance\(\)/);
     // Empty Jev scope: hint in the list area (not foot status), no stale Date groups.
+    // Topic must not treat a leftover Relevant passage as scope (mode-specific hasScope).
     expect(app).toContain("jevWaiting");
     expect(app).toContain("jevHintCopy(groupBy)");
     expect(app).toContain('hint.className = "rank-hint"');
     expect(app).toContain('$("#list-total").textContent = ""');
+    expect(app).toMatch(/RANK_MODES\.includes\(groupBy\)\s*\?\s*!!relevance\?\.passage/);
+    expect(app).toContain('relevance?.setTopicInput("")');
     expect(css).toContain(".rank-hint");
+    // Foot never shows topicCopy / “Sorted by closeness” while the list is empty.
+    expect(app).not.toMatch(/list-total"\)\.textContent =\s*\n\s*groupBy === TOPIC_MODE \? topicCopy/);
     // Expanded reader forces Lexend inside the shadow (si-passage .root uses all:initial).
     expect(app).toContain('font-family: "Lexend"');
     expect(app).toContain("styleScripture(el); // re-apply after reconnect");
