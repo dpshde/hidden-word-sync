@@ -96,13 +96,15 @@
       <p class="error" role="alert"></p>
     </form>
 
-    <template id="group-by-home"></template>
-    <div id="group-by" class="segmented" role="group" aria-label="Group by" hidden>
-      <button type="button" data-mode="date" aria-pressed="true">Date</button>
-      <button type="button" data-mode="genre" aria-pressed="false">Genre</button>
-    </div>
     <div id="filters" role="group" aria-label="Show"></div>
     <div id="list"></div>
+    <div id="list-foot" class="list-foot" hidden>
+      <span id="list-total" class="list-total" role="status"></span>
+      <div id="group-by" class="segmented" role="group" aria-label="Group by" hidden>
+        <button type="button" data-mode="date" aria-pressed="true">Date</button>
+        <button type="button" data-mode="genre" aria-pressed="false">Genre</button>
+      </div>
+    </div>
     <div id="color-pop" popover role="group" aria-label="Highlight color"></div>
     <p id="empty" class="quiet-text">No highlights yet.</p>
   </section>

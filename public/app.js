@@ -345,16 +345,9 @@ function render() {
   const sig = JSON.stringify([shown, colors, groupBy, filter, verseText.key, editing]);
   if (!editing && sig !== listSig) {
     const groups = groupList(shown, groupBy, (r) => topColor(r, ids));
-    const toggle = $("#group-by");
-    // Park the toggle back in the page before the rebuild drops the old summaries.
-    $("#group-by-home").after(toggle);
     const total = groups.reduce((n, g) => n + g.runs.length, 0);
-    const foot = document.createElement("p");
-    foot.className = "list-total";
-    foot.textContent = `${total} ${total === 1 ? "highlight" : "highlights"}`;
-    $("#list").replaceChildren(...groups.map(group), ...(groups.length ? [foot] : []));
-    // The Date/Genre toggle lives at the right end of the first group's summary, where its count was.
-    $("#list .group > summary")?.append(toggle);
+    $("#list-total").textContent = `${total} ${total === 1 ? "highlight" : "highlights"}`;
+    $("#list").replaceChildren(...groups.map(group));
   }
   listSig = editing ? null : sig;
   if (!$("#colors").hidden) renderColors();
@@ -368,11 +361,10 @@ const groupOpen = new Map();
 
 function renderGroupBy(any) {
   $("#group-by").hidden = !any;
+  $("#list-foot").hidden = !any;
   for (const b of document.querySelectorAll("#group-by button")) b.setAttribute("aria-pressed", String(b.dataset.mode === groupBy));
 }
 
-// Inside a <summary>, a click on the toggle must not open or close the group.
-$("#group-by").addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); });
 for (const b of document.querySelectorAll("#group-by button")) {
   b.addEventListener("click", () => {
     groupBy = b.dataset.mode;
