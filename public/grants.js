@@ -67,7 +67,7 @@ export function grantAllows(scopes, method) {
 
 /** The consent page's list: what the app can do, then what it can't. */
 export function consentLines(scopes) {
-  const can = scopes.map((s) => ({ ok: true, icon: SCOPES[s].icon, text: SCOPES[s].label }));
+  const can = Object.keys(SCOPES).filter((s) => scopes.includes(s)).map((s) => ({ ok: true, icon: SCOPES[s].icon, text: SCOPES[s].label }));
   const cant = scopes.includes("highlights:write") ? "Can't delete your library or change your passkeys" : "Can't change or delete anything";
   return [...can, { ok: false, icon: "lock", text: cant }, { ok: true, icon: "clock", text: `Access expires in ${GRANT_DAYS} days · disconnect anytime` }];
 }
