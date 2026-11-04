@@ -1,6 +1,6 @@
 # Connect an app: grants
 
-How an app such as route.bible reads and saves a person's highlights without ever holding their sync key. It's the one supported way for apps to work with a Selah Vault library. The server can't read libraries (SPEC 9), so the app does the reading, merging and grouping in its own client, `public/grant-client.js`. That client does the protocol for you, and this page says what it does underneath.
+How an app such as route.bible reads and saves a person's highlights without ever holding their sync key. It's the one way for apps to work with a Selah Vault library ([SPEC 4](../SPEC.md#4-connecting-an-app)). The server can't read libraries (SPEC 9), so the app does the reading, merging and grouping in its own client, `public/grant-client.js`. That client does the protocol for you, and this page says what it does underneath.
 
 ## 1. Ask for access
 

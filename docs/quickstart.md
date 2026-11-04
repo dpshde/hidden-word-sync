@@ -1,5 +1,7 @@
 # Quick start: sync with a Selah Vault server
 
+Connecting an app to someone's library? Use a grant instead ([SPEC 4](../SPEC.md#4-connecting-an-app), [docs/connect.md](connect.md)): your app never holds the sync key. This page is for a full client of your own, one of the person's devices.
+
 Five steps from a sync key to a synced highlight, using the test-vector key from [SPEC.md section 10](../SPEC.md#10-test-vectors). Every value below is real: check your code against it.
 
 The test-vector key is public, so anyone can read or erase its library. Use it only against a local server (`bun run dev`, then `http://localhost:8787`), never for real highlights. The hosted server is `https://vault.selah.tools`: point your app there once these steps work against your local one.
@@ -130,7 +132,7 @@ lib.highlights({ group: "ranges" });
 // → [{ ref: "ROM.5.3-5", verses: ["ROM.5.3", "ROM.5.4", "ROM.5.5"], color: "green", time: 1793000000 }]
 ```
 
-Apps connected with a grant should use `public/grant-client.js` ([docs/connect.md](connect.md)): a changes feed, grouped ranges and range writes. Apps with their own client (or a grant from `/connect`, which hands over the library id, a grant token, `ek` and, for writing, `mk`) can import the same rule from `public/ranges.js`: `rangeWrites(ref, color, t, find)` gives the records to encrypt and POST together, and `listRanges(records, colorIds)` the grouped view. A grant needs `highlights:write` for the POST and `read` for the GET; the server checks the method, since it can't see what a record is.
+Apps connected with a grant get the same through `public/grant-client.js` ([SPEC 4.3](../SPEC.md#43-the-highlights-api), [docs/connect.md](connect.md)). The rule itself is `public/ranges.js`: `rangeWrites(ref, color, t, find)` gives the records to encrypt and POST together, and `listRanges(records, colorIds)` the grouped view.
 
 ## Check your work
 

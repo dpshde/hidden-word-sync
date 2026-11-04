@@ -19,3 +19,11 @@ test("custom and add rows are shaped like the built-in rows, with the action ins
   expect(app).toMatch(/className = "color-field"/);
   expect(css).toMatch(/input\[type="color"\] \{ width: 1\.25rem; height: 1\.25rem;/);
 });
+
+test("one way to sync: the Sync screen offers this site's server and no folder", () => {
+  const sync = /<section id="sync"[\s\S]*?<\/section>/.exec(read("index.html"))?.[0] ?? "";
+  expect(sync).toContain('id="use-server"');
+  expect(sync.toLowerCase()).not.toContain("folder");
+  expect(app).not.toMatch(/folder\.js|showDirectoryPicker|folderTransport|fromBibleRs/);
+  expect(read("index.html")).toContain('accept=".jsonl,application/x-ndjson"');
+});

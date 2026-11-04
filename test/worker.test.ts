@@ -4,7 +4,7 @@ import { Database } from "bun:sqlite";
 import * as entry from "../src/worker";
 import { LIMITS, handle, pageLimit } from "../src/worker";
 import {
-  Library, deriveKeys, encryptRecord, folderTransport, formatKey, memoryDir, memoryStore, newKey, openSlot, parseJsonl, parseKey,
+  Library, deriveKeys, encryptRecord, formatKey, memoryStore, newKey, openSlot, parseJsonl, parseKey,
   saveSlot, serverTransport, slotKeys,
 } from "../public/sync.js";
 
@@ -503,66 +503,34 @@ describe("the merge rule", () => {
   });
 });
 
-describe("syncing through a folder", () => {
-  test("devices sharing a folder see each other's changes, in files people can read", async () => {
-    const shared = new Map();
-    const keyText = await formatKey(newKey());
-    const phone = await device(keyText, [folderTransport(memoryDir(shared))]);
-    const laptop = await device(keyText, [folderTransport(memoryDir(shared))]);
-
-    await phone.putMany([hl("PSA.119.11", "yellow"), { kind: "note", ref: "PSA.119", body: "hidden" }]);
-    await phone.sync();
-    await laptop.sync();
-    expect(colors(laptop)).toEqual({ "PSA.119.11": "yellow" });
-    expect(laptop.find("note", "PSA.119")?.body).toBe("hidden");
-
-    await laptop.remove("highlight", "PSA.119.11");
-    await laptop.sync();
-    await phone.sync();
-    expect(phone.all("highlight")).toEqual([]);
-
-    const file = shared.get(`${phone.state.device}.jsonl`).text.trim().split("\n").map((l: string) => JSON.parse(l));
-    expect(file[0]).toMatchObject({ "hidden-word": 2, library: phone.lib, name: "Personal" });
-    expect(file.slice(1).find((r: { kind: string }) => r.kind === "note")).toMatchObject({ ref: "PSA.119", body: "hidden" });
-  });
-
-  test("files from another library in the same folder are left alone", async () => {
-    const shared = new Map();
-    const mine = await device(await formatKey(newKey()), [folderTransport(memoryDir(shared))]);
-    const theirs = await device(await formatKey(newKey()), [folderTransport(memoryDir(shared))]);
-    await theirs.put(hl("GEN.1.1", "pink"));
-    await theirs.sync();
-    await mine.sync();
-    expect(mine.all()).toEqual([]);
-    await mine.erase();
-    expect(shared.size).toBe(1);
-  });
-});
-
-describe("mixing servers, folders and no sync", () => {
-  test("a server-only device and a folder-only device meet through one that uses both", async () => {
+describe("syncing through the server, or not at all", () => {
+  test("a library saved while folder sync existed keeps every record and syncs through the server", async () => {
     const { fetch } = setup();
-    const shared = new Map();
     const keyText = await formatKey(newKey());
-    const web = await device(keyText, [serverTransport({ fetch })]);
-    const offlineMac = await device(keyText, [folderTransport(memoryDir(shared))]);
-    const phone = await device(keyText, [serverTransport({ fetch }), folderTransport(memoryDir(shared))]);
+    const store = memoryStore();
+    const before = await device(keyText, [], store);
+    await before.putMany([hl("PSA.23.1", "green"), { kind: "note", ref: "PSA.23", body: "shepherd" }]);
+    // What the folder transport left in a device's saved state: its cursor, files seen, and a
+    // record it brought in (source "folder") that the server never had.
+    const saved = structuredClone(before.state);
+    saved.remotes.folder = { cursor: 0, seq: 0, epoch: null, sent: saved.n, all: false, redo: [], files: { "old-device.jsonl": "1:2" } };
+    const fromFolder = await device(keyText);
+    await fromFolder.put(hl("PSA.23.4", "blue"));
+    const [id, item] = Object.entries(fromFolder.state.items)[0];
+    saved.items[id] = { ...item, n: ++saved.n, s: "folder" };
+    store.save(before.lib, saved);
 
-    await web.put(hl("JHN.1.1", "blue"));
-    await offlineMac.put(hl("JHN.1.14", "green"));
-    await web.sync();
-    await offlineMac.sync();
-    await phone.sync();
-    await web.sync();
-    await offlineMac.sync();
-
-    const expected = { "JHN.1.1": "blue", "JHN.1.14": "green" };
-    expect(colors(web)).toEqual(expected);
-    expect(colors(offlineMac)).toEqual(expected);
-    expect(colors(phone)).toEqual(expected);
+    const after = await device(keyText, [serverTransport({ fetch })], store);
+    expect(colors(after)).toEqual({ "PSA.23.1": "green", "PSA.23.4": "blue" });
+    await after.sync();
+    expect(after.status.state).toBe("synced");
+    const other = await device(keyText, [serverTransport({ fetch })]);
+    await other.sync();
+    expect(colors(other)).toEqual({ "PSA.23.1": "green", "PSA.23.4": "blue" });
+    expect(other.find("note", "PSA.23")?.body).toBe("shepherd");
   });
 
-  test("a device with no sync at all trades by file, under the same rule", async () => {
+  test("a device with no sync restores from a backup file, under the same rule", async () => {
     const keyText = await formatKey(newKey());
     const lonely = await device(keyText);
     await lonely.put(hl("REV.22.21", "purple"));

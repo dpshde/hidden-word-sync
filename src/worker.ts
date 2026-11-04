@@ -1,4 +1,4 @@
-// Selah Vault server (spec v1.1): a blind store of encrypted blobs. It never sees verses, notes,
+// Selah Vault server (spec v1.2): a blind store of encrypted blobs. It never sees verses, notes,
 // names or keys, only random-looking ids, ciphertext, and SHA-256 hashes of bearer tokens.
 
 import { YV_PREFIX, yvProxy } from "./yv";
