@@ -1,0 +1,69 @@
+{
+  "tools": [
+    {
+      "name": "find_highlights",
+      "description": "Lists the highlights in the open library, in Bible order, with each one's color and saved quote, plus the library's color names. Use when the user asks what they highlighted, in a book or passage or color, or before changing a highlight.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "within": {
+            "type": "string",
+            "description": "Only highlights inside this passage or book, as the user said it ('Romans', 'John 3', 'Ps 23'). Omit for the whole library."
+          },
+          "color": {
+            "type": "string",
+            "description": "A color as the user named it: yellow, green, blue, pink, purple, orange, or a name the library gave a color (e.g. 'Prayer')."
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Page of results, starting at 1."
+          }
+        }
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "untrustedContentHint": true
+      }
+    },
+    {
+      "name": "add_highlight",
+      "description": "Highlights every verse of a passage in one color in the open library; verses already highlighted take the new color. Use when the user wants to save, highlight or recolor a verse or passage.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "reference": {
+            "type": "string",
+            "description": "A Bible reference as the user said it, e.g. 'John 3:16', 'rom 5:3-5', 'Psalm 23', or a bible.com or route.bible link."
+          },
+          "color": {
+            "type": "string",
+            "description": "A color as the user named it: yellow, green, blue, pink, purple, orange, or a name the library gave a color (e.g. 'Prayer'). Yellow when omitted."
+          }
+        },
+        "required": [
+          "reference"
+        ]
+      }
+    },
+    {
+      "name": "delete_highlights",
+      "description": "Removes the highlights on every verse of a passage from the open library and from the user's other devices when they sync. Use when the user asks to delete or clear a highlight.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "reference": {
+            "type": "string",
+            "description": "A Bible reference as the user said it, e.g. 'John 3:16', 'rom 5:3-5', 'Psalm 23', or a bible.com or route.bible link."
+          }
+        },
+        "required": [
+          "reference"
+        ]
+      },
+      "annotations": {
+        "consequentialHint": true
+      }
+    }
+  ]
+}
