@@ -343,7 +343,19 @@ function render() {
   // focus runs one) still emits for its status; rebuilding then would move the open passage and
   // replay its opening animation.
   const sig = JSON.stringify([shown, colors, groupBy, filter, verseText.key, editing]);
-  if (!editing && sig !== listSig) $("#list").replaceChildren(...groupList(shown, groupBy, (r) => topColor(r, ids)).map(group));
+  if (!editing && sig !== listSig) {
+    const groups = groupList(shown, groupBy, (r) => topColor(r, ids));
+    const toggle = $("#group-by");
+    // Park the toggle back in the page before the rebuild drops the old summaries.
+    $("#group-by-home").after(toggle);
+    const total = groups.reduce((n, g) => n + g.runs.length, 0);
+    const foot = document.createElement("p");
+    foot.className = "list-total";
+    foot.textContent = `${total} ${total === 1 ? "highlight" : "highlights"}`;
+    $("#list").replaceChildren(...groups.map(group), ...(groups.length ? [foot] : []));
+    // The Date/Genre toggle lives at the right end of the first group's summary, where its count was.
+    $("#list .group > summary")?.append(toggle);
+  }
   listSig = editing ? null : sig;
   if (!$("#colors").hidden) renderColors();
 }
@@ -359,6 +371,8 @@ function renderGroupBy(any) {
   for (const b of document.querySelectorAll("#group-by button")) b.setAttribute("aria-pressed", String(b.dataset.mode === groupBy));
 }
 
+// Inside a <summary>, a click on the toggle must not open or close the group.
+$("#group-by").addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); });
 for (const b of document.querySelectorAll("#group-by button")) {
   b.addEventListener("click", () => {
     groupBy = b.dataset.mode;
@@ -367,7 +381,7 @@ for (const b of document.querySelectorAll("#group-by button")) {
   });
 }
 
-/** One group: its name and count as the summary (the whole header toggles it), then its rows. */
+/** One group: its name as the summary (the whole header toggles it), then its rows. */
 function group({ id, name, runs }) {
   const key = `${groupBy}:${id}`;
   const details = document.createElement("details");
@@ -379,11 +393,7 @@ function group({ id, name, runs }) {
   const title = document.createElement("span");
   title.className = "group-name";
   title.textContent = name;
-  const count = document.createElement("span");
-  count.className = "count";
-  count.textContent = String(runs.length);
-  count.setAttribute("aria-label", `${runs.length} ${runs.length === 1 ? "passage" : "passages"}`);
-  summary.append(title, count);
+  summary.append(title);
   const list = document.createElement("ul");
   list.className = "rows";
   list.append(...runs.map(row));
