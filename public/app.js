@@ -21,6 +21,7 @@ import {
   relatedCopy,
   topicCopy,
   rankStatusCopy,
+  jevHintCopy,
   rankingCopy,
   rankErrorMessage,
   sanitizeTopic,
@@ -350,8 +351,15 @@ let rankPending = null;
 let rankFailed = false;
 /** Bumps whenever a new ranking run starts (or the input changes); stale responses are ignored. */
 let rankGeneration = 0;
-/** Generation for which we already auto-expanded the top result (once per query). */
-let rankExpandGen = -1;
+/**
+ * Bumps on each new final paint that may auto-expand (new query, or Relevant ↔ Surprising reorder).
+ * Separate from rankGeneration so a cache-only mode switch still re-targets the top row.
+ */
+let rankPaint = 0;
+/** Paint id we already auto-expanded for (once per paint). */
+let rankExpandPaint = -1;
+/** True after the person toggles a row open/closed during the current query — skip auto-expand. */
+let rankUserTouched = false;
 
 function render() {
   if (!library) return;
@@ -371,6 +379,8 @@ function render() {
   const hasScope = !!(relevance?.passage || (groupBy === TOPIC_MODE && relevance?.topic));
   // A failed call keeps Date order. Pending keeps Jev chrome (loading line) before the scope lands.
   const ranking = jevActive && !rankFailed && (hasScope || rankPending);
+  // Jev mode with nothing typed yet: empty list + hint (never a stale Date "Today" header).
+  const jevWaiting = jevActive && !rankFailed && !hasScope && !rankPending;
   const noneRelevant =
     ranking && !rankPending && !!relevance?.passage && RANK_MODES.includes(groupBy) && rankOrder.length === 0 && shown.length > 0;
   $("#empty").hidden = rows.length > 0;
@@ -384,9 +394,14 @@ function render() {
   // focus runs one) still emits for its status; rebuilding then would move the open passage and
   // replay its opening animation.
   const scopeKey = relevance?.passage?.ref || (groupBy === TOPIC_MODE ? relevance?.topic : "") || "";
-  const sig = JSON.stringify([shown, colors, groupBy, filter, verseText.key, editing, ranking && scopeKey, rankOrder, rankFailed, noneRelevant, !!rankPending, verseText.open]);
+  const sig = JSON.stringify([shown, colors, groupBy, filter, verseText.key, editing, ranking && scopeKey, rankOrder, rankFailed, noneRelevant, !!rankPending, jevWaiting, verseText.open, rankPaint]);
   if (!editing && sig !== listSig) {
-    if (ranking) {
+    if (jevWaiting) {
+      $("#list-total").textContent = jevHintCopy(groupBy);
+      $("#list").replaceChildren();
+      showRankPreview(null);
+      $("#empty").hidden = true;
+    } else if (ranking) {
       const runs = groupRuns(shown, (r) => topColor(r, ids));
       const byRef = new Map(runs.map((run) => [run.ref, run]));
       const ranked = rankOrder.map((id) => byRef.get(id)).filter(Boolean);
@@ -399,11 +414,8 @@ function render() {
             ? topicCopy(relevance?.topic)
             : relatedCopy(relevance?.passage?.label);
         $("#list-total").textContent = rankStatusCopy(ranked.length, shown.length, groupBy);
-        // Auto-expand the top result once on the final paint for this query.
-        if (verseText.key && rankExpandGen !== rankGeneration) {
-          rankExpandGen = rankGeneration;
-          verseText.open = ranked[0].ref;
-        }
+        // New final paint: expand the new top unless the person toggled a row this query.
+        applyRankAutoExpand(ranked[0].ref);
         // Same group()/row() markup as Date and Genre — only the heading text differs.
         $("#list").replaceChildren(group({ id: "ranked", name: heading, runs: ranked }));
       } else {
@@ -413,7 +425,7 @@ function render() {
       }
       $("#empty").hidden = true; // library has rows; zero relevant uses #relevance-none, not #empty
     } else {
-      // Jev mode with no valid scope yet (or a failed call): keep Date order.
+      // Date/Genre, or a failed Jev call: Date/Genre grouping (failed stays in Date order).
       const mode = jevActive ? "date" : groupBy;
       const groups = groupList(shown, mode, (r) => topColor(r, ids));
       const total = groups.reduce((n, g) => n + g.runs.length, 0);
@@ -424,6 +436,25 @@ function render() {
   }
   listSig = editing ? null : sig;
   if (!$("#colors").hidden) renderColors();
+}
+
+/** Start a new auto-expand paint (new query results, or Relevant ↔ Surprising reorder). */
+function beginRankPaint({ resetUser = false } = {}) {
+  rankPaint++;
+  rankExpandPaint = -1;
+  if (resetUser) rankUserTouched = false;
+}
+
+/**
+ * On a new final paint, open the top result once — collapsing whatever a previous paint auto-opened.
+ * If the person opened/closed a row during this query, leave their choice alone.
+ */
+function applyRankAutoExpand(topRef) {
+  if (!verseText.key || !topRef) return;
+  if (rankExpandPaint === rankPaint) return;
+  rankExpandPaint = rankPaint;
+  if (rankUserTouched) return;
+  verseText.open = topRef;
 }
 
 // ---- grouping / ranking: Date and Genre group; Relevant and Surprising rank against a passage.
@@ -467,6 +498,8 @@ for (const b of document.querySelectorAll("#group-by button")) {
     renderGroupBy(!!$("#list-foot") && !$("#list-foot").hidden);
     if (willPassage && wasPassage && relevance?.passage && !rankFailed) {
       // Relevant ↔ Surprising: reorder cached verdicts, no network call.
+      // New final paint so auto-expand follows the new top (unless the person toggled a row).
+      beginRankPaint();
       void reorderRelevance();
     } else if (willPassage && refText($("#relevance-ref")).trim()) {
       void runRelevance();
@@ -475,6 +508,8 @@ for (const b of document.querySelectorAll("#group-by button")) {
     } else {
       rankOrder = [];
       rankFailed = false;
+      verseText.open = null;
+      beginRankPaint({ resetUser: true });
       render();
     }
   });
@@ -492,7 +527,7 @@ function clearRelevanceInput() {
   rankOrder = [];
   rankPending = null;
   rankFailed = false;
-  rankExpandGen = -1;
+  beginRankPaint({ resetUser: true });
   verseText.open = null;
   showRelevanceNone(null);
   showRankPreview(null);
@@ -586,7 +621,7 @@ async function runRelevance() {
   // Drop prior results immediately so a slow second call can't flash an intermediate list.
   rankOrder = [];
   rankFailed = false;
-  rankExpandGen = -1;
+  beginRankPaint({ resetUser: true });
   verseText.open = null;
   showRelevanceNone(null);
   showRankPreview(null);
@@ -621,6 +656,7 @@ async function runRelevance() {
     if (gen !== rankGeneration) return; // newer input or a later run owns the UI
     rankOrder = ranked.map((v) => v.id);
     rankFailed = false;
+    beginRankPaint({ resetUser: true }); // final paint for this query
   } catch (e) {
     if (gen !== rankGeneration) return;
     err.hidden = false;
@@ -644,7 +680,7 @@ async function runTopic() {
   const gen = ++rankGeneration;
   rankOrder = [];
   rankFailed = false;
-  rankExpandGen = -1;
+  beginRankPaint({ resetUser: true });
   verseText.open = null;
   showRelevanceNone(null);
   showRankPreview(null);
@@ -668,6 +704,7 @@ async function runTopic() {
     if (gen !== rankGeneration) return;
     rankOrder = ranked.map((v) => v.id);
     rankFailed = false;
+    beginRankPaint({ resetUser: true });
   } catch (e) {
     if (gen !== rankGeneration) return;
     err.hidden = false;
@@ -705,7 +742,7 @@ async function reorderRelevance() {
       rankGeneration++;
       rankOrder = [];
       rankFailed = false;
-      rankExpandGen = -1;
+      beginRankPaint({ resetUser: true });
       verseText.open = null;
       showRelevanceNone(null);
       showRankPreview(null);
@@ -742,7 +779,7 @@ async function reorderRelevance() {
       rankGeneration++;
       rankOrder = [];
       rankFailed = false;
-      rankExpandGen = -1;
+      beginRankPaint({ resetUser: true });
       verseText.open = null;
       showRelevanceNone(null);
       showRankPreview(null);
@@ -1027,6 +1064,8 @@ function wireTextToggle(toggle, li, runRef) {
   toggle.addEventListener("pointerenter", warm);
   toggle.addEventListener("focus", warm);
   toggle.addEventListener("click", () => {
+    // Manual open/close during this query — don't let the next mode-switch paint override it.
+    if (JEV_MODES.includes(groupBy)) rankUserTouched = true;
     const wasOpen = verseText.open === runRef;
     for (const other of document.querySelectorAll("#list .verse-text")) other.remove();
     for (const other of document.querySelectorAll("#list .row-link[aria-expanded]")) other.setAttribute("aria-expanded", "false");
@@ -1098,7 +1137,14 @@ function styleScripture(el) {
   if (!root.adoptedStyleSheets.includes(scriptureSheet)) root.adoptedStyleSheets = [...root.adoptedStyleSheets, scriptureSheet];
 }
 const SCRIPTURE_CSS = `
-[part="text"] { max-width: var(--vault-measure, 36rem); }
+/* Set type on the part itself: si-passage's inner .root uses all:initial, which drops host
+   custom-property inheritance and falls back to Untitled Serif / tight leading. */
+[part="text"] {
+  max-width: var(--vault-measure, 36rem);
+  font-family: "Lexend", "Helvetica Neue", sans-serif !important;
+  font-size: var(--scripture-font-size, 1rem) !important;
+  line-height: var(--scripture-line-height, 1.75) !important;
+}
 [part="text"] p { margin-block: 0 .55em; }
 [part="text"] :is(p, .p) { text-indent: 0 !important; }
 .yv-vlbl, .va { color: var(--vault-verse, currentColor) !important; font-size: .62em !important; font-weight: 600; letter-spacing: .02em;
@@ -1109,6 +1155,8 @@ const SCRIPTURE_CSS = `
 /** Puts the run's passage under its row, with a rule in the row's color. */
 function showText(li, runRef) {
   const el = passageFor(runRef);
+  el.className = "verse-text";
+  styleScripture(el); // re-apply after reconnect; same path in Date/Genre/Jev
   const dot = li.querySelector(".dot");
   if (dot) el.style.setProperty("--row-color", getComputedStyle(dot).backgroundColor);
   li.querySelector(".row-link")?.setAttribute("aria-controls", el.id);

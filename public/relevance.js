@@ -124,17 +124,23 @@ export function relatedCopy(label) {
   return named ? `Related to ${named}` : "Related";
 }
 
-/** Topic-mode group header, e.g. 'Sorted by closeness to “grace”'. */
+/** Topic-mode group header, e.g. 'Sorted by closeness to “grace”'. Requires a real topic. */
 export function topicCopy(topic) {
-  const named = sanitizeTopic(topic) || "this topic";
-  return `Sorted by closeness to “${named}”`;
+  const named = sanitizeTopic(topic);
+  return named ? `Sorted by closeness to “${named}”` : "Sorted by closeness";
 }
 
-/** Sort-bar microcopy under the list: "3 of 10 · closest first". */
+/** Sort-bar microcopy: short enough for one line beside the segmented control at ~390px. */
 export function rankStatusCopy(shown, total, mode) {
-  if (mode === "topic") return `${shown} · closest first`;
-  const order = mode === "surprising" ? "least obvious first" : "closest first";
+  if (mode === "topic") return `${shown} · closest`;
+  const order = mode === "surprising" ? "least obvious" : "closest";
   return `${shown} of ${total} · ${order}`;
+}
+
+/** Hint when Relevant/Surprising/Topic is on but the person hasn't typed a scope yet. */
+export function jevHintCopy(mode) {
+  if (mode === "topic") return "Type a topic to sort your highlights";
+  return "Type a passage to find related highlights";
 }
 
 /** List-foot status while a ranking request is in flight. */

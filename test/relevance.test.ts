@@ -12,6 +12,7 @@ import {
   rankErrorMessage,
   rankingCopy,
   rankStatusCopy,
+  jevHintCopy,
   rankVerdicts,
   relatedCopy,
   sanitizeTopic,
@@ -72,10 +73,14 @@ describe("UI copy and footer toggle", () => {
 
   test("count and empty-state copy", () => {
     expect(totalCopy(6, 47)).toBe("6 of 47 relevant");
-    expect(rankStatusCopy(3, 10, "relevant")).toBe("3 of 10 · closest first");
-    expect(rankStatusCopy(3, 10, "surprising")).toBe("3 of 10 · least obvious first");
-    expect(rankStatusCopy(10, 10, "topic")).toBe("10 · closest first");
+    expect(rankStatusCopy(3, 10, "relevant")).toBe("3 of 10 · closest");
+    expect(rankStatusCopy(3, 10, "surprising")).toBe("3 of 10 · least obvious");
+    expect(rankStatusCopy(10, 10, "topic")).toBe("10 · closest");
     expect(topicCopy("grace")).toBe("Sorted by closeness to “grace”");
+    expect(topicCopy("")).toBe("Sorted by closeness");
+    expect(jevHintCopy("relevant")).toBe("Type a passage to find related highlights");
+    expect(jevHintCopy("surprising")).toBe("Type a passage to find related highlights");
+    expect(jevHintCopy("topic")).toBe("Type a topic to sort your highlights");
     expect(sanitizeTopic("  grace  ")).toBe("grace");
     expect(emptyRelevanceCopy(17, "Hab 2:2")).toBe("None of your 17 highlights connect to Hab 2:2");
     expect(emptyRelevanceCopy(1, "Romans 8:28")).toBe("None of your 1 highlight connect to Romans 8:28");
@@ -122,12 +127,25 @@ describe("UI copy and footer toggle", () => {
     expect(app).toContain("const gen = ++rankGeneration");
     expect(app).toContain("if (gen !== rankGeneration) return");
     expect(app).toContain("if (gen === rankGeneration)");
-    // Auto-expand top result once per query on final paint.
-    expect(app).toContain("rankExpandGen");
-    expect(app).toContain("verseText.open = ranked[0].ref");
+    // Auto-expand top result once per final paint (new query or mode switch); respect manual toggles.
+    expect(app).toContain("beginRankPaint");
+    expect(app).toContain("applyRankAutoExpand");
+    expect(app).toContain("rankUserTouched");
+    expect(app).toContain("applyRankAutoExpand(ranked[0].ref)");
+    // Mode switch Relevant ↔ Surprising starts a new paint so the new top expands.
+    expect(app).toMatch(/beginRankPaint\(\);\s*void reorderRelevance\(\)/);
+    // Empty Jev scope: hint, no stale Date groups.
+    expect(app).toContain("jevWaiting");
+    expect(app).toContain("jevHintCopy(groupBy)");
+    // Expanded reader forces Lexend inside the shadow (si-passage .root uses all:initial).
+    expect(app).toContain('font-family: "Lexend"');
+    expect(app).toContain("styleScripture(el); // re-apply after reconnect");
     // Typing a new ref clears the old list and shows loading before the debounced request.
     expect(app).toMatch(/addEventListener\("input"[\s\S]*?rankGeneration\+\+[\s\S]*?rankPending = true/);
     expect(app).toContain('rankPending = true;\n  render(); // loading before any network / verse fetch');
+    // Footer status stays one line at phone widths (status above segmented control).
+    expect(css).toContain("white-space: nowrap");
+    expect(css).toMatch(/@media \(max-width: 420px\)[\s\S]*?flex-direction: column/);
   });
 
   test("network and Worker errors become human lines, not Failed to fetch", () => {
