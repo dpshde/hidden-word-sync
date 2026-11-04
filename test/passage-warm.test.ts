@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 // @ts-ignore plain JS module from public/
-import { keepLoadedOnMove, createWarmer } from "../public/passage-warm.js";
+import { keepLoadedOnMove, createWarmer, defineKeepingLoaded } from "../public/passage-warm.js";
 
 test("a passage that already shows its text doesn't reload (or show its spinner) when moved", () => {
   let reloads = 0;
@@ -57,8 +57,27 @@ test("a failing load doesn't stop the rest", async () => {
 test("the app wires it up, and the spinner only appears after 300ms", () => {
   const read = (p: string) => readFileSync(new URL(`../public/${p}`, import.meta.url), "utf8");
   const app = read("app.js"), css = read("style.css");
-  expect(app).toContain('keepLoadedOnMove(customElements.get("si-passage"))');
+  expect(app).toContain("defineKeepingLoaded(() => defineScripturePassage({ yvpPublicAppKey }))");
   expect(app).toContain("warmer.add(runRef)");
   expect(app).toContain("toggle.addEventListener(\"pointerenter\", warm)");
   expect(css).toContain("si-passage::part(loader) { visibility: hidden; animation: si-loader-late 0s linear .3s forwards; }");
+});
+
+test("the keep-loaded patch is applied before <si-passage> is defined (callbacks are read at define time)", () => {
+  const defined: Array<[string, any]> = [];
+  const registry = { define(name: string, cls: any) { defined.push([name, cls]); } };
+  class Passage { connectedCallback() {} }
+  class Other { connectedCallback() {} }
+  defineKeepingLoaded(() => { registry.define("si-passage", Passage); registry.define("si-other", Other); }, registry as any);
+  expect((Passage.prototype as any).__keepsLoaded).toBe(true);
+  expect((Other.prototype as any).__keepsLoaded).toBeUndefined();
+  expect(defined.map(([n]) => n)).toEqual(["si-passage", "si-other"]);
+  expect(registry.define.name).toBe("define"); // put back
+});
+
+test("a refocus sync with nothing new doesn't rebuild the list (which would move and re-animate the open passage)", () => {
+  const app = readFileSync(new URL("../public/app.js", import.meta.url), "utf8");
+  expect(app).toContain("const sig = JSON.stringify([shown, colors, groupBy, filter, verseText.key, editing]);");
+  expect(app).toMatch(/if \(!editing && sig !== listSig\) \$\("#list"\)\.replaceChildren/);
+  expect(app).toContain("listSig = null; // the edit changes the row by hand");
 });
