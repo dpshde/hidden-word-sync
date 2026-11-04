@@ -21,7 +21,7 @@ const METHODS = new Set(["GET", "HEAD", "POST", "PUT", "DELETE", "OPTIONS"]);
 /** The route a path belongs to, with ids left out. */
 export function routeOf(pathname: string): string {
   if (["/mcp", "/save", "/config.json", "/api/client-error"].includes(pathname)) return pathname;
-  const m = /^\/v1\/(lib|slot)\/[^/]*$/.exec(pathname);
+  const m = /^\/v1\/(lib|slot|grant)\/[^/]*$/.exec(pathname);
   if (m) return `/v1/${m[1]}/:${m[1]}`;
   return pathname.startsWith("/v1/") ? "/v1/other" : "other";
 }

@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="referrer" content="no-referrer">
+  <title>Connect an app · Selah Vault</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <script src="/theme.js"></script>
+  <link rel="stylesheet" href="/style.css">
+  <script type="module" src="/report.js"></script>
+  <script type="module" src="/connect.js"></script>
+</head>
+<body>
+<div class="monologue-grain" aria-hidden="true"><div class="monologue-grain__tile"></div></div>
+<main>
+  <section id="bad" hidden>
+    <h1>Can't connect</h1>
+    <p class="lede">This app isn't allowed to connect to Selah Vault, or the link is incomplete.</p>
+  </section>
+
+  <section id="pick" hidden>
+    <h1>Connect <span class="app-name"></span></h1>
+    <p class="lede">Unlock the library you want it to see.</p>
+    <button type="button" id="use-session" hidden></button>
+    <form id="unlock-form" autocomplete="on">
+      <label>Library <input name="username" autocomplete="username" value="Personal" required></label>
+      <label>Sync key <input name="password" type="password" autocomplete="current-password" required spellcheck="false"></label>
+      <button type="submit">Unlock</button>
+      <p class="error" role="alert"></p>
+    </form>
+    <button type="button" id="passkey-unlock" class="quiet" hidden>Unlock with passkey</button>
+  </section>
+
+  <section id="consent" hidden>
+    <h1>Let <span class="app-name"></span> use “<span id="consent-lib"></span>”?</h1>
+    <p class="lede">It will be able to:</p>
+    <ul id="consent-scopes"></ul>
+    <p class="lede">It can't change or delete anything. Access ends in <span id="consent-days"></span> days, or when you disconnect it. You'll return to <strong class="app-name"></strong>.</p>
+    <div class="row">
+      <button type="button" id="allow">Allow</button>
+      <button type="button" id="deny" class="quiet">Cancel</button>
+    </div>
+    <p class="error" role="alert" id="consent-error"></p>
+  </section>
+</main>
+</body>
+</html>

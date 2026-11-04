@@ -146,6 +146,11 @@ export async function deriveKeys(key) {
   };
 }
 
+/** The library id and its raw decryption key (hex), what a read grant's app needs to decrypt. */
+export async function readKeys(key) {
+  return { lib: hex(await hkdf(key, "hidden-word/v1/lib", 16)), enc: hex(await hkdf(key, "hidden-word/v1/enc", 32)) };
+}
+
 export async function itemId(keys, kind, ref) {
   const mac = new Uint8Array(await subtle.sign("HMAC", keys.mac, te.encode(`${kind} ${ref}`)));
   return b64url(mac).slice(0, 22);
