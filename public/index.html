@@ -19,6 +19,8 @@
   <script type="module" src="/app.js"></script>
 </head>
 <body>
+<!-- route.bible's second grain layer (.monologue-grain): fixed over the page, dark only; see style.css. -->
+<div class="monologue-grain" aria-hidden="true"><div class="monologue-grain__tile"></div></div>
 <main>
   <section id="start" hidden>
     <h1>Vault</h1>
@@ -110,8 +112,10 @@
     <ul id="color-list"></ul>
     <form id="add-color" autocomplete="off">
       <input type="color" name="hex" value="#3a7bd5" aria-label="New color">
-      <input name="name" placeholder="Name, like Prayer" aria-label="Name" required>
-      <button type="submit" class="quiet">Add</button>
+      <span class="color-field">
+        <input name="name" placeholder="Name, like Prayer" aria-label="Name" required>
+        <button type="submit" class="icon field-action" aria-label="Add color" title="Add color"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg></button>
+      </span>
     </form>
     <button type="button" class="back">Done</button>
   </section>

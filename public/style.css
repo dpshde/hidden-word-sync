@@ -122,6 +122,15 @@ body::after {
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) body::before, :root:not([data-theme="light"]) body::after { content: ""; }
 }
+/* route.bible's second layer, which carries most of its visible grain: the same tile, unmasked, fixed
+   over everything at 6% with lighten (z-index 12: above the page, below popovers in the top layer).
+   Lighten only lifts pixels darker than the noise, so text and icons keep their contrast. */
+.monologue-grain { display: none; position: fixed; inset: 0; z-index: 12; overflow: hidden; pointer-events: none; user-select: none; mix-blend-mode: lighten; opacity: .06; }
+.monologue-grain__tile { position: absolute; inset: 0; background: url("/monologue-noise.webp") left top / 512px auto repeat; }
+:root[data-theme="dark"] .monologue-grain { display: block; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .monologue-grain { display: block; }
+}
 ::selection { background: color-mix(in oklab, var(--brand) 35%, transparent); }
 main { position: relative; z-index: 2; width: 100%; max-width: 32rem; margin: 0 auto; padding: 3rem 1.25rem 4rem; }
 h1 { font-size: 1.625rem; line-height: 1.15; font-weight: 700; margin: 0 0 .5rem; letter-spacing: -.035em; }
@@ -308,13 +317,19 @@ button.link[data-state="error"] { color: var(--danger); }
 .chip .dot { width: .625rem; height: .625rem; border: 0; }
 
 
-#color-list { list-style: none; margin: 0 0 1rem; padding: 0; }
+#color-list { list-style: none; margin: 0; padding: 0; }
 #color-list li { display: flex; align-items: center; gap: .75rem; padding: .375rem 0; }
-#color-list input:not([type="color"]) { flex: 1; }
-input[type="color"] { width: 1.75rem; height: 1.75rem; padding: 0; border: 0; border-radius: 50%; background: none; cursor: pointer; flex: none; }
+/* Built-in, custom and new colors are one row shape: a 1.25rem swatch, then a field of the same width,
+   height and type, with its action (delete, add) inside the field's right edge. Every field reserves that
+   space, so the edges line up whether a row has an action or not. */
+.color-field { flex: 1; min-width: 0; position: relative; display: block; }
+.color-field input { padding-right: 2.75rem; color: var(--fg-2); }
+#color-list .color-field input::placeholder { color: var(--fg-2); } /* a built-in's placeholder is its name */
+.color-field .field-action { position: absolute; top: 50%; right: .25rem; transform: translateY(-50%); min-width: 2.25rem; height: 2.25rem; }
+input[type="color"] { width: 1.25rem; height: 1.25rem; padding: 0; border: 0; border-radius: 50%; background: none; cursor: pointer; flex: none; }
 input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
 input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 50%; }
-#add-color { grid-template-columns: auto 1fr auto; align-items: center; }
+#add-color { display: flex; align-items: center; gap: .75rem; padding: .375rem 0; margin: 0 0 1rem; }
 
 .check { display: flex; align-items: flex-start; gap: .75rem; color: var(--fg); font-size: 1rem; padding: .875rem 0; border-top: 1px solid var(--line); }
 .check input[type="checkbox"] { width: auto; margin: .3rem 0 0; accent-color: var(--accent); }
