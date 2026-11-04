@@ -6,7 +6,9 @@ const te = new TextEncoder();
 const td = new TextDecoder();
 const subtle = globalThis.crypto.subtle;
 
-export const COLORS = ["yellow", "green", "blue", "pink", "purple", "orange"];
+import { COLORS, stamp, topColor } from "./ranges.js";
+
+export { COLORS, topColor };
 export const KINDS = ["highlight", "note", "color", "library"];
 /** The ref of the `library` record that holds the library's name (spec section 1.5). */
 export const NAME_REF = "name";
@@ -242,12 +244,6 @@ export function palette(colorRecords) {
   return [...builtIn, ...own];
 }
 
-/** The color a highlight record shows as: its most recently colored part's, or yellow when unknown. */
-export function topColor(record, known = COLORS) {
-  let best = record.highlights?.[0];
-  for (const h of record.highlights ?? []) if ((h.edited ?? h.created ?? 0) >= (best.edited ?? best.created ?? 0)) best = h;
-  return known.includes(best?.color) ? best.color : "yellow";
-}
 
 // ---- files
 
@@ -402,8 +398,7 @@ export class Library {
       const err = checkRecord(record);
       if (err) throw new Error(err);
       const id = await itemId(this.keys, record.kind, record.ref);
-      const updated = Math.max(t, (this.records.get(id)?.updated ?? 0) + 1);
-      const r = { ...record, updated };
+      const r = stamp(record, this.records.get(id)?.updated, t);
       this.write(id, r, JSON.stringify(r), null);
     }
     this.emit();

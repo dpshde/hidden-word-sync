@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
-import { editRun, groupRuns, labelRef } from "../public/refs.js";
+import { labelRef } from "../public/refs.js";
+import { editRun, groupRuns } from "../public/ranges.js";
 
 const rec = (ref: string, color = "yellow") => ({ ref, color });
 const labels = (rs: { ref: string; color: string }[]) => groupRuns(rs, (r) => r.color).map((g) => labelRef(g.ref));

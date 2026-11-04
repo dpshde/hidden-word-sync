@@ -6,7 +6,8 @@
 // logged, echoed, or put in an error. Every failure below answers with a fixed message.
 
 import { Library, memoryStore, palette, serverTransport as server, topColor } from "../../public/sync.js";
-import { BOOKS as books, compareRefs, groupRuns, highlightRecord, labelRef, splitRef } from "../../public/refs.js";
+import { BOOKS as books, compareRefs, labelRef, splitRef } from "../../public/refs.js";
+import { groupRuns, highlightRecord, tombstone } from "../../public/ranges.js";
 import { readPassage as read } from "../../public/passage.js";
 import { type Note, noNote } from "../observe";
 
@@ -322,7 +323,7 @@ class Session {
         const { verses, label } = this.verses(args.reference);
         const records = verses.filter((v) => this.library.find("highlight", v));
         if (!records.length) throw new Refusal(`Nothing in ${label} is highlighted.`);
-        await this.save(records.map((ref) => ({ kind: "highlight", ref, deleted: true })));
+        await this.save(records.map((ref) => tombstone(ref)));
         return { deleted: label, verses: records };
       }
       case "list_colors": {

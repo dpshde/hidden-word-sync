@@ -1,7 +1,10 @@
 // How the highlight list is grouped: by when verses were highlighted, or by the Bible's genres. Pure
 // functions, so the app and its tests share them. Runs (groupRuns) form inside a group, never across.
 
-import { BOOKS, compareRefs, groupRuns, splitRef } from "./refs.js";
+import { BOOKS, compareRefs, splitRef } from "./refs.js";
+import { groupRuns, recordTime, runTime } from "./ranges.js";
+
+export { recordTime, runTime };
 
 export const MODES = ["date", "genre"];
 
@@ -37,15 +40,6 @@ export const DATE_GROUPS = [
 /** Whether a group starts open: Today and Last 7 days do; Older and every genre start closed. */
 export const startsOpen = (mode, id) => mode === "date" && id !== "older";
 
-/**
- * When a record was made, in Unix seconds: its newest part's `created`, else its `updated`, else null
- * (a record with no times, which goes in Older).
- */
-export function recordTime(record) {
-  const created = (record.highlights ?? []).map((h) => h.created).filter(Number.isSafeInteger);
-  if (created.length) return Math.max(...created);
-  return Number.isSafeInteger(record.updated) ? record.updated : null;
-}
 
 /**
  * "today" from local midnight on, "week" for the six days before that (with today, the last 7
@@ -61,11 +55,6 @@ export function dateGroup(seconds, now = new Date()) {
   return "older";
 }
 
-/** When a run was made: its newest verse's time, or null when none of its verses has one. */
-export function runTime(run) {
-  const times = run.records.map(recordTime).filter((t) => t !== null);
-  return times.length ? Math.max(...times) : null;
-}
 
 /**
  * The list's groups, in order, without empty ones: [{ id, name, runs }]. `records` are live

@@ -1,6 +1,6 @@
 import { beforeEach, expect, test } from "bun:test";
 import { Library, formatKey, newKey, now, palette } from "../public/sync.js";
-import { highlightRecord } from "../public/refs.js";
+import { highlightRecord } from "../public/ranges.js";
 import {
   ADD_HIGHLIGHT,
   DELETE_HIGHLIGHTS,
