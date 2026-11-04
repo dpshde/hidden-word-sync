@@ -97,11 +97,6 @@
     </form>
 
     <div id="filters" role="group" aria-label="Show"></div>
-    <div id="relevance-bar" class="relevance-bar" hidden>
-      <label class="relevance-label" for="relevance-ref">Passage</label>
-      <si-passage-input id="relevance-ref" placeholder="Rom 8:18–25" aria-label="Passage to rank highlights against"></si-passage-input>
-      <p id="relevance-error" class="error" role="alert" hidden></p>
-    </div>
     <div id="relevance-none" class="offer relevance-none" hidden role="status">
       <p id="relevance-none-copy"></p>
       <div class="row">
@@ -112,12 +107,19 @@
     </div>
     <div id="list"></div>
     <div id="list-foot" class="list-foot" hidden>
-      <span id="list-total" class="list-total" role="status"></span>
-      <div id="group-by" class="segmented" role="group" aria-label="Sort highlights" hidden>
-        <button type="button" data-mode="date" aria-pressed="true">Date</button>
-        <button type="button" data-mode="genre" aria-pressed="false">Genre</button>
-        <button type="button" data-mode="relevant" aria-pressed="false">Relevant</button>
-        <button type="button" data-mode="surprising" aria-pressed="false">Surprising</button>
+      <div id="relevance-bar" class="relevance-bar" hidden>
+        <label class="relevance-label" for="relevance-ref">Passage</label>
+        <si-passage-input id="relevance-ref" placeholder="Rom 8:18–25" aria-label="Passage to rank highlights against"></si-passage-input>
+        <p id="relevance-error" class="error" role="alert" hidden></p>
+      </div>
+      <div class="list-foot-row">
+        <span id="list-total" class="list-total" role="status"></span>
+        <div id="group-by" class="segmented" role="group" aria-label="Sort highlights" hidden>
+          <button type="button" data-mode="date" aria-pressed="true">Date</button>
+          <button type="button" data-mode="genre" aria-pressed="false">Genre</button>
+          <button type="button" data-mode="relevant" aria-pressed="false">Relevant</button>
+          <button type="button" data-mode="surprising" aria-pressed="false">Surprising</button>
+        </div>
       </div>
     </div>
     <div id="color-pop" popover role="group" aria-label="Highlight color"></div>

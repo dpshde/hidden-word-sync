@@ -49,6 +49,22 @@ describe("UI copy and footer toggle", () => {
     expect(html).toContain('id="relevance-ref"');
     expect(html).toContain("<si-passage-input id=\"relevance-ref\"");
     expect(html).toContain('placeholder="Rom 8:18–25"');
+    // Passage field lives inside the list foot with the sort controls — not under the add form.
+    const footStart = html.indexOf('id="list-foot"');
+    const footEnd = html.indexOf('id="color-pop"');
+    const foot = html.slice(footStart, footEnd);
+    expect(footStart).toBeGreaterThan(html.indexOf('id="add"'));
+    expect(foot).toContain('id="relevance-bar"');
+    expect(foot).toContain('id="relevance-ref"');
+    expect(foot).toContain('id="group-by"');
+    expect(foot).toContain("list-foot-row");
+    expect(html.indexOf('id="relevance-bar"')).toBeGreaterThan(footStart);
+    expect(html.indexOf('id="filters"') < html.indexOf('id="relevance-bar"')).toBe(true);
+    // No floating relevance bar between filters and list anymore.
+    const between = html.slice(html.indexOf('id="filters"'), html.indexOf('id="list"'));
+    expect(between).not.toContain('id="relevance-bar"');
+    expect(css).toContain(".list-foot-row");
+    expect(css).toContain("bottom: calc(100% - 1px)");
   });
 
   test("count and empty-state copy", () => {
