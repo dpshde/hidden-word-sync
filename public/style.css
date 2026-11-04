@@ -287,6 +287,14 @@ button.dot[aria-pressed="true"] { border-color: var(--fg); }
 /* Armed Delete: white on deep red in light mode (6.5:1), black on soft red in dark mode (8.8:1). */
 .actions .icon[data-confirm], .actions .icon.trash[data-confirm]:is(:hover, :focus-visible) { color: var(--on-danger); background: var(--danger); padding: 0 .75rem; }
 .actions .icon[data-confirm]:last-child { margin-right: .375rem; }
+/* Touch and narrow screens: 44px targets, and the trash set apart from the book by a gap and a
+   hairline, so a tap meant for reading can't land on delete. */
+@media (pointer: coarse), (max-width: 40rem) {
+  .actions { gap: .125rem; }
+  .actions .icon { min-width: 2.75rem; height: 2.75rem; padding: 0 .5rem; }
+  .actions .icon.trash { margin-left: .75rem; }
+  .actions .icon.trash::before { content: ""; position: absolute; left: -.4375rem; top: .625rem; bottom: .625rem; width: 1px; background: var(--line); }
+}
 #danger { margin-top: 2.5rem; }
 /* For developers: links to the spec, on the Sync screen only. */
 #dev-links { margin-top: 2.5rem; font-size: .875rem; color: var(--muted); }
