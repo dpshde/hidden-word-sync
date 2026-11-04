@@ -1,4 +1,4 @@
-// The header's theme button, as route.bible has it: one square icon showing the theme in use; a tap
+// The footer's theme button, as route.bible has it: one square icon showing the theme in use; a tap
 // switches to the other one and keeps that choice on this device. Until it's tapped the page follows the
 // system's light or dark setting (System), and so does every new device. /theme.js applies a kept choice
 // before first paint.
@@ -27,7 +27,7 @@ const MOON =
   '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.6 6.6 0 0 0 9.8 9.8Z"/></svg>';
 
 /**
- * Wires the buttons (one per screen that has one). onChange(theme) hears every change of the theme on screen (a tap, or the system
+ * Wires the buttons. onChange(theme) hears every change of the theme on screen (a tap, or the system
  * switching while no choice is kept), for parts that theme themselves, like a passage's text.
  */
 export function setupThemeToggle(buttons, { onChange = () => {} } = {}) {

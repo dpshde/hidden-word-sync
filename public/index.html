@@ -20,7 +20,6 @@
 <body>
 <main>
   <section id="start" hidden>
-    <button type="button" class="theme-toggle corner" aria-label="Switch to dark mode" title="Switch to dark mode"></button>
     <h1>Hidden Word</h1>
     <p class="lede">Your highlights, on your devices, in any app.</p>
     <p class="note" id="start-note" role="status" hidden></p>
@@ -67,7 +66,6 @@
   <section id="main" hidden>
     <header>
       <strong id="lib-name" contenteditable="plaintext-only" role="textbox" aria-label="Library name" spellcheck="false" enterkeyhint="done"></strong>
-      <button type="button" class="theme-toggle" aria-label="Switch to dark mode" title="Switch to dark mode"></button>
       <details id="menu">
         <summary aria-label="Menu">•••</summary>
         <div>
@@ -162,5 +160,11 @@
     </details>
   </section>
 </main>
+<!-- route.bible's footer bar (.shell-meta): the theme, the contract, and whether a library is open. -->
+<footer class="shell-meta">
+  <button type="button" class="shell-link theme-toggle" aria-label="Switch to dark mode" title="Switch to dark mode"></button>
+  <a class="shell-link" href="https://github.com/dpshde/hidden-word-sync/blob/main/SPEC.md" target="_blank" rel="noopener">Contract</a>
+  <span class="shell-link shell-status" id="auth-status" hidden></span>
+</footer>
 </body>
 </html>
