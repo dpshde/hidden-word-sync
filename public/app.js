@@ -567,16 +567,29 @@ const themeNow = setupThemeToggle(document.querySelectorAll(".theme-toggle"), {
   },
 });
 
-async function loadConfig() {
+// The verse-text key is public (it's served at /config.json). It's kept on this device too, so the
+// book button shows on every load even when /config.json is slow, rate limited or offline; a failed
+// fetch is retried once.
+const YV_KEY = "hidden-word:yv-key";
+function useVerseKey(yvpPublicAppKey) {
+  if (!yvpPublicAppKey || verseText.key === yvpPublicAppKey) return;
+  if (!verseText.key) defineScripturePassage({ yvpPublicAppKey });
+  verseText.key = yvpPublicAppKey;
+  render();
+}
+
+async function loadConfig(retry = true) {
+  try { useVerseKey(localStorage.getItem(YV_KEY)); } catch {}
   try {
     const res = await fetch("/config.json", { cache: "no-store" });
-    const { yvpPublicAppKey } = res.ok ? await res.json() : {};
+    if (!res.ok) throw new Error(`config ${res.status}`);
+    const { yvpPublicAppKey } = await res.json();
     if (!yvpPublicAppKey) return;
-    defineScripturePassage({ yvpPublicAppKey });
-    verseText.key = yvpPublicAppKey;
-    render();
+    try { localStorage.setItem(YV_KEY, yvpPublicAppKey); } catch {}
+    useVerseKey(yvpPublicAppKey);
   } catch {
-    // Offline or no server: no verse text.
+    // Offline or no server: the kept key (if any) still shows verse text; try once more shortly.
+    if (retry) setTimeout(() => loadConfig(false), 2000);
   }
 }
 
