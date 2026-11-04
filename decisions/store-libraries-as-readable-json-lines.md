@@ -16,12 +16,11 @@ A library file is UTF-8 JSON Lines (`.jsonl`): one JSON object per line. An opti
 
 Apps must keep records and fields they don't understand, and write back whole records when they change one. Names an app invents start with `x-`. Deletions are tombstones (`deleted: true`) that readers treat as absent but keep. Importing a file merges each record by the normal merge rule.
 
-The same files are the export format, the folder sync format, and (encrypted, one record per item) the server's plaintext.
+The same files are the backup format and, encrypted one record per item, the server's plaintext.
 
 ## Consequences
 
 - Any JSON parser in any language can read a library. A line-oriented file diffs and merges well in text tools.
-- One representation everywhere means one code path for export, import, folder sync and server sync.
+- One representation everywhere means one code path for export, import and server sync.
 - Unknown-field preservation lets apps extend the format without coordination, but every app must remember to copy rather than rebuild records.
 - Tombstones grow without bound. That is acceptable at the scale of personal highlights; compaction would need a new decision, because dropping tombstones early lets deleted records come back.
-- bible-rs exports (JSON, RFC 3339 times) are imported through a converter rather than read directly.

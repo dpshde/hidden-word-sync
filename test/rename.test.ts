@@ -28,7 +28,7 @@ test("identifiers existing devices and clients depend on are unchanged", () => {
   expect(sync).toContain('{ "hidden-word": FORMAT');
   expect(read("public/app.js")).toContain('const SESSION = "hidden-word:session";');
   expect(read("public/theme-toggle.js")).toContain('"hidden-word:theme"');
-  // Folder sync's old handle store, dropped on boot (decisions/one-way-to-interoperate.md).
+  // The IndexedDB database keeps the old name; the app drops it on boot.
   expect(read("public/app.js")).toContain('deleteDatabase("hidden-word")');
 });
 

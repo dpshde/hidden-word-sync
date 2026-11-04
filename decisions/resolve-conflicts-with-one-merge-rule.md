@@ -8,7 +8,7 @@ Accepted. Replaces the version 0.1 behavior, where the server's arrival order de
 
 ## Context
 
-Devices change records while offline, sync in any order, and can reach each other through different transports (a folder for some, a server for others). In version 0.1 the server kept whichever version arrived last. That made results depend on network timing, gave folders no rule at all, and let a slow or restored server overwrite newer edits.
+Devices and connected apps change records while offline, and sync in any order. In version 0.1 the server kept whichever version arrived last. That made results depend on network timing, and let a slow or restored server overwrite newer edits.
 
 The library has to end up the same on every device whatever order changes arrive in, with no coordinator.
 
