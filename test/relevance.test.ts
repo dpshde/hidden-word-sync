@@ -134,18 +134,22 @@ describe("UI copy and footer toggle", () => {
     expect(app).toContain("applyRankAutoExpand(ranked[0].ref)");
     // Mode switch Relevant ↔ Surprising starts a new paint so the new top expands.
     expect(app).toMatch(/beginRankPaint\(\);\s*void reorderRelevance\(\)/);
-    // Empty Jev scope: hint, no stale Date groups.
+    // Empty Jev scope: hint in the list area (not foot status), no stale Date groups.
     expect(app).toContain("jevWaiting");
     expect(app).toContain("jevHintCopy(groupBy)");
+    expect(app).toContain('hint.className = "rank-hint"');
+    expect(app).toContain('$("#list-total").textContent = ""');
+    expect(css).toContain(".rank-hint");
     // Expanded reader forces Lexend inside the shadow (si-passage .root uses all:initial).
     expect(app).toContain('font-family: "Lexend"');
     expect(app).toContain("styleScripture(el); // re-apply after reconnect");
     // Typing a new ref clears the old list and shows loading before the debounced request.
     expect(app).toMatch(/addEventListener\("input"[\s\S]*?rankGeneration\+\+[\s\S]*?rankPending = true/);
     expect(app).toContain('rankPending = true;\n  render(); // loading before any network / verse fetch');
-    // Footer status stays one line at phone widths (status above segmented control).
+    // Foot status always above the mode control — never side-by-side overlap at mid widths.
     expect(css).toContain("white-space: nowrap");
-    expect(css).toMatch(/@media \(max-width: 420px\)[\s\S]*?flex-direction: column/);
+    expect(css).toMatch(/\.list-foot-row\s*\{[^}]*flex-direction:\s*column/);
+    expect(css).toContain(".list-total:empty { display: none; }");
   });
 
   test("network and Worker errors become human lines, not Failed to fetch", () => {

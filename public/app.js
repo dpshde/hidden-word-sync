@@ -397,8 +397,13 @@ function render() {
   const sig = JSON.stringify([shown, colors, groupBy, filter, verseText.key, editing, ranking && scopeKey, rankOrder, rankFailed, noneRelevant, !!rankPending, jevWaiting, verseText.open, rankPaint]);
   if (!editing && sig !== listSig) {
     if (jevWaiting) {
-      $("#list-total").textContent = jevHintCopy(groupBy);
-      $("#list").replaceChildren();
+      // Hint lives in the list area; foot status stays empty so it never fights the mode control.
+      $("#list-total").textContent = "";
+      const hint = document.createElement("p");
+      hint.className = "rank-hint";
+      hint.setAttribute("role", "status");
+      hint.textContent = jevHintCopy(groupBy);
+      $("#list").replaceChildren(hint);
       showRankPreview(null);
       $("#empty").hidden = true;
     } else if (ranking) {
