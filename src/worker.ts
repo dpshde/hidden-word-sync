@@ -1,6 +1,7 @@
 // Selah Vault server (spec v1.1): a blind store of encrypted blobs. It never sees verses, notes,
 // names or keys, only random-looking ids, ciphertext, and SHA-256 hashes of bearer tokens.
 
+import { YV_PREFIX, yvProxy } from "./yv";
 import { mcp } from "./mcp/index";
 import { type Note, clientErrors, errorFields, noNote, observe } from "./observe";
 
@@ -69,6 +70,9 @@ const OLD_HOST = "hidden-word.dpshade.workers.dev";
 /** What other apps call programmatically. These keep answering on the old address, so existing clients don't break. */
 const API_PATH = /^\/(?:v1(?:\/|$)|mcp$|api\/|config\.json$)/;
 
+/** Cloudflare's cache in a Worker; none under tests or other runtimes. */
+const edgeCache = (): Cache | null => (globalThis as { caches?: { default?: Cache } }).caches?.default ?? null;
+
 export async function handle(request: Request, env: Env, note: Note = noNote): Promise<Response> {
   const url = new URL(request.url);
   const read = request.method === "GET" || request.method === "HEAD";
@@ -88,6 +92,8 @@ export async function handle(request: Request, env: Env, note: Note = noNote): P
   // The MCP server (src/mcp/): it opens a library with the caller's sync key and syncs through the
   // routes below, called directly rather than over the network.
   if (url.pathname === "/mcp") return mcp(request, (r) => handle(r, env), note);
+  // A row's verse text, through the edge cache (src/yv.ts).
+  if (url.pathname.startsWith(`${YV_PREFIX}/`)) return yvProxy(request, env.YVP_PUBLIC_APP_KEY, { fetch: (u, i) => fetch(u, i), cache: edgeCache() });
   // Browser errors from public/report.js, scrubbed and logged.
   if (url.pathname === "/api/client-error") return clientError(request, note);
   const parts = url.pathname.split("/");

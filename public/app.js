@@ -409,6 +409,7 @@ function renderFilters(counts) {
 const ICONS = {
   edit: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.17 6.81a1 1 0 0 0-3.98-3.98L3.84 16.17a2 2 0 0 0-.5.83l-1.32 4.35a.5.5 0 0 0 .62.62l4.35-1.32a2 2 0 0 0 .83-.5z"/><path d="m15 5 4 4"/></svg>',
   text: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>',
+  plus: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>',
   trash: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
 };
 
@@ -591,6 +592,10 @@ function textButton(li, runRef) {
   const b = iconButton("button", "text", `Show the text of ${labelRef(runRef)}`);
   b.classList.add("text");
   b.setAttribute("aria-expanded", String(verseText.open === runRef));
+  // Start fetching while the pointer is on its way or the button has focus, so the text is there by the tap.
+  const warm = () => prefetchText(runRef);
+  b.addEventListener("pointerenter", warm);
+  b.addEventListener("focus", warm);
   b.addEventListener("click", () => {
     const wasOpen = verseText.open === runRef;
     for (const other of document.querySelectorAll("#list .verse-text")) other.remove();
@@ -601,8 +606,8 @@ function textButton(li, runRef) {
   return b;
 }
 
-/** Puts the run's passage under its row. Elements are kept per run, so a re-render doesn't refetch. */
-function showText(li, runRef) {
+/** The run's <si-passage>, made once and kept, so a re-render doesn't refetch. */
+function passageFor(runRef) {
   let el = verseText.passages.get(runRef);
   if (!el) {
     el = document.createElement("si-passage");
@@ -613,8 +618,29 @@ function showText(li, runRef) {
     el.setAttribute("reference", "none");
     el.setAttribute("theme", themeNow());
     el.setAttribute("headings", "hide");
+    // Through this site's edge-cached pass-through (src/yv.ts) rather than straight to YouVersion.
+    if (location.protocol === "https:") el.setAttribute("yvp-api-host", `${location.host}/yv`);
     verseText.passages.set(runRef, el);
   }
+  return el;
+}
+
+/** Loads a run's text off screen: <si-passage> fetches when it's put in the page, and keeps what it got. */
+function prefetchText(runRef) {
+  if (!verseText.key || verseText.passages.has(runRef)) return;
+  let holder = $("#text-prefetch");
+  if (!holder) {
+    holder = document.createElement("div");
+    holder.id = "text-prefetch";
+    holder.hidden = true;
+    document.body.append(holder);
+  }
+  holder.append(passageFor(runRef));
+}
+
+/** Puts the run's passage under its row. */
+function showText(li, runRef) {
+  const el = passageFor(runRef);
   li.querySelector("button.text")?.setAttribute("aria-controls", el.id);
   li.append(el);
 }
@@ -691,15 +717,18 @@ function renderColors() {
         const base = record ?? { kind: "color", ref: c.id };
         library.put({ ...base, name: name.value.trim() });
       });
-      li.append(name);
+      // Every row's field is the same width: the action sits inside its right edge, and the built-in
+      // colors (which can't be deleted) keep that space empty.
+      const field = document.createElement("span");
+      field.className = "color-field";
+      field.append(name);
       if (!c.builtIn) {
-        const del = document.createElement("button");
-        del.type = "button";
-        del.className = "danger quiet";
-        del.textContent = "Delete";
+        const del = iconButton("button", "trash", `Delete ${colorName(c)}`);
+        del.classList.add("trash", "field-action");
         del.addEventListener("click", () => deleteColor(c));
-        li.append(del);
+        field.append(del);
       }
+      li.append(field);
       return li;
     }),
   );
