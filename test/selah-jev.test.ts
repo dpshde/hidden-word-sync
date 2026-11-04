@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  allowedOrigin,
   DAILY_CAP_USD,
   MAX_BODY_BYTES,
   MAX_HIGHLIGHTS,
@@ -54,19 +55,21 @@ describe("relevance request shape", () => {
     expect(parseRelevanceBody(many).ok).toBe(false);
   });
 
-  test("systemone payload holds instructions once and includes highlight text", () => {
+  test("systemone payload holds the task once, named highlights with text, and self-contained questions", () => {
     const req = toSystemOne(good);
     expect(req.model).toBe("jev-latest");
-    expect(req.state.instructions).toContain("ranking a person's Bible highlights");
+    expect(req.state.task).toContain("speak to `passage`");
     expect(req.state.passage.text).toContain("present sufferings");
-    expect(req.state.highlights[0]).toContain("JHN.3.16 · JHN.3.16 · For God so loved");
+    expect(req.state.highlights.h0).toEqual({ reference: "JHN.3.16", text: expect.stringContaining("For God so loved") });
+    expect(JSON.stringify(req.questions["JHN.3.16_relevant"])).toContain("`highlights.h0`");
+    expect(JSON.stringify(req.questions)).not.toContain("JHN.3.16 ·");
     expect(Object.keys(req.questions).filter((k) => k.endsWith("_relevant"))).toHaveLength(2);
     expect(req.questions["JHN.3.16_reason"]).toMatchObject({ type: "choice" });
     expect(req.questions["JHN.3.16_obviousness"]).toMatchObject({ type: "score" });
   });
 
-  test("usd comes from the response or from input tokens at TypeSafe's rate", () => {
-    expect(usdFromUsage({ usd: 0.01 })).toBe(0.01);
+  test("usd comes from billable input tokens at TypeSafe's rate", () => {
+    expect(usdFromUsage(undefined)).toBe(0);
     expect(usdFromUsage({ input_tokens: 1_000_000 })).toBeCloseTo(USD_PER_MTOK);
   });
 });
@@ -136,7 +139,7 @@ describe("selah-jev Worker", () => {
     expect(seen[0].url).toBe("https://api.typesafe.ai/v1/systemone");
     expect(seen[0].auth).toBe("Bearer test-key-not-real");
     expect(JSON.stringify(data)).not.toContain("test-key-not-real");
-    expect((seen[0].body as { state: { highlights: string[] } }).state.highlights[0]).toContain("For God so loved");
+    expect((seen[0].body as { state: { highlights: Record<string, { text: string }> } }).state.highlights.h0.text).toContain("For God so loved");
   });
 
   test("shape refusal does not call upstream", async () => {

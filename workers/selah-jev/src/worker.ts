@@ -22,29 +22,28 @@ export const VAULT_ORIGINS = new Set([
   "http://127.0.0.1:8787",
 ]);
 
-// Keep aligned with public/relevance.js (INSTRUCTIONS / REASONS).
-const INSTRUCTIONS = [
-  "You are ranking a person's Bible highlights against one input passage.",
-  "For each highlight id in `highlights`, judge only that highlight against `passage`.",
-  "relevant: does the highlight speak to the passage's meaning, promise, warning, or call?",
-  "reason: pick the one-line reason that best names how a relevant highlight speaks to the passage.",
-  "obviousness: how plain the connection is (0 = surprising but sound, 3 = the most obvious link).",
-].join(" ");
+// Labels are kept aligned with REASONS in public/relevance.js, which shows the chosen one under the row.
+const TASK =
+  "A person highlighted these Bible passages and wants to know which of them speak to `passage`. " +
+  "A highlight speaks to it when it shares the passage's teaching, promise, warning, call or story, " +
+  "including a real link across books or testaments (a promise and its fulfillment, the same theme in other words). " +
+  "Sharing a word or image without sharing the meaning does not count.";
 
-const REASONS: Record<string, string> = {
-  same_theme: "Names the same theme as this passage",
-  fulfillment: "Shows what this passage points toward",
-  application: "Applies this passage's call",
-  parallel: "Says the same thing in other words",
-  background: "Gives the background this passage assumes",
-  contrast: "Sets this passage in relief by contrast",
+export const REASONS: Record<string, string> = {
+  same_theme: "Same theme",
+  same_promise: "Shared promise",
+  fulfillment: "Promise and fulfillment",
+  same_argument: "Same author's argument",
+  same_call: "Same call to act",
+  contrast: "Contrast that sharpens it",
+  none: "No real link",
 };
 
 const OBVIOUSNESS = [
-  "Surprising but sound: a real link most readers would miss",
-  "Not obvious: takes a careful reading to see",
-  "Clear: a careful reader would usually notice",
-  "Obvious: the connection is plain on the surface",
+  "Hidden: a sound link few readers would see without having it pointed out, usually across books, genres or testaments with no shared words.",
+  "Not obvious: the link is real but takes a careful, thoughtful reading to notice.",
+  "Clear: a careful reader of both would usually notice the link, such as a well-known cross-reference.",
+  "Plain: the link is on the surface, such as the same chapter, the same words, or a direct quotation.",
 ];
 
 type Passage = { ref: string; text: string };
@@ -99,38 +98,48 @@ export function parseRelevanceBody(raw: unknown): { ok: true; body: RelevanceBod
   return { ok: true, body: { lib: o.lib, passage: { ref: passage.ref, text: passage.text }, highlights } };
 }
 
-/** Instructions once in state; one relevant + reason + obviousness question per highlight id. */
+/**
+ * One request per batch: shared context in state, three self-contained questions per highlight that
+ * name it by its path (`highlights.h0`). Question ids are for code only; answers come back under them.
+ */
 export function toSystemOne(body: RelevanceBody) {
+  const highlights: Record<string, { reference: string; text: string }> = {};
   const questions: Record<string, unknown> = {};
-  for (const h of body.highlights) {
+  body.highlights.forEach((h, i) => {
+    const key = `h${i}`, path = `\`highlights.${key}\``;
+    highlights[key] = { reference: h.ref, text: h.text };
     questions[`${h.id}_relevant`] = {
       type: "noul",
-      instructions: `Is highlight \`${h.id}\` relevant to the passage?`,
+      instructions: `Following \`task\`, does the highlighted text ${path} speak to \`passage\`? Judge by both texts, not by their references alone.`,
+      criteria: {
+        true: "The highlight shares the passage's teaching, promise, warning, call or story, even if it is in another book.",
+        false: "The highlight is about something else, or shares only a word or image with the passage.",
+      },
     };
     questions[`${h.id}_reason`] = {
       type: "choice",
-      instructions: `If highlight \`${h.id}\` is relevant, which one-line reason fits best?`,
-      criteria: { ...REASONS },
+      instructions: `Which best names how the highlighted text ${path} relates to \`passage\`?`,
+      criteria: {
+        same_theme: "It teaches the same theme or truth in other words.",
+        same_promise: "It makes or rests on the same promise of God.",
+        fulfillment: "One looks ahead to what the other shows fulfilled.",
+        same_argument: "It is part of the same author's line of argument.",
+        same_call: "It gives the same command, warning or call to respond.",
+        contrast: "It shows the other side, so each makes the other clearer.",
+        none: "There is no real link in meaning.",
+      },
     };
     questions[`${h.id}_obviousness`] = {
       type: "score",
-      instructions: `How obvious is the link between highlight \`${h.id}\` and the passage?`,
+      instructions: `How obvious is the link between the highlighted text ${path} and \`passage\` to an ordinary Bible reader?`,
       criteria: [...OBVIOUSNESS],
     };
-  }
-  return {
-    model: MODEL,
-    state: {
-      instructions: INSTRUCTIONS,
-      passage: body.passage,
-      highlights: body.highlights.map((h) => `${h.id} · ${h.ref} · ${h.text}`),
-    },
-    questions,
-  };
+  });
+  return { model: MODEL, state: { task: TASK, passage: { reference: body.passage.ref, text: body.passage.text }, highlights }, questions };
 }
 
-export function usdFromUsage(usage: { input_tokens?: number; usd?: number } | undefined): number {
-  if (usage && typeof usage.usd === "number" && Number.isFinite(usage.usd)) return usage.usd;
+/** TypeSafe reports billable `usage.input_tokens`; output tokens are free. */
+export function usdFromUsage(usage: { input_tokens?: number } | undefined): number {
   const tokens = usage?.input_tokens ?? 0;
   return (tokens / 1_000_000) * USD_PER_MTOK;
 }
@@ -198,7 +207,7 @@ export async function handle(request: Request, env: Env, upstreamFetch: typeof f
     body: JSON.stringify(toSystemOne(parsed.body)),
   });
   const text = await upstream.text();
-  let data: { answers?: unknown; usage?: { input_tokens?: number; usd?: number }; model?: string; usd?: number };
+  let data: { answers?: unknown; usage?: { input_tokens?: number; output_tokens?: number }; model?: string };
   try {
     data = JSON.parse(text);
   } catch {
@@ -206,7 +215,7 @@ export async function handle(request: Request, env: Env, upstreamFetch: typeof f
   }
   if (!upstream.ok) return fail(upstream.status === 429 ? 429 : 502, "upstream error", origin);
 
-  const usd = usdFromUsage(data.usage ?? { usd: data.usd });
+  const usd = usdFromUsage(data.usage);
   await env.CAPS.put(dayKey(), String(spent + usd), { expirationTtl: 60 * 60 * 48 });
 
   return json({ model: data.model ?? MODEL, answers: data.answers ?? {}, usage: data.usage ?? {}, usd }, 200, origin);

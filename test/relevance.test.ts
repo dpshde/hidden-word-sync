@@ -215,7 +215,7 @@ describe("batching and ranking helpers", () => {
   test("parse and rank: relevant closest first, surprising least obvious first", () => {
     const v = parseVerdicts({
       a_relevant: { type: "noul", noul: 0.9 },
-      a_reason: { type: "choice", choice: "parallel" },
+      a_reason: { type: "choice", choice: "same_promise" },
       a_obviousness: { type: "score", score: 3 },
       b_relevant: { type: "noul", noul: 0.6 },
       b_reason: { type: "choice", choice: "contrast" },
@@ -226,7 +226,8 @@ describe("batching and ranking helpers", () => {
     });
     expect(rankVerdicts([...v.values()], "relevant").map((x) => x.id)).toEqual(["a", "b"]);
     expect(rankVerdicts([...v.values()], "surprising").map((x) => x.id)).toEqual(["b", "a"]);
-    expect(v.get("a")?.reason).toBe("Says the same thing in other words");
+    expect(v.get("a")?.reason).toBe("Shared promise");
+    expect(v.get("c")?.reason).toBe("Same theme");
   });
 
   test("rangeHash changes when the text changes", async () => {

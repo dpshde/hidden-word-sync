@@ -1,8 +1,9 @@
 // Rank highlights against a passage with TypeSafe Jev (via the selah-jev Worker).
 // Everything runs under a read grant on the device: the vault server never sees verses or verdicts.
 //
-// One batched call holds the instructions once in `state` with the passage, then each highlight as
-// `id · ref · text`. Per id: relevant (noul), a one-line reason (choice), and obviousness (score).
+// One batched call per ~40 highlights. The selah-jev Worker puts the task, the passage and each
+// highlight's reference and text in `state` once, and asks per highlight: does it speak to the passage
+// (noul), what kind of link (choice, shown as a short reason), and how obvious the link is (score).
 // Relevant mode sorts closest first; Surprising sorts least-obvious-but-sound first. Switching
 // those two reorders the cache with no network call. Verdicts are keyed by passage+id+rangeHash+BSB;
 // a changes feed (grant-client shape) re-judges only the ids that moved.
@@ -18,21 +19,15 @@ export const BIBLE = "BSB";
 
 /** Fixed one-line reasons Jev chooses among; the chosen phrase is shown under the row. */
 export const REASONS = {
-  same_theme: "Names the same theme as this passage",
-  fulfillment: "Shows what this passage points toward",
-  application: "Applies this passage's call",
-  parallel: "Says the same thing in other words",
-  background: "Gives the background this passage assumes",
-  contrast: "Sets this passage in relief by contrast",
+  same_theme: "Same theme",
+  same_promise: "Shared promise",
+  fulfillment: "Promise and fulfillment",
+  same_argument: "Same author's argument",
+  same_call: "Same call to act",
+  contrast: "Contrast that sharpens it",
+  none: "",
 };
 
-export const INSTRUCTIONS = [
-  "You are ranking a person's Bible highlights against one input passage.",
-  "For each highlight id in `highlights`, judge only that highlight against `passage`.",
-  "relevant: does the highlight speak to the passage's meaning, promise, warning, or call?",
-  "reason: pick the one-line reason that best names how a relevant highlight speaks to the passage.",
-  "obviousness: how plain the connection is (0 = surprising but sound, 3 = the most obvious link).",
-].join(" ");
 
 const estimateTokens = (s) => Math.ceil(String(s ?? "").length / 4);
 
@@ -90,7 +85,7 @@ export function parseVerdicts(answers = {}) {
       row.relevant = row.relevance >= RELEVANT_MIN;
     } else if (kind === "reason" && ans?.type === "choice") {
       const key = ans.choice;
-      row.reason = REASONS[key] ?? String(key ?? "");
+      row.reason = REASONS[key] ?? "";
     } else if (kind === "obviousness" && ans?.type === "score") {
       row.obviousness = Number(ans.score) || 0;
     }
