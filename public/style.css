@@ -199,8 +199,12 @@ details > div button:hover { background: var(--hover); box-shadow: inset 3px 0 0
 /* The add form, built like route.bible's search row: the color in a square cell, the field, and the
    action as one inverted block, all one height and joined edge to edge. */
 #add { grid-template-columns: auto 1fr auto; align-items: stretch; gap: 0; }
+/* Relevant/Surprising hide the color + Highlight control; #ref alone is the ranking scope. */
+#add.rank-scope { grid-template-columns: 1fr; }
 #add .error { grid-column: 1 / -1; margin-top: .5rem; }
 #add > button[type="submit"] { height: 2.75rem; padding: 0 1.125rem; }
+#add > button[type="submit"][hidden],
+#add-dot[hidden] { display: none; }
 /* scripture-inline's <si-passage-input> reads these tokens inside its shadow root. Its --accent is the
    highlighted suggestion, so it gets the hover color here rather than ours (which fills buttons). */
 si-passage-input {
@@ -289,31 +293,11 @@ button.dot[aria-pressed="true"] { border-color: var(--fg); }
   line-height: 1.45;
   text-align: center;
 }
-/* Passage field lives with the sort toggle; only visible in Relevant / Surprising. */
+/* Topic field lives with the sort toggle. Relevant/Surprising use #ref — no second passage box. */
 .relevance-bar { margin: 0; position: relative; z-index: 5; }
 .relevance-bar[hidden] { display: none; }
 .relevance-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
-.relevance-bar si-passage-input { display: block; width: 100%; }
-.relevance-bar si-passage-input::part(input) {
-  height: 2.5rem;
-  font-size: .9375rem;
-  padding: 0 .75rem;
-  background: var(--raised);
-  border-color: var(--line);
-}
-/* Suggestions match the field width and open upward so the keyboard does not cover them on a phone. */
-.relevance-bar si-passage-input::part(listbox) {
-  top: auto;
-  bottom: calc(100% - 1px);
-  left: 0;
-  right: 0;
-  width: 100%;
-  min-width: 100%;
-  max-width: 100%;
-  z-index: 40;
-  box-shadow: var(--shadow);
-}
-/* Topic mode: plain text field (no verse autocomplete). Same height as the passage input. */
+/* Topic mode: plain text field (no verse autocomplete). */
 .topic-input {
   display: block; width: 100%; height: 2.5rem; padding: 0 .75rem;
   font: 450 .9375rem/1.5 var(--font-sans); color: var(--fg);
@@ -321,7 +305,6 @@ button.dot[aria-pressed="true"] { border-color: var(--fg); }
 }
 .topic-input:focus-visible { outline: 2px solid var(--focus); outline-offset: -1px; }
 .topic-input[hidden] { display: none; }
-#relevance-ref[hidden], si-passage-input[hidden] { display: none; }
 .relevance-label[hidden] { display: none; }
 #relevance-error { margin: .375rem 0 0; font-size: .8125rem; }
 #relevance-error[hidden] { display: none; }

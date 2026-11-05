@@ -90,6 +90,7 @@
     </div>
     <form id="add" autocomplete="off" novalidate>
       <button type="button" id="add-dot" class="pick" aria-haspopup="true" aria-label="Highlight color: Yellow"><span class="dot" data-color="yellow"></span></button>
+      <!-- Relevant/Surprising hijack this field as the ranking scope (placeholder/aria swap in app.js). -->
       <si-passage-input id="ref" placeholder="John 3:16" aria-label="Verse or passage"></si-passage-input>
       <input type="hidden" name="color" value="yellow">
       <button type="submit">Highlight</button>
@@ -111,9 +112,8 @@
     </div>
     <div id="list"></div>
     <div id="list-foot" class="list-foot" hidden>
+      <!-- Topic keeps its own field here. Relevant/Surprising reuse #ref (no second passage box). -->
       <div id="relevance-bar" class="relevance-bar" hidden>
-        <label class="relevance-label" for="relevance-ref">Passage</label>
-        <si-passage-input id="relevance-ref" placeholder="Rom 8:18–25" aria-label="Passage to rank highlights against"></si-passage-input>
         <label class="relevance-label" for="topic-ref">Topic</label>
         <input id="topic-ref" class="topic-input" type="text" maxlength="200" placeholder="grace, fear of the Lord…" aria-label="Topic to sort highlights by" autocomplete="off" hidden>
         <p id="relevance-error" class="error" role="alert" hidden></p>
