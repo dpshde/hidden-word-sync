@@ -584,16 +584,16 @@ button.dot[aria-pressed="true"] { border-color: var(--fg); }
   .actions .icon.trash::before { left: -.3125rem; }
   .actions .icon[data-confirm] { padding: 0 .5rem; }
 }
-#danger { margin-top: 2.5rem; }
-/* For developers: links to the spec, on the Sync screen only. */
-#dev-links { margin-top: 2.5rem; font-size: .875rem; color: var(--muted); }
-#dev-links p { margin: 0 0 .25rem; }
-#dev-links .dev-title { color: var(--fg); font-weight: 600; }
+#danger { margin: 1.25rem 0 0; }
+#danger > summary { display: inline-flex; align-items: center; gap: .375rem; letter-spacing: 0; padding: .25rem 0; font-size: .8125rem; color: var(--muted); }
+#danger > summary::before { content: ""; flex: none; width: .35rem; height: .35rem; border: solid currentColor; border-width: 0 1.5px 1.5px 0; transform: rotate(-45deg); transition: transform var(--ease); }
+#danger[open] > summary::before { transform: rotate(45deg) translate(-1px, -1px); }
+/* For developers: tucked-away spec + quickstart line at the foot of Sync. */
+#dev-links { margin: .625rem 0 1.5rem; font-size: .8125rem; color: var(--muted); }
 #dev-links a { color: inherit; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: .2em; transition: color var(--ease), text-decoration-color var(--ease); }
 #dev-links a:hover { color: var(--fg); text-decoration-color: currentColor; }
-#dev-links + #danger { margin-top: 1.5rem; }
-#danger summary, .lost-key summary { letter-spacing: 0; padding: .25rem 0; font-size: .875rem; }
-#danger summary:hover, .lost-key summary:hover { color: var(--fg); }
+.lost-key summary { letter-spacing: 0; padding: .25rem 0; font-size: .875rem; }
+#danger > summary:hover, .lost-key summary:hover { color: var(--fg); }
 #danger p { margin: .5rem 0 .75rem; font-size: .875rem; }
 .lost-key { margin-top: .75rem; }
 .lost-key p { margin: .5rem 0 0; color: var(--muted); font-size: .875rem; }
@@ -740,17 +740,18 @@ input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
 input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 50%; }
 #add-color { display: flex; align-items: center; gap: .75rem; padding: .375rem 0; margin: 0 0 1rem; }
 
-.check { display: flex; align-items: flex-start; gap: .75rem; color: var(--fg); font-size: 1rem; padding: .875rem 0; border-top: 1px solid var(--line); }
-.check input[type="checkbox"] { width: auto; margin: .3rem 0 0; accent-color: var(--accent); }
+.check { display: flex; align-items: flex-start; gap: .75rem; color: var(--fg); font-size: 1rem; padding: .875rem 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); cursor: pointer; }
+.check input[type="checkbox"] { width: auto; margin: .3rem 0 0; accent-color: var(--accent); cursor: pointer; }
 .check small { display: block; color: var(--muted); font-size: .8125rem; }
-.check.access > span { flex: 1 1 14rem; }
-.check.access { flex-wrap: wrap; justify-content: space-between; }
+.sync-actions { margin: .5rem 0 1rem; padding: 0; gap: .5rem; }
+.sync-actions > button { flex: 1 1 0; min-height: 2.625rem; text-align: center; }
+button.cta-raised { background: var(--raised); color: var(--fg); border-color: var(--line); }
+button.cta-raised:hover { background: var(--hover); border-color: var(--hover-line); }
 #key-reveal { margin: 0 0 .75rem; }
 #key-reveal[hidden] { display: none; }
 .status-line { font-size: .875rem; color: var(--fg-2); margin: 0 0 1rem; padding: .5rem .875rem; background: var(--raised); box-shadow: inset 3px 0 0 var(--brand); overflow-wrap: anywhere; }
 .status-line:empty { display: none; }
 .backup-actions { margin: 0 0 1rem; padding: 0; }
-.check.access .row { padding-left: 0; }
 .key-box { display: flex; align-items: center; gap: .75rem; padding: .75rem 1rem; margin: 0 0 1rem; background: var(--raised); border: 1px solid var(--line); border-radius: 0; }
 .key-box code { flex: 1; font-size: 1rem; letter-spacing: .02em; overflow-wrap: anywhere; user-select: all; }
 
@@ -1062,27 +1063,22 @@ body:has(#main:not([hidden])) .shell-meta { flex-shrink: 0; }
     padding: 0;
   }
   #backup .backup-actions > button,
-  #sync .check.access .row > button,
+  #sync .sync-actions > button,
   #sync #erase {
-    width: 100%;
     min-height: 48px;
     box-sizing: border-box;
   }
-  #sync .check.access {
+  #backup .backup-actions > button,
+  #sync #erase {
     width: 100%;
-    flex-direction: column;
-    align-items: stretch;
-    gap: .75rem;
   }
-  #sync .check.access > span { flex: none; width: 100%; }
-  #sync .check.access .row {
+  #sync .sync-actions {
     display: flex;
-    flex-direction: column;
     flex-wrap: nowrap;
     gap: .5rem;
     width: 100%;
+    margin: 0 0 1rem;
     padding: 0;
-    margin: 0;
   }
   #sync .check { width: 100%; }
 }

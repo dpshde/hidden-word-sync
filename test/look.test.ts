@@ -25,6 +25,10 @@ test("custom and add rows are shaped like the built-in rows, with the action ins
 test("one way to sync: the Sync screen offers this site's server and no folder", () => {
   const sync = /<section id="sync"[\s\S]*?<\/section>/.exec(read("index.html"))?.[0] ?? "";
   expect(sync).toContain('id="use-server"');
+  expect(sync).toContain('class="row sync-actions"');
+  expect(sync).toContain('<button type="button" id="show-key"');
+  expect(sync).toContain('<button type="button" class="cta-raised" id="add-passkey"');
+  expect(sync).not.toContain('class="lede"');
   expect(sync.toLowerCase()).not.toContain("folder");
   expect(app).not.toMatch(/folder\.js|showDirectoryPicker|folderTransport|fromBibleRs/);
   expect(read("index.html")).toContain('accept=".jsonl,application/x-ndjson"');

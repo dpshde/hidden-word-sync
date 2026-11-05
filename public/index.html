@@ -189,26 +189,19 @@
       <button type="button" class="back panel-close" aria-label="Close">Close</button>
     </header>
     <div class="panel-body">
-      <p class="lede">Your library is always on this device first. It reaches your other devices through this site, or stays on this one.</p>
-      <div class="check access">
-        <span>Your key<small>The sync key opens this library on any device. A passkey opens it without typing the key, on this site.</small></span>
-        <div class="row">
-          <button type="button" class="quiet" id="show-key" aria-controls="key-reveal" aria-expanded="false">Show sync key</button>
-          <button type="button" class="quiet" id="add-passkey">Add passkey</button>
-        </div>
+      <div class="row sync-actions">
+        <button type="button" id="show-key" aria-controls="key-reveal" aria-expanded="false">Show sync key</button>
+        <button type="button" class="cta-raised" id="add-passkey">Add passkey</button>
       </div>
       <div class="key-box" id="key-reveal" hidden><code id="key-text" data-1p-ignore></code></div>
       <p class="status-line" id="access-note" role="status"></p>
-      <label class="check"><input type="checkbox" id="use-server"> <span>Through this site<small>Encrypted on this device. The server can't read it.</small></span></label>
-      <div id="dev-links">
-        <p class="dev-title">For developers</p>
-        <p>Selah Vault is an open format any app can use. Read <a href="https://github.com/dpshde/selah-vault/blob/main/SPEC.md" target="_blank" rel="noopener">the spec</a>, or start with <a href="https://github.com/dpshde/selah-vault/blob/main/docs/quickstart.md" target="_blank" rel="noopener">the quick start</a>.</p>
-      </div>
+      <label class="check"><input type="checkbox" id="use-server"> <span>Sync through this site<small>Encrypted on this device.</small></span></label>
       <details id="danger">
         <summary>Danger zone</summary>
-        <p class="quiet-text">Erasing removes this library from the server and this device.</p>
+        <p class="quiet-text">Removes this library from the server and this device.</p>
         <button type="button" id="erase" class="quiet danger">Erase library</button>
       </details>
+      <p id="dev-links">For developers: <a href="https://github.com/dpshde/selah-vault/blob/main/SPEC.md" target="_blank" rel="noopener">Spec</a> · <a href="https://github.com/dpshde/selah-vault/blob/main/docs/quickstart.md" target="_blank" rel="noopener">Quick start</a></p>
     </div>
     <div class="panel-foot"><button type="button" class="back">Done</button></div>
   </section>
