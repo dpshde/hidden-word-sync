@@ -587,10 +587,48 @@ body:has(#main:not([hidden])) .shell-meta { flex-shrink: 0; }
 
 /* —— Mobile library (≤600px): one-handed thumb dock — */
 @media (max-width: 600px) {
+  /* One horizontal inset for the dock, the ••• sheet, and Sync/Colors/Backup. */
+  :root { --dock-pad-x: .75rem; }
   body:has(#main:not([hidden])) main {
     padding-top: max(calc(env(safe-area-inset-top) + .75rem), 1.25rem);
     padding-bottom: 0;
     max-width: none;
+  }
+  /* Panels opened from the dock share the dock's left/right inset (not main's 1.25rem). */
+  body:has(#colors:not([hidden]), #backup:not([hidden]), #sync:not([hidden])) main {
+    max-width: none;
+    padding-left: var(--dock-pad-x);
+    padding-right: var(--dock-pad-x);
+    /* Room for the bottom meta bar (theme · contract · status) at dock height. */
+    padding-bottom: calc(4.25rem + env(safe-area-inset-bottom, 0px));
+  }
+  /* Same bar as the dock's meta row: dock inset, ≥44px chips, no 85% shrink. */
+  body:has(#colors:not([hidden]), #backup:not([hidden]), #sync:not([hidden])) > .shell-meta {
+    transform: none;
+    justify-content: flex-end;
+    gap: 8px;
+    width: 100%;
+    box-sizing: border-box;
+    padding: .625rem var(--dock-pad-x) max(.625rem, env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid var(--line);
+    background: var(--surface);
+  }
+  body:has(#colors:not([hidden]), #backup:not([hidden]), #sync:not([hidden])) > .shell-meta .shell-link {
+    min-height: 44px;
+    padding: 0 12px;
+    font-size: .75rem;
+  }
+  body:has(#colors:not([hidden]), #backup:not([hidden]), #sync:not([hidden])) > .shell-meta .theme-toggle {
+    width: 44px;
+    min-width: 44px;
+    flex: 0 0 44px;
+    padding: 0;
+    border-color: color-mix(in oklab, var(--brand) 36%, var(--line));
+    color: var(--fg);
+  }
+  body:has(#colors:not([hidden]), #backup:not([hidden]), #sync:not([hidden])) > .shell-meta .theme-toggle svg {
+    display: block;
+    margin: 0 auto;
   }
   #main:not([hidden]) {
     display: flex;
@@ -610,7 +648,7 @@ body:has(#main:not([hidden])) .shell-meta { flex-shrink: 0; }
     bottom: 0;
     z-index: 40;
     margin: 0;
-    padding: .625rem .75rem calc(.625rem + env(safe-area-inset-bottom, 0px));
+    padding: .625rem var(--dock-pad-x) calc(.625rem + env(safe-area-inset-bottom, 0px));
     background: var(--surface);
     border-top: 1px solid var(--line);
     box-shadow: 0 -10px 28px color-mix(in oklab, var(--fg) 10%, transparent);
@@ -620,7 +658,8 @@ body:has(#main:not([hidden])) .shell-meta { flex-shrink: 0; }
   #chrome-dock > #add { order: 2; margin: 0; }
   #chrome-dock > #dock-tray { order: 3; margin: 0; justify-self: stretch; align-self: stretch; width: 100%; }
   #list-foot {
-    padding: .5rem .125rem 0;
+    /* Same content width as #add / tray — no extra horizontal inset. */
+    padding: .5rem 0 0;
     border: 0;
     background: transparent;
   }
@@ -658,6 +697,7 @@ body:has(#main:not([hidden])) .shell-meta { flex-shrink: 0; }
     bottom: calc(100% - 1px);
   }
   .dock-tray {
+    position: relative;
     justify-content: space-between;
     min-height: 44px;
   }
@@ -690,11 +730,26 @@ body:has(#main:not([hidden])) .shell-meta { flex-shrink: 0; }
     font-size: 1.125rem;
     letter-spacing: .16em;
   }
+  /* Sheet spans the dock content width (same inset as modes / reference row), not shrink-to-label. */
+  #menu { position: static; }
   #menu > div {
     top: auto;
     bottom: calc(100% + 6px);
-    right: auto;
     left: 0;
+    right: 0;
+    width: auto;
+    min-width: 0;
+  }
+  #menu > div button {
+    width: 100%;
+    min-height: 44px;
+    padding: .75rem .875rem;
+    box-sizing: border-box;
+  }
+  #menu > div hr {
+    border: 0;
+    border-top: 1px solid var(--line);
+    margin: 0;
   }
   /* Desktop footer chips move into the dock on small screens. */
   body:has(#main:not([hidden])) > .shell-meta { display: none; }
@@ -705,4 +760,88 @@ body:has(#main:not([hidden])) .shell-meta { flex-shrink: 0; }
     height: 44px;
   }
   .rank-preview { margin-bottom: .5rem; }
+
+  /* Sync / Colors / Backup: full-width ≥44px rows, no shrink-to-content controls. */
+  #color-list li,
+  #add-color {
+    width: 100%;
+    min-height: 44px;
+    gap: .75rem;
+    padding: .25rem 0;
+    box-sizing: border-box;
+  }
+  #color-list .dot,
+  #color-list input[type="color"],
+  #add-color input[type="color"] {
+    width: 1.25rem;
+    height: 1.25rem;
+    flex: none;
+  }
+  #color-list .color-field,
+  #add-color .color-field {
+    flex: 1 1 auto;
+    min-width: 0;
+    width: auto;
+  }
+  #color-list .color-field input,
+  #add-color .color-field input {
+    min-height: 44px;
+    height: 44px;
+    width: 100%;
+    box-sizing: border-box;
+    padding-right: 3rem; /* reserve the 44px action slot so built-in and custom edges match */
+  }
+  #color-list .field-action,
+  #add-color .field-action {
+    min-width: 44px;
+    width: 44px;
+    height: 44px;
+    min-height: 44px;
+  }
+  #backup .backup-actions {
+    display: flex;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    gap: .5rem;
+    width: 100%;
+    margin: 0 0 1rem;
+    padding: 0;
+  }
+  #backup .backup-actions > button,
+  #colors .back,
+  #backup .back,
+  #sync .back {
+    width: 100%;
+    min-height: 44px;
+    box-sizing: border-box;
+  }
+  #sync .check.access {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: .75rem;
+  }
+  #sync .check.access > span { flex: none; width: 100%; }
+  #sync .check.access .row {
+    display: flex;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    gap: .5rem;
+    width: 100%;
+    padding: 0;
+    margin: 0;
+  }
+  #sync .check.access .row > button {
+    width: 100%;
+    min-height: 44px;
+    box-sizing: border-box;
+  }
+  #sync .check {
+    width: 100%;
+  }
+  #sync #erase {
+    width: 100%;
+    min-height: 44px;
+    box-sizing: border-box;
+  }
 }

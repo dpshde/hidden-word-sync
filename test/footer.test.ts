@@ -48,3 +48,22 @@ test("small screens get a fixed thumb dock; desktop keeps shell-meta", () => {
   // Mode labels stay unclipped at 375px (SURPRISING): tighter type, nowrap, no ellipsis.
   expect(css).toMatch(/#group-by\.segmented button \{[\s\S]*?font-size: \.625rem;[\s\S]*?letter-spacing: 0;[\s\S]*?white-space: nowrap/);
 });
+
+test("phone sheets from the dock share one width system with ≥44px full-width rows", () => {
+  const mobile = css.slice(css.indexOf("@media (max-width: 600px)"));
+  expect(mobile).toContain("--dock-pad-x: .75rem");
+  // ••• sheet stretches to the dock content width (not shrink-to-label).
+  expect(mobile).toContain("#menu { position: static; }");
+  expect(mobile).toMatch(/#menu > div \{[\s\S]*?left: 0;[\s\S]*?right: 0;[\s\S]*?min-width: 0;/);
+  expect(mobile).toMatch(/#menu > div button \{[\s\S]*?width: 100%;[\s\S]*?min-height: 44px;/);
+  // Sync / Colors / Backup use the same horizontal inset as the dock.
+  expect(mobile).toMatch(/body:has\(#colors:not\(\[hidden\]\), #backup:not\(\[hidden\]\), #sync:not\(\[hidden\]\)\) main \{[\s\S]*?padding-left: var\(--dock-pad-x\);[\s\S]*?padding-right: var\(--dock-pad-x\);/);
+  // Bottom meta bar on those panels matches dock chips (no 85% shrink).
+  expect(mobile).toMatch(/body:has\(#colors:not\(\[hidden\]\), #backup:not\(\[hidden\]\), #sync:not\(\[hidden\]\)\) > \.shell-meta \{[\s\S]*?transform: none;[\s\S]*?padding: \.625rem var\(--dock-pad-x\)/);
+  // Color rows: shared field height and 44px Delete/Add slot (built-in and custom match).
+  expect(mobile).toMatch(/#color-list \.field-action,[\s\S]*?#add-color \.field-action \{[\s\S]*?min-width: 44px;[\s\S]*?height: 44px;/);
+  expect(mobile).toMatch(/#backup \.backup-actions > button,[\s\S]*?width: 100%;[\s\S]*?min-height: 44px;/);
+  // Desktop popover still shrink-wraps; the 12rem min-width stays outside the phone block.
+  expect(css).toContain("#menu > div { min-width: 12rem; padding: 0; }");
+  expect(css.indexOf("#menu > div { min-width: 12rem")).toBeLessThan(css.indexOf("@media (max-width: 600px)"));
+});
