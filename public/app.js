@@ -1325,16 +1325,19 @@ libName.addEventListener("blur", () => {
 });
 
 // ---- menu
-// Close the ••• menu on any press outside it, and on Escape (returning focus to its toggle).
+// Close the library ••• and the settings-tray ••• on outside press or Escape.
+const MENUS = () => [...document.querySelectorAll("#menu, #panel-menu")].filter(Boolean);
 document.addEventListener("pointerdown", (e) => {
-  const menu = $("#menu");
-  if (menu.open && !menu.contains(e.target)) menu.open = false;
+  for (const menu of MENUS()) {
+    if (menu.open && !menu.contains(e.target)) menu.open = false;
+  }
 });
 document.addEventListener("keydown", (e) => {
-  const menu = $("#menu");
-  if (e.key === "Escape" && menu.open) {
+  if (e.key !== "Escape") return;
+  for (const menu of MENUS()) {
+    if (!menu.open) continue;
     menu.open = false;
-    menu.querySelector("summary").focus();
+    menu.querySelector("summary")?.focus();
   }
 });
 
@@ -1360,20 +1363,22 @@ document.addEventListener("keydown", (e) => {
   queueMicrotask(syncDockPad);
 }
 
-function menuAction(id, fn) {
-  $(id).addEventListener("click", async () => {
-    $("#menu").open = false;
-    try {
-      await fn();
-    } catch (error) {
-      if (!cancelled(error)) flash(error.message);
-    }
-  });
+function menuAction(sel, fn) {
+  for (const el of document.querySelectorAll(sel)) {
+    el.addEventListener("click", async () => {
+      for (const menu of MENUS()) menu.open = false;
+      try {
+        await fn();
+      } catch (error) {
+        if (!cancelled(error)) flash(error.message);
+      }
+    });
+  }
 }
 
-menuAction("#open-sync", () => (renderSync(), hideKey(), ($("#access-note").textContent = ""), show("sync")));
-menuAction("#open-colors", () => (renderColors(), show("colors")));
-menuAction("#open-backup", () => (($("#backup-note").textContent = ""), show("backup")));
+menuAction("#open-sync, [data-panel-open='sync']", () => (renderSync(), hideKey(), ($("#access-note").textContent = ""), show("sync")));
+menuAction("#open-colors, [data-panel-open='colors']", () => (renderColors(), show("colors")));
+menuAction("#open-backup, [data-panel-open='backup']", () => (($("#backup-note").textContent = ""), show("backup")));
 
 /** Runs a button on a settings screen, saying how it went in that screen's status line. */
 function screenAction(id, note, fn) {
@@ -1449,7 +1454,7 @@ $("#import-file").addEventListener("change", async (e) => {
   }
 });
 
-menuAction("#lock", lock);
+menuAction("#lock, #panel-lock", lock);
 
 $("#erase").addEventListener("click", async () => {
   const ok = confirm("Erase this library from the server and this device? A device that still has it will put it back when it syncs.");

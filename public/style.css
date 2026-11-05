@@ -534,6 +534,8 @@ a.shell-link:focus-visible, button.shell-link:focus-visible { color: var(--fg); 
 }
 .shell-meta .theme-toggle { width: 36px; min-width: 36px; flex: 0 0 36px; padding: 0; border-color: color-mix(in oklab, var(--brand) 36%, var(--line)); color: var(--fg); }
 .shell-meta .theme-toggle svg { display: block; margin: 0 auto; }
+/* Phone settings tray mirrors #dock-tray; hidden on desktop / tablet. */
+.panel-menu { display: none; }
 /* Auth status is a label, not a control. */
 .shell-status { cursor: default; }
 .shell-status[hidden] { display: none; }
@@ -599,37 +601,95 @@ body:has(#main:not([hidden])) .shell-meta { flex-shrink: 0; }
     max-width: none;
     padding-left: var(--dock-pad-x);
     padding-right: var(--dock-pad-x);
-    /* Room for the bottom meta bar (theme · contract · status) at dock height. */
+    /* Room for the same 4-cell tray as #dock-tray. */
     padding-bottom: calc(4.25rem + env(safe-area-inset-bottom, 0px));
   }
-  /* Same bar as the dock's meta row: dock inset, ≥44px chips, no 85% shrink. */
+  /* Settings tray = dock tray grid (••• · theme · Contract · Signed in), so widths don't shift. */
   body:has(#colors:not([hidden]), #backup:not([hidden]), #sync:not([hidden])) > .shell-meta {
     transform: none;
-    justify-content: flex-end;
-    gap: 8px;
+    display: grid;
+    grid-template-columns: 44px 44px minmax(0, 1fr) minmax(0, 1fr);
+    gap: 1px;
+    align-items: stretch;
+    justify-content: stretch;
     width: 100%;
     box-sizing: border-box;
     padding: .625rem var(--dock-pad-x) max(.625rem, env(safe-area-inset-bottom, 0px));
     border-top: 1px solid var(--line);
+    background: var(--line);
+  }
+  body:has(#colors:not([hidden]), #backup:not([hidden]), #sync:not([hidden])) > .shell-meta > .panel-menu,
+  body:has(#colors:not([hidden]), #backup:not([hidden]), #sync:not([hidden])) > .shell-meta > .shell-link {
     background: var(--surface);
-  }
-  body:has(#colors:not([hidden]), #backup:not([hidden]), #sync:not([hidden])) > .shell-meta .shell-link {
     min-height: 44px;
-    padding: 0 12px;
+    min-width: 0;
+    width: 100%;
+    justify-self: stretch;
+    align-self: stretch;
+    flex: unset;
+    border: 0;
+    border-radius: 0;
+    padding: 0 8px;
     font-size: .75rem;
+    box-sizing: border-box;
   }
-  body:has(#colors:not([hidden]), #backup:not([hidden]), #sync:not([hidden])) > .shell-meta .theme-toggle {
-    width: 44px;
-    min-width: 44px;
-    flex: 0 0 44px;
+  body:has(#colors:not([hidden]), #backup:not([hidden]), #sync:not([hidden])) > .shell-meta > .panel-menu {
+    display: flex;
+    flex-direction: column;
+    position: static;
     padding: 0;
-    border-color: color-mix(in oklab, var(--brand) 36%, var(--line));
+  }
+  body:has(#colors:not([hidden]), #backup:not([hidden]), #sync:not([hidden])) > .shell-meta > .panel-menu > summary {
+    display: grid;
+    place-items: center;
+    flex: 1 1 auto;
+    width: 100%;
+    min-height: 44px;
+    height: 100%;
+    padding: 0;
+    font-size: 1.125rem;
+    letter-spacing: .16em;
+    color: var(--fg);
+    box-sizing: border-box;
+  }
+  body:has(#colors:not([hidden]), #backup:not([hidden]), #sync:not([hidden])) > .shell-meta > .theme-toggle {
+    padding: 0;
     color: var(--fg);
   }
-  body:has(#colors:not([hidden]), #backup:not([hidden]), #sync:not([hidden])) > .shell-meta .theme-toggle svg {
+  body:has(#colors:not([hidden]), #backup:not([hidden]), #sync:not([hidden])) > .shell-meta > .theme-toggle svg {
     display: block;
     margin: 0 auto;
   }
+  /* Panel ••• sheet matches the library sheet: full tray width, ≥44px rows. */
+  #panel-menu > div {
+    position: absolute;
+    left: var(--dock-pad-x);
+    right: var(--dock-pad-x);
+    bottom: calc(100% + 6px);
+    top: auto;
+    width: auto;
+    min-width: 0;
+    z-index: 20;
+    display: grid;
+    padding: 0;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    box-shadow: var(--shadow);
+  }
+  #panel-menu > div button {
+    width: 100%;
+    min-height: 44px;
+    padding: .75rem .875rem;
+    box-sizing: border-box;
+    background: transparent;
+    border: 0;
+    color: var(--fg);
+    text-align: left;
+    font-weight: 500;
+    box-shadow: inset 3px 0 0 transparent;
+  }
+  #panel-menu > div button:hover { background: var(--hover); box-shadow: inset 3px 0 0 var(--brand); }
+  #panel-menu > div hr { border: 0; border-top: 1px solid var(--line); margin: 0; }
   #main:not([hidden]) {
     display: flex;
     flex-direction: column;
@@ -696,42 +756,71 @@ body:has(#main:not([hidden])) .shell-meta { flex-shrink: 0; }
     top: auto;
     bottom: calc(100% - 1px);
   }
+  /* Bottom tray: full dock content width — ••• · theme · Contract · Signed in. */
   .dock-tray {
     position: relative;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: 44px 44px minmax(0, 1fr) minmax(0, 1fr);
+    gap: 1px;
+    align-items: stretch;
+    width: 100%;
     min-height: 44px;
+    background: var(--line);
+    border: 1px solid var(--line);
+    box-sizing: border-box;
   }
+  /* Unwrap so theme / Contract / Signed in become grid cells beside •••. */
   .dock-meta {
-    display: flex;
-    align-items: center;
-    gap: 8px;
+    display: contents;
   }
-  .dock-meta .shell-link {
+  .dock-tray > #menu,
+  .dock-tray .shell-link {
+    background: var(--surface);
     min-height: 44px;
-    padding: 0 12px;
+    min-width: 0;
+    width: 100%;
+    justify-self: stretch;
+    align-self: stretch;
+    box-sizing: border-box;
+  }
+  .dock-tray .shell-link {
+    height: auto;
+    flex: unset;
+    border: 0;
+    border-radius: 0;
+    padding: 0 8px;
     font-size: .75rem;
   }
-  .dock-meta .theme-toggle {
-    width: 44px;
-    min-width: 44px;
-    flex: 0 0 44px;
+  .dock-tray .theme-toggle {
+    min-width: 0;
+    flex: unset;
     padding: 0;
-    border-color: color-mix(in oklab, var(--brand) 36%, var(--line));
     color: var(--fg);
   }
-  .dock-meta .theme-toggle svg { display: block; margin: 0 auto; }
+  .dock-tray .theme-toggle svg { display: block; margin: 0 auto; }
   /* Menu opens upward into the list, away from the thumb rest. */
+  #menu {
+    position: static;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    padding: 0;
+  }
   #menu > summary {
     display: grid;
     place-items: center;
-    min-width: 44px;
+    flex: 1 1 auto;
+    width: 100%;
+    min-width: 0;
     min-height: 44px;
-    padding: 0 .75rem;
+    height: 100%;
+    padding: 0;
     font-size: 1.125rem;
     letter-spacing: .16em;
+    color: var(--fg);
+    box-sizing: border-box;
   }
   /* Sheet spans the dock content width (same inset as modes / reference row), not shrink-to-label. */
-  #menu { position: static; }
   #menu > div {
     top: auto;
     bottom: calc(100% + 6px);

@@ -194,8 +194,19 @@
     </details>
   </section>
 </main>
-<!-- route.bible's footer bar (.shell-meta): the theme, the contract, and whether a library is open. -->
+<!-- route.bible's footer bar (.shell-meta): the theme, the contract, and whether a library is open.
+     On phones, Sync/Colors/Backup reuse this bar as the same 4-cell tray as #dock-tray (••• stays put). -->
 <footer class="shell-meta">
+  <details id="panel-menu" class="panel-menu">
+    <summary aria-label="Menu">•••</summary>
+    <div>
+      <button type="button" data-panel-open="sync">Sync</button>
+      <button type="button" data-panel-open="colors">Colors</button>
+      <button type="button" data-panel-open="backup">Backup</button>
+      <hr>
+      <button type="button" id="panel-lock">Log out</button>
+    </div>
+  </details>
   <button type="button" class="shell-link theme-toggle" aria-label="Switch to dark mode" title="Switch to dark mode"></button>
   <a class="shell-link" href="https://github.com/dpshde/selah-vault/blob/main/SPEC.md" target="_blank" rel="noopener">Contract</a>
   <span class="shell-link shell-status" id="auth-status" hidden></span>
