@@ -539,13 +539,19 @@ a.shell-link:focus-visible, button.shell-link:focus-visible { color: var(--fg); 
 .shell-status[hidden] { display: none; }
 .menu-status { cursor: default; }
 .menu-status[hidden] { display: none; }
-/* Phone settings ••• host; desktop never shows it. */
-.panel-slot { display: none; }
 .modes-menu { display: contents; } /* desktop: group-by stays in foot; #menu is moved to #dock-tray */
+/* Mode icons are phone-only; desktop keeps text labels. */
+.mode-icon { display: none; }
+.mode-label { display: inline; }
 /* Desktop popover stays Sync · Colors · Backup · Log out (phone-only rows hidden). */
 @media (min-width: 601px) {
   #menu .menu-link, #menu .menu-theme, #menu .menu-status, #menu .menu-extra { display: none; }
 }
+/* Settings panels: desktop keeps a simple stacked layout; phones get a phone-page chrome. */
+.settings-panel .panel-head { display: contents; }
+.settings-panel .panel-body { display: contents; }
+.settings-panel .panel-foot { display: contents; }
+.settings-panel .panel-close { display: none; }
 
 /* A passage still fetching shows nothing for 300ms, then its spinner: a fast answer never flashes one. */
 si-passage::part(loader) { visibility: hidden; animation: si-loader-late 0s linear .3s forwards; }
@@ -603,12 +609,14 @@ body:has(#main:not([hidden])) .shell-meta { flex-shrink: 0; }
     padding-bottom: 0;
     max-width: none;
   }
-  /* Panels: same inset; room for the fixed ••• slot + Done stays on-page. */
+  /* Phone settings: top-aligned phone page (not the desktop optical vertical offset). */
   body:has(#colors:not([hidden]), #backup:not([hidden]), #sync:not([hidden])) main {
     max-width: none;
-    padding-left: var(--dock-pad-x);
-    padding-right: var(--dock-pad-x);
-    padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
+    padding: 0;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: 0;
+    height: 100dvh;
+    overflow: hidden;
   }
   /* Phone footer chips are in the ••• sheet; hide shell-meta whenever a library screen is open. */
   body:has(#main:not([hidden]), #colors:not([hidden]), #backup:not([hidden]), #sync:not([hidden])) > .shell-meta {
@@ -669,16 +677,31 @@ body:has(#main:not([hidden])) .shell-meta { flex-shrink: 0; }
     background: var(--surface);
   }
   #group-by.segmented button {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: .125rem;
     flex: 1 1 0;
     min-width: 0;
     min-height: 44px;
-    padding: .5rem .05rem;
-    /* 375px: five modes + 44px ••• — SURPRISING must stay unclipped. */
-    font-size: .5625rem;
+    padding: .35rem .05rem;
+    font-size: .5rem;
     letter-spacing: 0;
     white-space: nowrap;
     overflow: visible;
+    line-height: 1.1;
   }
+  #group-by.segmented button .mode-icon {
+    display: block;
+    flex: none;
+    width: 16px;
+    height: 16px;
+  }
+  /* Inactive: icon only; active: icon + label (fits at 375 with •••).
+     Active label is block so it stacks under the icon in the column flex button. */
+  #group-by.segmented button .mode-label { display: none; }
+  #group-by.segmented button[aria-pressed="true"] .mode-label { display: block; }
   #add { margin: 0; }
   #add > button[type="submit"],
   #add-dot,
@@ -766,30 +789,6 @@ body:has(#main:not([hidden])) .shell-meta { flex-shrink: 0; }
     margin: 0;
   }
   #menu > div .menu-extra { display: block; }
-  /* Settings •••: same sheet, fixed above the safe area. */
-  .panel-slot:not([hidden]) {
-    display: block;
-    position: fixed;
-    left: var(--dock-pad-x);
-    bottom: max(.625rem, env(safe-area-inset-bottom, 0px));
-    z-index: 40;
-    width: 44px;
-    min-height: 44px;
-    background: var(--surface);
-    border: 1px solid var(--line);
-    box-sizing: border-box;
-  }
-  .panel-slot #menu {
-    position: static;
-    width: 100%;
-    height: 100%;
-  }
-  .panel-slot #menu > div {
-    left: 0;
-    right: auto;
-    width: calc(100vw - 2 * var(--dock-pad-x));
-    bottom: calc(100% + 6px);
-  }
   /* Passage / topic field stays reachable above the modes. */
   .relevance-bar si-passage-input::part(input),
   .topic-input {
@@ -798,20 +797,88 @@ body:has(#main:not([hidden])) .shell-meta { flex-shrink: 0; }
   }
   .rank-preview { margin-bottom: .5rem; }
 
-  /* Sync / Colors / Backup: full-width ≥44px rows, no shrink-to-content controls. */
+  /* —— Phone settings pages (Colors / Sync / Backup) —— */
+  .settings-panel:not([hidden]) {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+  .settings-panel .panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+    flex: none;
+    min-height: 52px;
+    padding: .625rem var(--dock-pad-x);
+    border-bottom: 1px solid var(--line);
+    background: var(--surface);
+  }
+  .settings-panel .panel-head h1 {
+    margin: 0;
+    font-size: 1.25rem;
+    letter-spacing: -.03em;
+  }
+  .settings-panel .panel-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    min-width: 44px;
+    padding: 0 .875rem;
+    margin: 0;
+    background: transparent;
+    color: var(--fg);
+    border: 1px solid var(--line);
+    font-size: .875rem;
+    font-weight: 600;
+  }
+  .settings-panel .panel-body {
+    display: block;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    padding: 1rem var(--dock-pad-x) 1.25rem;
+    font-size: 1rem;
+  }
+  .settings-panel .panel-body .lede {
+    font-size: 1rem;
+    line-height: 1.45;
+    margin: 0 0 1.25rem;
+  }
+  .settings-panel .panel-foot {
+    display: block;
+    flex: none;
+    padding: .75rem var(--dock-pad-x) calc(.75rem + env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid var(--line);
+    background: var(--surface);
+  }
+  .settings-panel .panel-foot .back {
+    display: block;
+    width: 100%;
+    min-height: 48px;
+    box-sizing: border-box;
+  }
   #color-list li,
   #add-color {
     width: 100%;
-    min-height: 44px;
+    min-height: 48px;
     gap: .75rem;
-    padding: .25rem 0;
+    padding: .375rem 0;
     box-sizing: border-box;
   }
   #color-list .dot,
   #color-list input[type="color"],
   #add-color input[type="color"] {
-    width: 1.25rem;
-    height: 1.25rem;
+    width: 48px;
+    height: 48px;
     flex: none;
   }
   #color-list .color-field,
@@ -822,11 +889,12 @@ body:has(#main:not([hidden])) .shell-meta { flex-shrink: 0; }
   }
   #color-list .color-field input,
   #add-color .color-field input {
-    min-height: 44px;
-    height: 44px;
+    min-height: 48px;
+    height: 48px;
     width: 100%;
     box-sizing: border-box;
-    padding-right: 3rem; /* reserve the 44px action slot so built-in and custom edges match */
+    padding-right: 3.25rem;
+    font-size: 1rem;
   }
   #color-list .field-action,
   #add-color .field-action {
@@ -845,11 +913,10 @@ body:has(#main:not([hidden])) .shell-meta { flex-shrink: 0; }
     padding: 0;
   }
   #backup .backup-actions > button,
-  #colors .back,
-  #backup .back,
-  #sync .back {
+  #sync .check.access .row > button,
+  #sync #erase {
     width: 100%;
-    min-height: 44px;
+    min-height: 48px;
     box-sizing: border-box;
   }
   #sync .check.access {
@@ -868,17 +935,5 @@ body:has(#main:not([hidden])) .shell-meta { flex-shrink: 0; }
     padding: 0;
     margin: 0;
   }
-  #sync .check.access .row > button {
-    width: 100%;
-    min-height: 44px;
-    box-sizing: border-box;
-  }
-  #sync .check {
-    width: 100%;
-  }
-  #sync #erase {
-    width: 100%;
-    min-height: 44px;
-    box-sizing: border-box;
-  }
+  #sync .check { width: 100%; }
 }

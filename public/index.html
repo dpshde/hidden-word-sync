@@ -115,11 +115,11 @@
           <!-- modes-menu: on phones ••• sits on the modes row; on desktop JS parks #menu in #dock-tray. -->
           <div id="modes-menu" class="modes-menu">
             <div id="group-by" class="segmented" role="group" aria-label="Sort highlights" hidden>
-              <button type="button" data-mode="date" aria-pressed="true">Date</button>
-              <button type="button" data-mode="genre" aria-pressed="false">Genre</button>
-              <button type="button" data-mode="relevant" aria-pressed="false">Relevant</button>
-              <button type="button" data-mode="surprising" aria-pressed="false">Surprising</button>
-              <button type="button" data-mode="topic" aria-pressed="false">Topic</button>
+              <button type="button" data-mode="date" aria-pressed="true" aria-label="Date" title="Date"><svg class="mode-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><rect x="3.5" y="5" width="17" height="15.5" rx="1.5"/><path d="M8 3.5v3"/><path d="M16 3.5v3"/><path d="M3.5 9.5h17"/></svg><span class="mode-label">Date</span></button>
+              <button type="button" data-mode="genre" aria-pressed="false" aria-label="Genre" title="Genre"><svg class="mode-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M5 4.5h5.5A3.5 3.5 0 0 1 14 8v12.5H8.5A3.5 3.5 0 0 0 5 17Z"/><path d="M19 4.5h-5.5A3.5 3.5 0 0 0 10 8v12.5h5.5A3.5 3.5 0 0 1 19 17Z"/></svg><span class="mode-label">Genre</span></button>
+              <button type="button" data-mode="relevant" aria-pressed="false" aria-label="Relevant" title="Relevant"><svg class="mode-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><circle cx="12" cy="12" r="7.5"/><circle cx="12" cy="12" r="2.25"/><path d="M12 2.5v2.5"/><path d="M12 19v2.5"/><path d="M2.5 12H5"/><path d="M19 12h2.5"/></svg><span class="mode-label">Relevant</span></button>
+              <button type="button" data-mode="surprising" aria-pressed="false" aria-label="Surprising" title="Surprising"><svg class="mode-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M12 3.5 13.6 9.2 19.5 11 13.6 12.8 12 18.5 10.4 12.8 4.5 11 10.4 9.2Z"/><path d="M18.2 4.5 18.8 6.6 21 7.2 18.8 7.8 18.2 10 17.6 7.8 15.4 7.2 17.6 6.6Z"/></svg><span class="mode-label">Surprising</span></button>
+              <button type="button" data-mode="topic" aria-pressed="false" aria-label="Topic" title="Topic"><svg class="mode-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M3.5 5.5h9.2L20.5 12l-7.8 6.5H3.5Z"/><circle cx="7.5" cy="12" r="1.25"/></svg><span class="mode-label">Topic</span></button>
             </div>
             <details id="menu">
               <summary aria-label="Menu">•••</summary>
@@ -145,65 +145,78 @@
     <p id="empty" class="quiet-text">No highlights yet.</p>
   </section>
 
-  <section id="colors" hidden>
-    <h1>Colors</h1>
-    <p class="lede">Name a color to use it as a category. Other apps show your own colors as you made them, or as yellow.</p>
-    <ul id="color-list"></ul>
-    <form id="add-color" autocomplete="off">
-      <input type="color" name="hex" value="#3a7bd5" aria-label="New color">
-      <span class="color-field">
-        <input name="name" placeholder="Name, like Prayer" aria-label="Name" required>
-        <button type="submit" class="icon field-action" aria-label="Add color" title="Add color"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg></button>
-      </span>
-    </form>
-    <button type="button" class="back">Done</button>
-  </section>
-
-  <section id="backup" hidden>
-    <h1>Backup</h1>
-    <p class="lede">Save a copy of your highlights, or bring one back.</p>
-    <div class="row backup-actions">
-      <button type="button" class="quiet" id="export">Export</button>
-      <button type="button" class="quiet" id="import">Import</button>
+  <section id="colors" class="settings-panel" hidden>
+    <header class="panel-head">
+      <h1>Colors</h1>
+      <button type="button" class="back panel-close" aria-label="Close">Close</button>
+    </header>
+    <div class="panel-body">
+      <p class="lede">Name a color to use it as a category. Other apps show your own colors as you made them, or as yellow.</p>
+      <ul id="color-list"></ul>
+      <form id="add-color" autocomplete="off">
+        <input type="color" name="hex" value="#3a7bd5" aria-label="New color">
+        <span class="color-field">
+          <input name="name" placeholder="Name, like Prayer" aria-label="Name" required>
+          <button type="submit" class="icon field-action" aria-label="Add color" title="Add color"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg></button>
+        </span>
+      </form>
     </div>
-    <input id="import-file" type="file" accept=".jsonl,application/x-ndjson" hidden>
-    <p class="status-line" id="backup-note" role="status"></p>
-    <button type="button" class="back">Done</button>
+    <div class="panel-foot"><button type="button" class="back">Done</button></div>
   </section>
 
-  <section id="sync" hidden>
-    <h1>Sync</h1>
-    <p class="lede">Your library is always on this device first. It reaches your other devices through this site, or stays on this one.</p>
-    <div class="check access">
-      <span>Your key<small>The sync key opens this library on any device. A passkey opens it without typing the key, on this site.</small></span>
-      <div class="row">
-        <button type="button" class="quiet" id="show-key" aria-controls="key-reveal" aria-expanded="false">Show sync key</button>
-        <button type="button" class="quiet" id="add-passkey">Add passkey</button>
+  <section id="backup" class="settings-panel" hidden>
+    <header class="panel-head">
+      <h1>Backup</h1>
+      <button type="button" class="back panel-close" aria-label="Close">Close</button>
+    </header>
+    <div class="panel-body">
+      <p class="lede">Save a copy of your highlights, or bring one back.</p>
+      <div class="row backup-actions">
+        <button type="button" class="quiet" id="export">Export</button>
+        <button type="button" class="quiet" id="import">Import</button>
       </div>
+      <input id="import-file" type="file" accept=".jsonl,application/x-ndjson" hidden>
+      <p class="status-line" id="backup-note" role="status"></p>
     </div>
-    <div class="key-box" id="key-reveal" hidden><code id="key-text" data-1p-ignore></code></div>
-    <p class="status-line" id="access-note" role="status"></p>
-    <label class="check"><input type="checkbox" id="use-server"> <span>Through this site<small>Encrypted on this device. The server can't read it.</small></span></label>
-    <button type="button" class="back">Done</button>
-    <div id="dev-links">
-      <p class="dev-title">For developers</p>
-      <p>Selah Vault is an open format any app can use. Read <a href="https://github.com/dpshde/selah-vault/blob/main/SPEC.md" target="_blank" rel="noopener">the spec</a>, or start with <a href="https://github.com/dpshde/selah-vault/blob/main/docs/quickstart.md" target="_blank" rel="noopener">the quick start</a>.</p>
+    <div class="panel-foot"><button type="button" class="back">Done</button></div>
+  </section>
+
+  <section id="sync" class="settings-panel" hidden>
+    <header class="panel-head">
+      <h1>Sync</h1>
+      <button type="button" class="back panel-close" aria-label="Close">Close</button>
+    </header>
+    <div class="panel-body">
+      <p class="lede">Your library is always on this device first. It reaches your other devices through this site, or stays on this one.</p>
+      <div class="check access">
+        <span>Your key<small>The sync key opens this library on any device. A passkey opens it without typing the key, on this site.</small></span>
+        <div class="row">
+          <button type="button" class="quiet" id="show-key" aria-controls="key-reveal" aria-expanded="false">Show sync key</button>
+          <button type="button" class="quiet" id="add-passkey">Add passkey</button>
+        </div>
+      </div>
+      <div class="key-box" id="key-reveal" hidden><code id="key-text" data-1p-ignore></code></div>
+      <p class="status-line" id="access-note" role="status"></p>
+      <label class="check"><input type="checkbox" id="use-server"> <span>Through this site<small>Encrypted on this device. The server can't read it.</small></span></label>
+      <div id="dev-links">
+        <p class="dev-title">For developers</p>
+        <p>Selah Vault is an open format any app can use. Read <a href="https://github.com/dpshde/selah-vault/blob/main/SPEC.md" target="_blank" rel="noopener">the spec</a>, or start with <a href="https://github.com/dpshde/selah-vault/blob/main/docs/quickstart.md" target="_blank" rel="noopener">the quick start</a>.</p>
+      </div>
+      <details id="danger">
+        <summary>Danger zone</summary>
+        <p class="quiet-text">Erasing removes this library from the server and this device.</p>
+        <button type="button" id="erase" class="quiet danger">Erase library</button>
+      </details>
     </div>
-    <details id="danger">
-      <summary>Danger zone</summary>
-      <p class="quiet-text">Erasing removes this library from the server and this device.</p>
-      <button type="button" id="erase" class="quiet danger">Erase library</button>
-    </details>
+    <div class="panel-foot"><button type="button" class="back">Done</button></div>
   </section>
 </main>
 <!-- route.bible's footer bar (.shell-meta): the theme, the contract, and whether a library is open.
-     Phones hide this; theme/contract/status live in the ••• sheet, and #panel-slot hosts ••• on settings. -->
+     Phones hide this; theme/contract/status live in the ••• sheet. -->
 <footer class="shell-meta">
   <button type="button" class="shell-link theme-toggle" aria-label="Switch to dark mode" title="Switch to dark mode"></button>
   <a class="shell-link" href="https://github.com/dpshde/selah-vault/blob/main/SPEC.md" target="_blank" rel="noopener">Contract</a>
   <span class="shell-link shell-status" id="auth-status" hidden></span>
 </footer>
-<!-- Phone settings: fixed ••• host so Sync/Colors/Backup stay reachable without the old tray. -->
-<div id="panel-slot" class="panel-slot" hidden></div>
 </body>
 </html>

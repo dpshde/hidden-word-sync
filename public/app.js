@@ -1326,24 +1326,31 @@ libName.addEventListener("blur", () => {
 });
 
 // ---- menu
-// One ••• control: desktop parks it in #dock-tray (header); phones put it on the modes row
-// (library) or in #panel-slot (Sync/Colors/Backup).
+// One ••• control: desktop parks it in #dock-tray (header); phones put it on the modes row.
+// Settings panels hide ••• (Done/Close go back) so nothing is orphaned at the bottom.
 function placeMenu() {
   const menu = $("#menu");
   const tray = $("#dock-tray");
   const modes = $("#modes-menu");
-  const slot = $("#panel-slot");
-  if (!menu || !tray || !modes || !slot) return;
+  if (!menu || !tray || !modes) return;
   const mobile = matchMedia("(max-width: 600px)").matches;
   const onMain = $("#main") && !$("#main").hidden;
-  const onPanel = ["colors", "backup", "sync"].some((id) => {
-    const el = document.getElementById(id);
-    return el && !el.hidden;
-  });
-  slot.hidden = !(mobile && onPanel);
-  const dest = mobile && onMain ? modes : mobile && onPanel ? slot : tray;
+  const dest = mobile && onMain ? modes : tray;
   if (menu.parentElement !== dest) dest.append(menu);
+  if (menu.open && !(mobile && onMain)) menu.open = false;
 }
+
+// Keep the focused field on screen when the soft keyboard opens on phone settings.
+document.addEventListener("focusin", (e) => {
+  const el = e.target;
+  if (!(el instanceof HTMLElement)) return;
+  if (!el.matches("input, textarea, select, si-passage-input")) return;
+  if (!matchMedia("(max-width: 600px)").matches) return;
+  if (!el.closest(".settings-panel")) return;
+  requestAnimationFrame(() => {
+    setTimeout(() => el.scrollIntoView({ block: "center", inline: "nearest", behavior: "smooth" }), 250);
+  });
+});
 
 document.addEventListener("pointerdown", (e) => {
   const menu = $("#menu");

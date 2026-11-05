@@ -19,11 +19,10 @@ test("the contract link goes where For developers' spec link does", () => {
 });
 
 test("the ••• menu is Sync · Colors · Backup, then theme/contract/status on phones, then Log out", () => {
-  // Desktop footer chip + menu theme row (phones) share setupThemeToggle.
   expect(html.match(/theme-toggle/g)).toHaveLength(2);
   expect(html).toContain('id="menu-auth-status"');
   expect(html).toContain('id="modes-menu"');
-  expect(html).toContain('id="panel-slot"');
+  expect(html).not.toContain('id="panel-slot"');
   const menu = /<details id="menu">([\s\S]*?)<\/details>/.exec(html)?.[1] ?? "";
   expect(menu).toContain('id="open-sync"');
   expect(menu).toContain('id="open-colors"');
@@ -32,7 +31,6 @@ test("the ••• menu is Sync · Colors · Backup, then theme/contract/status
   expect(menu).toContain("menu-link");
   expect(menu).toContain('id="menu-auth-status"');
   expect(menu).toContain('id="lock"');
-  // Desktop keeps the short popover; phone-only rows are hidden above 600px.
   expect(css).toMatch(/@media \(min-width: 601px\)[\s\S]*?#menu \.menu-theme/);
 });
 
@@ -53,22 +51,43 @@ test("small screens get a fixed thumb dock; desktop keeps shell-meta", () => {
   expect(css).toContain("#chrome-dock { display: contents; }");
   expect(css).toMatch(/@media \(max-width: 600px\)[\s\S]*?#chrome-dock\s*\{[^}]*position:\s*fixed/);
   expect(css).toMatch(/@media \(max-width: 600px\)[\s\S]*?min-height:\s*44px/);
-  // Phone library/settings hide the desktop footer chips (they live in the ••• sheet).
   expect(css).toMatch(/body:has\(#main:not\(\[hidden\]\), #colors:not\(\[hidden\]\), #backup:not\(\[hidden\]\), #sync:not\(\[hidden\]\)\) > \.shell-meta \{[\s\S]*?display: none/);
 });
 
 test("phone ••• sits on the modes row; sheet holds theme/contract/status", () => {
   const mobile = css.slice(css.indexOf("@media (max-width: 600px)"));
   expect(mobile).toContain("--dock-pad-x: .75rem");
-  // No bottom tray on phones — dock-tray is the desktop menu host only.
   expect(mobile).toMatch(/#chrome-dock > #dock-tray \{ display: none; \}/);
-  // Modes + 44px ••• share one full-width row.
   expect(mobile).toMatch(/\.modes-menu \{[\s\S]*?grid-template-columns: minmax\(0, 1fr\) 44px;/);
-  expect(mobile).toMatch(/#group-by\.segmented button \{[\s\S]*?font-size: \.5625rem;[\s\S]*?letter-spacing: 0;[\s\S]*?white-space: nowrap/);
-  // Sheet rows are full-width ≥44px including theme/contract/status.
   expect(mobile).toMatch(/#menu > div button,[\s\S]*?\.menu-status \{[\s\S]*?min-height: 44px;/);
-  expect(mobile).toMatch(/\.panel-slot:not\(\[hidden\]\) \{[\s\S]*?position: fixed;/);
-  // Desktop popover still shrink-wraps.
   expect(css).toContain("#menu > div { min-width: 12rem; padding: 0; }");
-  expect(css.indexOf("#menu > div { min-width: 12rem")).toBeLessThan(css.indexOf("@media (max-width: 600px)"));
+});
+
+test("phone mode segments use icons; inactive icon-only, active icon plus label", () => {
+  for (const mode of ["date", "genre", "relevant", "surprising", "topic"]) {
+    expect(html).toMatch(new RegExp(`data-mode="${mode}"[^>]*aria-label="[^"]+"[^>]*title="`));
+    expect(html).toMatch(new RegExp(`data-mode="${mode}"[\\s\\S]*?<svg class="mode-icon"`));
+    expect(html).toMatch(new RegExp(`data-mode="${mode}"[\\s\\S]*?<span class="mode-label">`));
+  }
+  const mobile = css.slice(css.indexOf("@media (max-width: 600px)"));
+  expect(mobile).toContain("#group-by.segmented button .mode-icon");
+  expect(mobile).toContain('#group-by.segmented button .mode-label { display: none; }');
+  expect(mobile).toContain('#group-by.segmented button[aria-pressed="true"] .mode-label { display: block; }');
+  // Desktop keeps text; icons stay hidden.
+  expect(css).toContain(".mode-icon { display: none; }");
+});
+
+test("phone Colors/Sync/Backup are top-aligned pages with header close and pinned Done", () => {
+  expect(html).toContain('class="settings-panel"');
+  expect(html).toContain('class="panel-head"');
+  expect(html).toContain('class="panel-foot"');
+  expect(html).toContain('class="back panel-close"');
+  const mobile = css.slice(css.indexOf("@media (max-width: 600px)"));
+  expect(mobile).toMatch(/\.settings-panel:not\(\[hidden\]\) \{[\s\S]*?display: flex;/);
+  expect(mobile).toMatch(/\.settings-panel \.panel-head \{[\s\S]*?min-height: 52px;/);
+  expect(mobile).toMatch(/\.settings-panel \.panel-foot \.back \{[\s\S]*?min-height: 48px;/);
+  expect(mobile).toMatch(/#color-list \.color-field input,[\s\S]*?min-height: 48px;/);
+  expect(mobile).toMatch(/#color-list \.dot,[\s\S]*?width: 48px;[\s\S]*?height: 48px;/);
+  expect(mobile).toMatch(/#color-list \.field-action,[\s\S]*?min-width: 44px;[\s\S]*?height: 44px;/);
+  expect(app).toContain('el.closest(".settings-panel")');
 });
