@@ -43,4 +43,8 @@ test("small screens get a fixed thumb dock; desktop keeps shell-meta", () => {
   expect(css).toMatch(/@media \(max-width: 600px\)[\s\S]*?#chrome-dock\s*\{[^}]*position:\s*fixed/);
   expect(css).toMatch(/@media \(max-width: 600px\)[\s\S]*?min-height:\s*44px/);
   expect(css).toMatch(/body:has\(#main:not\(\[hidden\]\)\) > \.shell-meta \{ display: none; \}/);
+  // Dock theme control matches the footer icon (SVG), not a text glyph.
+  expect(css).toContain(".dock-meta .theme-toggle svg { display: block; margin: 0 auto; }");
+  // Mode labels stay unclipped at 375px (SURPRISING): tighter type, nowrap, no ellipsis.
+  expect(css).toMatch(/#group-by\.segmented button \{[\s\S]*?font-size: \.625rem;[\s\S]*?letter-spacing: 0;[\s\S]*?white-space: nowrap/);
 });

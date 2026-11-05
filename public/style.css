@@ -636,9 +636,12 @@ body:has(#main:not([hidden])) .shell-meta { flex-shrink: 0; }
     flex: 1 1 0;
     min-width: 0;
     min-height: 44px;
-    padding: .5rem .25rem;
-    font-size: .6875rem;
-    letter-spacing: .04em;
+    padding: .5rem .1rem;
+    /* 375px must fit SURPRISING unclipped — tighten type, never truncate. */
+    font-size: .625rem;
+    letter-spacing: 0;
+    white-space: nowrap;
+    overflow: visible;
   }
   #add {
     margin: 0;
@@ -672,7 +675,11 @@ body:has(#main:not([hidden])) .shell-meta { flex-shrink: 0; }
     width: 44px;
     min-width: 44px;
     flex: 0 0 44px;
+    padding: 0;
+    border-color: color-mix(in oklab, var(--brand) 36%, var(--line));
+    color: var(--fg);
   }
+  .dock-meta .theme-toggle svg { display: block; margin: 0 auto; }
   /* Menu opens upward into the list, away from the thumb rest. */
   #menu > summary {
     display: grid;
