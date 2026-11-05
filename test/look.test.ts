@@ -18,6 +18,8 @@ test("custom and add rows are shaped like the built-in rows, with the action ins
   expect(app).toContain('iconButton("button", "trash", `Delete ${colorName(c)}`)');
   expect(app).toMatch(/className = "color-field"/);
   expect(css).toMatch(/input\[type="color"\] \{ width: 1\.25rem; height: 1\.25rem;/);
+  // On phones, Delete/Add share a 44px slot so custom rows match built-ins edge-to-edge.
+  expect(css).toMatch(/@media \(max-width: 600px\)[\s\S]*?#color-list \.field-action,[\s\S]*?min-width: 44px;[\s\S]*?height: 44px;/);
 });
 
 test("one way to sync: the Sync screen offers this site's server and no folder", () => {

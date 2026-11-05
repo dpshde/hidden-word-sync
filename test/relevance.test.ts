@@ -53,11 +53,12 @@ describe("UI copy and footer toggle", () => {
     expect(app).toContain("rank-scope");
     expect(app).toContain("clearRankScopeFromRef");
     expect(css).toContain("#add.rank-scope");
-    // Topic field lives inside the list foot with the sort controls.
+    // Topic field lives inside the list foot with the sort controls — inside #chrome-dock with add.
     const footStart = html.indexOf('id="list-foot"');
     const footEnd = html.indexOf('id="color-pop"');
     const foot = html.slice(footStart, footEnd);
     expect(footStart).toBeGreaterThan(html.indexOf('id="add"'));
+    expect(html.indexOf('id="chrome-dock"')).toBeLessThan(html.indexOf('id="add"'));
     expect(foot).toContain('id="relevance-bar"');
     expect(foot).not.toContain('id="relevance-ref"');
     expect(foot).toContain('id="topic-ref"');

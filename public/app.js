@@ -57,9 +57,12 @@ const SIGNED_IN = new Set(["main", "colors", "backup", "sync"]);
 
 function show(id) {
   for (const section of document.querySelectorAll("main > section")) section.hidden = section.id !== id;
-  const status = $("#auth-status");
-  status.textContent = SIGNED_IN.has(id) ? "Signed in" : "Signed out";
-  status.hidden = false;
+  const label = SIGNED_IN.has(id) ? "Signed in" : "Signed out";
+  for (const status of document.querySelectorAll("#auth-status, #menu-auth-status")) {
+    status.textContent = label;
+    status.hidden = false;
+  }
+  placeMenu();
 }
 
 /** Shows a passing message, with an optional button such as `{ label: "Undo", run, ms }`. */
@@ -1344,28 +1347,80 @@ libName.addEventListener("blur", () => {
 });
 
 // ---- menu
-// Close the ••• menu on any press outside it, and on Escape (returning focus to its toggle).
+// One ••• control: desktop parks it in #dock-tray (header); phones put it on the modes row.
+// Settings panels hide ••• (Done/Close go back) so nothing is orphaned at the bottom.
+function placeMenu() {
+  const menu = $("#menu");
+  const tray = $("#dock-tray");
+  const modes = $("#modes-menu");
+  if (!menu || !tray || !modes) return;
+  const mobile = matchMedia("(max-width: 600px)").matches;
+  const onMain = $("#main") && !$("#main").hidden;
+  const dest = mobile && onMain ? modes : tray;
+  if (menu.parentElement !== dest) dest.append(menu);
+  if (menu.open && !(mobile && onMain)) menu.open = false;
+}
+
+// Keep the focused field on screen when the soft keyboard opens on phone settings.
+document.addEventListener("focusin", (e) => {
+  const el = e.target;
+  if (!(el instanceof HTMLElement)) return;
+  if (!el.matches("input, textarea, select, si-passage-input")) return;
+  if (!matchMedia("(max-width: 600px)").matches) return;
+  if (!el.closest(".settings-panel")) return;
+  requestAnimationFrame(() => {
+    setTimeout(() => el.scrollIntoView({ block: "center", inline: "nearest", behavior: "smooth" }), 250);
+  });
+});
+
 document.addEventListener("pointerdown", (e) => {
   const menu = $("#menu");
-  if (menu.open && !menu.contains(e.target)) menu.open = false;
+  if (menu?.open && !menu.contains(e.target)) menu.open = false;
 });
 document.addEventListener("keydown", (e) => {
   const menu = $("#menu");
-  if (e.key === "Escape" && menu.open) {
+  if (e.key === "Escape" && menu?.open) {
     menu.open = false;
-    menu.querySelector("summary").focus();
+    menu.querySelector("summary")?.focus();
   }
 });
+addEventListener("resize", placeMenu);
+queueMicrotask(placeMenu);
 
-function menuAction(id, fn) {
-  $(id).addEventListener("click", async () => {
-    $("#menu").open = false;
-    try {
-      await fn();
-    } catch (error) {
-      if (!cancelled(error)) flash(error.message);
+/** Keep #main's bottom padding equal to the fixed mobile dock so the list never sits under it. */
+{
+  const dock = $("#chrome-dock");
+  const main = $("#main");
+  const syncDockPad = () => {
+    if (!dock || !main || main.hidden) return;
+    if (!matchMedia("(max-width: 600px)").matches) {
+      main.style.removeProperty("--dock-h");
+      return;
     }
-  });
+    main.style.setProperty("--dock-h", `${dock.getBoundingClientRect().height}px`);
+  };
+  if (typeof ResizeObserver === "function") new ResizeObserver(syncDockPad).observe(dock);
+  addEventListener("resize", syncDockPad);
+  // After mode / relevance-bar toggles change the dock's height.
+  const mo = typeof MutationObserver === "function"
+    ? new MutationObserver(syncDockPad)
+    : null;
+  mo?.observe(dock, { attributes: true, subtree: true, attributeFilter: ["hidden", "aria-pressed"] });
+  queueMicrotask(syncDockPad);
+}
+
+function menuAction(sel, fn) {
+  for (const el of document.querySelectorAll(sel)) {
+    el.addEventListener("click", async () => {
+      const menu = $("#menu");
+      if (menu) menu.open = false;
+      try {
+        await fn();
+      } catch (error) {
+        if (!cancelled(error)) flash(error.message);
+      }
+    });
+  }
 }
 
 menuAction("#open-sync", () => (renderSync(), hideKey(), ($("#access-note").textContent = ""), show("sync")));

@@ -165,7 +165,7 @@ button.danger:not(.quiet) { background: transparent; border-color: transparent; 
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 
 header { display: flex; align-items: center; gap: .75rem; margin-bottom: 1.5rem; }
-header #menu { margin-left: auto; }
+#menu { margin-left: auto; }
 /* The library's name, edited in place: plain heading text until it has focus. */
 #lib-name { min-width: 2ch; max-width: 70%; overflow-wrap: anywhere; font-size: 1.25rem; font-weight: 700; letter-spacing: -.03em; line-height: 1.3; padding: .125rem .375rem; margin-left: -.375rem; border-radius: 0; outline: none; cursor: text; -webkit-user-modify: read-write-plaintext-only; transition: background-color var(--ease), box-shadow var(--ease); }
 #lib-name:focus { box-shadow: inset 0 0 0 1px var(--line); background: var(--raised); }
@@ -520,22 +520,402 @@ a.shell-link:focus-visible, button.shell-link:focus-visible { color: var(--fg); 
 /* Auth status is a label, not a control. */
 .shell-status { cursor: default; }
 .shell-status[hidden] { display: none; }
+.menu-status { cursor: default; }
+.menu-status[hidden] { display: none; }
+.modes-menu { display: contents; } /* desktop: group-by stays in foot; #menu is moved to #dock-tray */
+/* Mode icons are phone-only; desktop keeps text labels. */
+.mode-icon { display: none; }
+.mode-label { display: inline; }
+/* Desktop popover stays Sync · Colors · Backup · Log out (phone-only rows hidden). */
+@media (min-width: 601px) {
+  #menu .menu-link, #menu .menu-theme, #menu .menu-status, #menu .menu-extra { display: none; }
+}
+/* Settings panels: desktop keeps a simple stacked layout; phones get a phone-page chrome. */
+.settings-panel .panel-head { display: contents; }
+.settings-panel .panel-body { display: contents; }
+.settings-panel .panel-foot { display: contents; }
+.settings-panel .panel-close { display: none; }
 
 /* A passage still fetching shows nothing for 300ms, then its spinner: a fast answer never flashes one. */
 si-passage::part(loader) { visibility: hidden; animation: si-loader-late 0s linear .3s forwards; }
 @keyframes si-loader-late { to { visibility: visible; } }
 
 /* Library view: the page never scrolls, only the highlights list does. body is a 100dvh column
-   (main, then the footer); #main is a column whose header, add field and Date/Genre toggle keep
-   their height while #list takes the rest and scrolls on its own, with expanded passages inside it.
-   Start/unlock pages keep normal flow, so they only scroll when they truly don't fit (a small phone
-   with the keyboard up). No rubber-band on the page anywhere. */
+   (main, then the footer); #main lays out header / add / list / foot while #list scrolls on its own.
+   Start/unlock pages keep normal flow. No rubber-band on the page anywhere. */
 html, body { overscroll-behavior: none; overflow-x: clip; }
 html:has(#main:not([hidden])), body:has(#main:not([hidden])) { height: 100dvh; overflow: hidden; }
 body:has(#main:not([hidden])) main { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; padding-bottom: 1rem; }
-#main:not([hidden]) { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
-#main:not([hidden]) > * { flex-shrink: 0; }
-#main:not([hidden]) > #list { flex: 1 1 auto; min-height: 0; min-width: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+/* Desktop/tablet: grid so #chrome-dock can be display:contents while add stays above the list and
+   the foot below it, with ••• back in the header row. */
+#main:not([hidden]) {
+  flex: 1 1 auto; min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas:
+    "head menu"
+    "flash flash"
+    "offer offer"
+    "add add"
+    "filters filters"
+    "rnone rnone"
+    "preview preview"
+    "list list"
+    "foot foot"
+    "empty empty";
+}
+#main:not([hidden]) > header { grid-area: head; }
+#main:not([hidden]) > #flash { grid-area: flash; }
+#main:not([hidden]) > #passkey-offer { grid-area: offer; }
+#main:not([hidden]) > #filters { grid-area: filters; }
+#main:not([hidden]) > #relevance-none { grid-area: rnone; }
+#main:not([hidden]) > #rank-preview { grid-area: preview; }
+#main:not([hidden]) > #list { grid-area: list; min-height: 0; min-width: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+#main:not([hidden]) > #empty { grid-area: empty; }
+#main:not([hidden]) > #color-pop { grid-area: list; } /* popover; not laid out */
+#chrome-dock { display: contents; }
+#chrome-dock > #add { grid-area: add; }
+#chrome-dock > #list-foot { grid-area: foot; }
+#chrome-dock > #dock-tray { grid-area: menu; justify-self: end; align-self: start; margin-bottom: 1.5rem; }
+.dock-tray { display: flex; align-items: center; gap: .5rem; }
+.dock-meta { display: none; } /* mobile only — desktop uses .shell-meta */
 body:has(#main:not([hidden])) .shell-meta { flex-shrink: 0; }
 /* Short screens: pull the offset toward the safe-area floor so the list keeps a usable height. */
 @media (max-height: 40rem) { main:not(.oauth-main) { padding-top: max(calc(env(safe-area-inset-top) + 1rem), calc(34dvh - 140px)); } }
+
+/* —— Mobile library (≤600px): one-handed thumb dock — */
+@media (max-width: 600px) {
+  /* One horizontal inset for the dock, the ••• sheet, and Sync/Colors/Backup. */
+  :root { --dock-pad-x: .75rem; }
+  body:has(#main:not([hidden])) main {
+    padding-top: max(calc(env(safe-area-inset-top) + .75rem), 1.25rem);
+    padding-bottom: 0;
+    max-width: none;
+  }
+  /* Phone settings: top-aligned phone page (not the desktop optical vertical offset). */
+  body:has(#colors:not([hidden]), #backup:not([hidden]), #sync:not([hidden])) main {
+    max-width: none;
+    padding: 0;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: 0;
+    height: 100dvh;
+    overflow: hidden;
+  }
+  /* Phone footer chips are in the ••• sheet; hide shell-meta whenever a library screen is open. */
+  body:has(#main:not([hidden]), #colors:not([hidden]), #backup:not([hidden]), #sync:not([hidden])) > .shell-meta {
+    display: none;
+  }
+  #main:not([hidden]) {
+    display: flex;
+    flex-direction: column;
+    /* --dock-h from #chrome-dock (app.js); shorter without the old tray row. */
+    padding-bottom: var(--dock-h, calc(9.5rem + env(safe-area-inset-bottom, 0px)));
+  }
+  #main:not([hidden]) > header { margin-bottom: .75rem; }
+  #main:not([hidden]) > #list { flex: 1 1 auto; }
+  #chrome-dock {
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 40;
+    margin: 0;
+    padding: .625rem var(--dock-pad-x) calc(.625rem + env(safe-area-inset-bottom, 0px));
+    background: var(--surface);
+    border-top: 1px solid var(--line);
+    box-shadow: 0 -10px 28px color-mix(in oklab, var(--fg) 10%, transparent);
+  }
+  /* Thumb order: sort modes (+ •••) → add/Highlight. No bottom tray. */
+  #chrome-dock > #list-foot { order: 1; margin: 0; }
+  #chrome-dock > #add { order: 2; margin: 0; }
+  #chrome-dock > #dock-tray { display: none; }
+  #list-foot {
+    padding: .5rem 0 0;
+    border: 0;
+    background: transparent;
+  }
+  .list-foot-row { gap: .375rem; }
+  /* Modes + ••• share one full-width row (same inset as the add/reference row). */
+  .modes-menu {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 44px;
+    gap: 1px;
+    align-items: stretch;
+    width: 100%;
+    min-height: 44px;
+    background: var(--line);
+    border: 1px solid var(--line);
+    box-sizing: border-box;
+  }
+  #group-by.segmented {
+    display: flex;
+    width: 100%;
+    min-width: 0;
+    align-self: stretch;
+    flex-wrap: nowrap;
+    margin: 0;
+    background: var(--surface);
+  }
+  #group-by.segmented button {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: .125rem;
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 44px;
+    padding: .35rem .05rem;
+    font-size: .5rem;
+    letter-spacing: 0;
+    white-space: nowrap;
+    overflow: visible;
+    line-height: 1.1;
+  }
+  #group-by.segmented button .mode-icon {
+    display: block;
+    flex: none;
+    width: 16px;
+    height: 16px;
+  }
+  /* Inactive: icon only; active: icon + label (fits at 375 with •••).
+     Active label is block so it stacks under the icon in the column flex button. */
+  #group-by.segmented button .mode-label { display: none; }
+  #group-by.segmented button[aria-pressed="true"] .mode-label { display: block; }
+  #add { margin: 0; }
+  #add > button[type="submit"],
+  #add-dot,
+  #add si-passage-input::part(input) {
+    min-height: 44px;
+    height: 44px;
+  }
+  #add si-passage-input::part(listbox) {
+    top: auto;
+    bottom: calc(100% - 1px);
+  }
+  /* ••• cell on the modes row; sheet opens upward across the full modes-menu width. */
+  .modes-menu { position: relative; }
+  #menu {
+    position: static;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    background: var(--surface);
+  }
+  #menu > summary {
+    display: grid;
+    place-items: center;
+    flex: 1 1 auto;
+    width: 100%;
+    min-width: 0;
+    min-height: 44px;
+    height: 100%;
+    padding: 0;
+    font-size: 1.125rem;
+    letter-spacing: .16em;
+    color: var(--fg);
+    box-sizing: border-box;
+  }
+  #menu[open] > summary { background: var(--hover); color: var(--fg); }
+  #menu > div {
+    position: absolute;
+    top: auto;
+    bottom: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    width: auto;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+  #menu > div button,
+  #menu > div .menu-link,
+  #menu > div .menu-theme,
+  #menu > div .menu-status {
+    display: flex;
+    align-items: center;
+    gap: .625rem;
+    width: 100%;
+    min-height: 44px;
+    padding: .75rem .875rem;
+    box-sizing: border-box;
+    background: transparent;
+    border: 0;
+    color: var(--fg);
+    text-align: left;
+    font: inherit;
+    font-weight: 500;
+    text-decoration: none;
+    box-shadow: inset 3px 0 0 transparent;
+  }
+  #menu > div button:hover,
+  #menu > div .menu-link:hover,
+  #menu > div .menu-theme:hover {
+    background: var(--hover);
+    box-shadow: inset 3px 0 0 var(--brand);
+  }
+  #menu > div .menu-status {
+    color: var(--muted);
+    font-size: .875rem;
+    font-weight: 500;
+  }
+  #menu > div .menu-theme-label { font-weight: 500; }
+  #menu > div hr {
+    display: block;
+    border: 0;
+    border-top: 1px solid var(--line);
+    margin: 0;
+  }
+  #menu > div .menu-extra { display: block; }
+  /* Topic field stays reachable above the modes (Relevant/Surprising use #ref). */
+  .topic-input {
+    min-height: 44px;
+    height: 44px;
+  }
+  .rank-preview { margin-bottom: .5rem; }
+
+  /* —— Phone settings pages (Colors / Sync / Backup) —— */
+  .settings-panel:not([hidden]) {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+  .settings-panel .panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+    flex: none;
+    min-height: 52px;
+    padding: .625rem var(--dock-pad-x);
+    border-bottom: 1px solid var(--line);
+    background: var(--surface);
+  }
+  .settings-panel .panel-head h1 {
+    margin: 0;
+    font-size: 1.25rem;
+    letter-spacing: -.03em;
+  }
+  .settings-panel .panel-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    min-width: 44px;
+    padding: 0 .875rem;
+    margin: 0;
+    background: transparent;
+    color: var(--fg);
+    border: 1px solid var(--line);
+    font-size: .875rem;
+    font-weight: 600;
+  }
+  .settings-panel .panel-body {
+    display: block;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    padding: 1rem var(--dock-pad-x) 1.25rem;
+    font-size: 1rem;
+  }
+  .settings-panel .panel-body .lede {
+    font-size: 1rem;
+    line-height: 1.45;
+    margin: 0 0 1.25rem;
+  }
+  .settings-panel .panel-foot {
+    display: block;
+    flex: none;
+    padding: .75rem var(--dock-pad-x) calc(.75rem + env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid var(--line);
+    background: var(--surface);
+  }
+  .settings-panel .panel-foot .back {
+    display: block;
+    width: 100%;
+    min-height: 48px;
+    box-sizing: border-box;
+  }
+  #color-list li,
+  #add-color {
+    width: 100%;
+    min-height: 48px;
+    gap: .75rem;
+    padding: .375rem 0;
+    box-sizing: border-box;
+  }
+  #color-list .dot,
+  #color-list input[type="color"],
+  #add-color input[type="color"] {
+    width: 48px;
+    height: 48px;
+    flex: none;
+  }
+  #color-list .color-field,
+  #add-color .color-field {
+    flex: 1 1 auto;
+    min-width: 0;
+    width: auto;
+  }
+  #color-list .color-field input,
+  #add-color .color-field input {
+    min-height: 48px;
+    height: 48px;
+    width: 100%;
+    box-sizing: border-box;
+    padding-right: 3.25rem;
+    font-size: 1rem;
+  }
+  #color-list .field-action,
+  #add-color .field-action {
+    min-width: 44px;
+    width: 44px;
+    height: 44px;
+    min-height: 44px;
+  }
+  #backup .backup-actions {
+    display: flex;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    gap: .5rem;
+    width: 100%;
+    margin: 0 0 1rem;
+    padding: 0;
+  }
+  #backup .backup-actions > button,
+  #sync .check.access .row > button,
+  #sync #erase {
+    width: 100%;
+    min-height: 48px;
+    box-sizing: border-box;
+  }
+  #sync .check.access {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: .75rem;
+  }
+  #sync .check.access > span { flex: none; width: 100%; }
+  #sync .check.access .row {
+    display: flex;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    gap: .5rem;
+    width: 100%;
+    padding: 0;
+    margin: 0;
+  }
+  #sync .check { width: 100%; }
+}
