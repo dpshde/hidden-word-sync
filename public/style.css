@@ -377,6 +377,7 @@ button.dot[aria-pressed="true"] { border-color: var(--fg); }
 .rank-empty {
   margin: 0 0 .75rem;
   background: var(--surface);
+  box-shadow: none;
 }
 .rank-empty .rank-hint {
   margin: 0 0 .625rem;
