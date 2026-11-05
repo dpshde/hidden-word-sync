@@ -67,12 +67,20 @@ test("phone ••• stays in <header> (reachable even when library is empty); 
   expect(css).toContain("#menu > div { min-width: 12rem; padding: 0; }");
 });
 
-test("mode segments use plain text labels in #list-bar on both desktop and phone", () => {
+test("desktop uses segmented mode buttons in #list-bar; mobile (≤600px) uses a <select>", () => {
   for (const mode of ["date", "genre", "relevant", "surprising", "topic"]) {
     expect(html).toContain(`data-mode="${mode}"`);
+    expect(html).toContain(`<option value="${mode}">`);
   }
+  expect(html).toContain('id="group-by-select"');
+  expect(html).toContain('aria-label="Sort highlights"');
   expect(html).not.toContain("mode-icon");
   expect(css).toContain(".list-bar .segmented");
+  expect(css).toContain(".mode-select");
+  expect(css).toMatch(/@media \(max-width: 600px\)[\s\S]*?\.list-bar \.segmented \{ display: none; \}/);
+  expect(css).toMatch(/@media \(max-width: 600px\)[\s\S]*?\.mode-select:not\(\[hidden\]\) \{[\s\S]*?display: block;/);
+  expect(app).toContain("function selectMode(next)");
+  expect(app).toContain('$("#group-by-select").value = groupBy');
 });
 
 test("phone Colors/Sync/Backup are top-aligned pages with header close and pinned Done", () => {

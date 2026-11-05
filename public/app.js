@@ -555,51 +555,56 @@ let highlightStamp = new Map();
 
 function renderGroupBy(any) {
   $("#group-by").hidden = !any;
+  $("#group-by-select").hidden = !any;
+  $("#group-by-select").value = groupBy;
   $("#list-bar").hidden = !any;
   syncRefFieldMode();
   for (const b of document.querySelectorAll("#group-by button")) b.setAttribute("aria-pressed", String(b.dataset.mode === groupBy));
 }
 
-for (const b of document.querySelectorAll("#group-by button")) {
-  b.addEventListener("click", () => {
-    const next = b.dataset.mode;
-    const wasJev = JEV_MODES.includes(groupBy);
-    const willJev = JEV_MODES.includes(next);
-    const wasPassage = RANK_MODES.includes(groupBy);
-    const willPassage = RANK_MODES.includes(next);
-    groupBy = next;
-    localStorage.setItem(GROUP_BY, groupBy);
-    // Leaving Relevant/Surprising: clear ranking scope from #ref so Date/Genre don't inherit it as an add.
-    if (wasPassage && !willPassage) clearRankScopeFromRef();
-    if (wasJev && !willJev) clearRelevanceInput({ keepRef: wasPassage });
-    // Entering Relevant/Surprising from Date/Genre/Topic: start with an empty rank field (don't rank a half-typed add).
-    if (willPassage && !wasPassage) {
-      refField.value = "";
-      errorIn($("#add"), "");
-    }
-    if (next === TOPIC_MODE) errorIn($("#add"), "");
-    renderGroupBy(!!$("#list-bar") && !$("#list-bar").hidden);
-    if (willPassage && wasPassage && relevance?.passage && !rankFailed) {
-      // Relevant ↔ Surprising: reorder cached verdicts, no network call.
-      // New final paint so auto-expand follows the new top (unless the person toggled a row).
-      beginRankPaint();
-      void reorderRelevance();
-    } else if (willPassage && refText(refField).trim()) {
-      void runRelevance();
-    } else if (next === TOPIC_MODE && sanitizeTopic($("#topic-ref").value)) {
-      void runTopic();
-    } else {
-      // Crossing passage ↔ topic (or empty scope): drop the other mode's session so hasScope matches the field.
-      if (next === TOPIC_MODE) relevance?.setTopicInput("");
-      else if (willPassage) relevance?.clearPassage();
-      rankOrder = [];
-      rankFailed = false;
-      verseText.open = null;
-      beginRankPaint({ resetUser: true });
-      render();
-    }
-  });
+function selectMode(next) {
+  if (!MODES.includes(next)) return;
+  const wasJev = JEV_MODES.includes(groupBy);
+  const willJev = JEV_MODES.includes(next);
+  const wasPassage = RANK_MODES.includes(groupBy);
+  const willPassage = RANK_MODES.includes(next);
+  groupBy = next;
+  localStorage.setItem(GROUP_BY, groupBy);
+  // Leaving Relevant/Surprising: clear ranking scope from #ref so Date/Genre don't inherit it as an add.
+  if (wasPassage && !willPassage) clearRankScopeFromRef();
+  if (wasJev && !willJev) clearRelevanceInput({ keepRef: wasPassage });
+  // Entering Relevant/Surprising from Date/Genre/Topic: start with an empty rank field (don't rank a half-typed add).
+  if (willPassage && !wasPassage) {
+    refField.value = "";
+    errorIn($("#add"), "");
+  }
+  if (next === TOPIC_MODE) errorIn($("#add"), "");
+  renderGroupBy(!!$("#list-bar") && !$("#list-bar").hidden);
+  if (willPassage && wasPassage && relevance?.passage && !rankFailed) {
+    // Relevant ↔ Surprising: reorder cached verdicts, no network call.
+    // New final paint so auto-expand follows the new top (unless the person toggled a row).
+    beginRankPaint();
+    void reorderRelevance();
+  } else if (willPassage && refText(refField).trim()) {
+    void runRelevance();
+  } else if (next === TOPIC_MODE && sanitizeTopic($("#topic-ref").value)) {
+    void runTopic();
+  } else {
+    // Crossing passage ↔ topic (or empty scope): drop the other mode's session so hasScope matches the field.
+    if (next === TOPIC_MODE) relevance?.setTopicInput("");
+    else if (willPassage) relevance?.clearPassage();
+    rankOrder = [];
+    rankFailed = false;
+    verseText.open = null;
+    beginRankPaint({ resetUser: true });
+    render();
+  }
 }
+
+for (const b of document.querySelectorAll("#group-by button")) {
+  b.addEventListener("click", () => selectMode(b.dataset.mode));
+}
+$("#group-by-select").addEventListener("change", (e) => selectMode(e.target.value));
 
 /** Clear #ref ranking text and restore add-mode placeholder/aria (Highlight stays until renderGroupBy). */
 function clearRankScopeFromRef() {
@@ -665,8 +670,7 @@ $("#relevance-none-chapter").addEventListener("click", () => {
 });
 
 $("#relevance-none-date").addEventListener("click", () => {
-  const dateBtn = document.querySelector('#group-by button[data-mode="date"]');
-  dateBtn?.click();
+  selectMode("date");
 });
 
 function syncRelevanceCache() {
