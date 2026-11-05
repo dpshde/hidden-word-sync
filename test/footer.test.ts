@@ -49,6 +49,8 @@ test("small screens get a fixed thumb dock; desktop keeps shell-meta", () => {
   expect(html).toContain('id="chrome-dock"');
   expect(html).toContain('id="dock-tray"');
   expect(css).toContain("#chrome-dock { display: contents; }");
+  // Desktop grid: list row is 1fr so the column fills the viewport (not a barren mid-canvas stack).
+  expect(css).toMatch(/#main:not\(\[hidden\]\)\s*\{[\s\S]*?minmax\(0,\s*1fr\)/);
   expect(css).toMatch(/@media \(max-width: 600px\)[\s\S]*?#chrome-dock\s*\{[^}]*position:\s*fixed/);
   expect(css).toMatch(/@media \(max-width: 600px\)[\s\S]*?min-height:\s*44px/);
   expect(css).toMatch(/body:has\(#main:not\(\[hidden\]\), #colors:not\(\[hidden\]\), #backup:not\(\[hidden\]\), #sync:not\(\[hidden\]\)\) > \.shell-meta \{[\s\S]*?display: none/);
