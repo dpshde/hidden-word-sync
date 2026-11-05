@@ -95,9 +95,10 @@
 
     <form id="add" autocomplete="off" novalidate>
       <button type="button" id="add-dot" class="pick" aria-haspopup="true" aria-label="Highlight color: Yellow"><span class="dot" data-color="yellow"></span></button>
+      <span id="scope-prefix" class="scope-prefix" aria-hidden="true" hidden>Passage</span>
       <!-- Relevant/Surprising hijack #ref as the ranking scope; Topic swaps in #topic-ref in this same top slot. -->
       <si-passage-input id="ref" placeholder="John 3:16" aria-label="Verse or passage"></si-passage-input>
-      <input id="topic-ref" class="topic-input" type="text" maxlength="200" placeholder="grace, fear of the Lord…" aria-label="Topic to sort highlights by" autocomplete="off" hidden>
+      <input id="topic-ref" class="topic-input" type="text" maxlength="200" placeholder="Rank by theme — e.g. grace, fear of the Lord" aria-label="Topic to sort highlights by" autocomplete="off" hidden>
       <input type="hidden" name="color" value="yellow">
       <button type="submit">Highlight</button>
       <p class="error" role="alert"></p>

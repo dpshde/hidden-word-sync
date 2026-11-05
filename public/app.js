@@ -311,7 +311,7 @@ async function highlight(verses, color) {
 definePassageInput();
 const refField = $("#ref");
 const REF_ADD = { placeholder: "John 3:16", aria: "Verse or passage" };
-const REF_RANK = { placeholder: "Rom 8:18–25", aria: "Passage to rank highlights against" };
+const REF_RANK = { placeholder: "Compare against passage — e.g. Rom 8:18–25", aria: "Passage to rank highlights against" };
 /** Debounce timer for ranking-from-#ref (Relevant/Surprising). */
 let refRankTimer = 0;
 /** What's in a passage field: its passage id when it read one, else the typed text, which readPassage reads
@@ -335,11 +335,21 @@ function syncRefFieldMode() {
   refField.shadowRoot?.querySelector("input")?.setAttribute("aria-label", meta.aria);
   refField.hidden = topicMode;
   $("#topic-ref").hidden = !topicMode;
+  const prefix = $("#scope-prefix");
+  if (prefix) {
+    prefix.hidden = !jevActive;
+    prefix.textContent = topicMode ? "Topic" : "Passage";
+  }
   const form = $("#add");
   form.classList.toggle("rank-scope", jevActive);
   $("#add-dot").hidden = jevActive;
   form.querySelector('button[type="submit"]').hidden = jevActive;
 }
+
+$("#scope-prefix")?.addEventListener("click", () => {
+  if (groupBy === TOPIC_MODE) $("#topic-ref")?.focus();
+  else refField?.focus();
+});
 
 // Enter: settle suggestions first; else rank (Relevant/Surprising) or add a highlight (Date/Genre).
 refField.addEventListener("keydown", (e) => {
@@ -598,6 +608,11 @@ function selectMode(next) {
     verseText.open = null;
     beginRankPaint({ resetUser: true });
     render();
+    if (next === TOPIC_MODE) $("#topic-ref")?.focus();
+    else if (willPassage) {
+      refField?.focus();
+      if (!refText(refField).trim()) refField?.close?.();
+    }
   }
 }
 

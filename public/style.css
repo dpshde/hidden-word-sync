@@ -212,14 +212,36 @@ details > div button:hover { background: var(--hover); box-shadow: inset 3px 0 0
 /* The add form, built like route.bible's search row: the color in a square cell, the field, and the
    action as one inverted block, all one height and joined edge to edge. */
 #add { grid-template-columns: auto 1fr auto; align-items: stretch; gap: 0; }
-/* Relevant/Surprising/Topic hide the color + Highlight control; #ref or #topic-ref alone is the scope. */
-#add.rank-scope { grid-template-columns: 1fr; }
+/* Relevant/Surprising/Topic hide the color + Highlight control and show the joined [ PASSAGE ] / [ TOPIC ] prefix cell. */
+#add.rank-scope { grid-template-columns: auto 1fr; }
 #add .error { grid-column: 1 / -1; margin-top: .5rem; }
 #add > button[type="submit"] { height: 2.75rem; padding: 0 1.125rem; }
 #add > button[type="submit"][hidden],
 #add-dot[hidden],
+#scope-prefix[hidden],
 #ref[hidden],
 .topic-input[hidden] { display: none; }
+/* Joined left prefix cell when #add acts as the ranking scope ([ PASSAGE ] or [ TOPIC ]). */
+.scope-prefix {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 2.75rem;
+  padding: 0 .75rem;
+  font-family: var(--font-label);
+  font-size: .6875rem;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--muted);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-right: 0;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: pointer;
+}
 /* scripture-inline's <si-passage-input> reads these tokens inside its shadow root. Its --accent is the
    highlighted suggestion, so it gets the hover color here rather than ours (which fills buttons). */
 si-passage-input {
@@ -853,6 +875,7 @@ body:has(#main:not([hidden])) .shell-meta { flex-shrink: 0; }
   #add { margin: 0 0 .75rem; }
   #add > button[type="submit"],
   #add-dot,
+  .scope-prefix,
   #add si-passage-input::part(input),
   .topic-input {
     min-height: 44px;
