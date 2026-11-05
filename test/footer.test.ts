@@ -14,6 +14,9 @@ test("the footer holds the theme, the contract and the auth status, and #list-to
   expect(items[2]).toContain('id="auth-status"');
   expect(html.indexOf('id="list-total"')).toBeGreaterThan(html.indexOf('id="list"'));
   expect(html.indexOf('id="list-total"')).toBeLessThan(html.indexOf('<footer class="shell-meta">'));
+  expect(css).toContain("#main:not([hidden]) > #list { width: 100%; flex: 0 1 auto;");
+  const mobile = css.slice(css.indexOf("/* —— Mobile library (≤600px)"));
+  expect(mobile).toContain("#main:not([hidden]) > #list { flex: 1 1 auto; }");
 });
 
 test("the contract link goes where For developers' spec link does", () => {

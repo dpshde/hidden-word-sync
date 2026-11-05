@@ -874,6 +874,8 @@ body:has(#main:not([hidden])) .shell-meta { flex-shrink: 0; }
   body:has(#main:not([hidden]), #colors:not([hidden]), #backup:not([hidden]), #sync:not([hidden])) > .shell-meta {
     display: none;
   }
+  /* On phone, #list grows to fill the library column so #list-total hugs the bottom of the viewport. */
+  #main:not([hidden]) > #list { flex: 1 1 auto; }
   #main:not([hidden]) > header { margin-bottom: .75rem; }
   #add { margin: 0 0 .75rem; }
   #add > button[type="submit"],
