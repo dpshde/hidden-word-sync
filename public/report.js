@@ -97,3 +97,4 @@ export function installReporter(win = globalThis) {
 }
 
 if (typeof window !== "undefined" && typeof document !== "undefined") installReporter(window);
+/* asset-rev 2 */

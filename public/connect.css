@@ -34,3 +34,4 @@ body.oauth { justify-content: center; }
 .oauth-foot { margin: 1.1rem 0 0; color: var(--muted); font-size: .75rem; }
 .oauth .error:empty { display: none; }
 @media (max-width: 420px) { .oauth-actions { grid-template-columns: 1fr; } .oauth-actions #allow { order: -1; } .oauth-card { padding: 1.5rem 1.1rem 1.1rem; } }
+/* asset-rev 2 */
