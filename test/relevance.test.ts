@@ -71,6 +71,11 @@ describe("UI copy and list toolbar toggle", () => {
     expect(listStart).toBeGreaterThan(filtersStart);
     const listBar = html.slice(barStart, listStart);
     expect(listBar).toContain('id="filters"');
+    expect(listBar).toContain('id="filter-summary"');
+    expect(listBar).toContain('id="filter-badge"');
+    expect(listBar).toContain("<svg viewBox=\"0 0 24 24\"");
+    const filterSummary = /<summary id="filter-summary"[^>]*>([\s\S]*?)<\/summary>/.exec(listBar)?.[1] ?? "";
+    expect(filterSummary.replace(/<[^>]*>/g, "").trim()).toBe("");
     expect(listBar).toContain('id="filter-options"');
     expect(listBar).toContain('id="group-by"');
     expect(listBar).not.toContain('id="list-total"');
@@ -78,6 +83,8 @@ describe("UI copy and list toolbar toggle", () => {
     expect(html.indexOf('id="list-total"')).toBeLessThan(html.indexOf('<footer class="shell-meta">'));
     expect(app).toContain("let filter = new Set()");
     expect(app).toContain('check.type = "checkbox"');
+    expect(app).not.toContain("Filter ·");
+    expect(app).toContain('`Filter by color (${filter.size} active)`');
     // Hybrid preview: #rank-epigraph sits right under #add for short passages; collapsible #rank-preview sits above #list for longer passages.
     const epigraphStart = html.indexOf('id="rank-epigraph"');
     expect(epigraphStart).toBeGreaterThan(addStart);

@@ -995,6 +995,7 @@ function group({ id, name, runs }) {
 function renderFilters(counts) {
   const details = $("#filters");
   const summary = $("#filter-summary");
+  const badge = $("#filter-badge");
   const box = $("#filter-options");
   if (!details || !summary || !box) return;
   if (counts.size <= 1) {
@@ -1005,8 +1006,13 @@ function renderFilters(counts) {
   }
   details.hidden = false;
   details.dataset.active = String(filter.size > 0);
-  summary.textContent = filter.size > 0 ? `Filter · ${filter.size}` : "Filter";
-  summary.setAttribute("aria-label", filter.size > 0 ? `Filter by color (${filter.size} active)` : "Filter by color");
+  const label = filter.size > 0 ? `Filter by color (${filter.size} active)` : "Filter by color";
+  summary.setAttribute("aria-label", label);
+  summary.title = label;
+  if (badge) {
+    badge.hidden = filter.size === 0;
+    badge.textContent = filter.size > 0 ? String(filter.size) : "";
+  }
 
   const items = [];
   for (const c of colors) {
@@ -1039,6 +1045,7 @@ function renderFilters(counts) {
 
 const ICONS = {
   edit: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.17 6.81a1 1 0 0 0-3.98-3.98L3.84 16.17a2 2 0 0 0-.5.83l-1.32 4.35a.5.5 0 0 0 .62.62l4.35-1.32a2 2 0 0 0 .83-.5z"/><path d="m15 5 4 4"/></svg>',
+  filter: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg>',
   plus: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>',
   globe: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>',
   trash: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',

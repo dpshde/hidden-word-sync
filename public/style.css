@@ -370,6 +370,7 @@ button.dot[aria-pressed="true"] { border-color: var(--fg); }
   }
   .filter-menu > summary {
     min-height: 40px;
+    min-width: 40px;
     height: 40px;
   }
 }
@@ -604,19 +605,21 @@ button.link:hover { background: transparent; color: var(--fg); }
 button.link[data-state="error"] { color: var(--danger); }
 .dot[data-color="own"] { background: transparent; }
 
-/* Color filter disclosure in #list-bar: single button that opens multi-select color checkboxes. */
+/* Color filter disclosure in #list-bar: single funnel icon button that opens multi-select color checkboxes. */
 .filter-menu { position: relative; flex: none; margin: 0; }
 .filter-menu[hidden] { display: none; }
 .filter-menu > summary {
   display: inline-flex;
   align-items: center;
-  gap: .375rem;
+  justify-content: center;
+  gap: .25rem;
   height: 100%;
-  padding: .4375rem .625rem;
+  min-width: 2.125rem;
+  padding: 0 .5rem;
   font-family: var(--font-label);
   font-size: .6875rem;
   font-weight: 600;
-  letter-spacing: .06em;
+  letter-spacing: .04em;
   text-transform: uppercase;
   white-space: nowrap;
   background: var(--surface);
@@ -626,18 +629,21 @@ button.link[data-state="error"] { color: var(--danger); }
   user-select: none;
   -webkit-user-select: none;
 }
-.filter-menu > summary::after {
-  content: "";
-  width: .35rem;
-  height: .35rem;
-  border: solid currentColor;
-  border-width: 0 1.5px 1.5px 0;
-  transform: rotate(45deg) translateY(-1px);
-  transition: transform .15s;
+.filter-menu > summary svg {
+  width: .9375rem;
+  height: .9375rem;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
-.filter-menu[open] > summary::after {
-  transform: rotate(-135deg) translateY(-1px);
+.filter-badge {
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
 }
+.filter-badge[hidden] { display: none; }
 .filter-menu > summary:hover {
   background: var(--hover);
   color: var(--fg);
