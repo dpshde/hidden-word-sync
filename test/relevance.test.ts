@@ -13,6 +13,7 @@ import {
   rankingCopy,
   rankStatusCopy,
   jevHintCopy,
+  jevCtaCopy,
   rankVerdicts,
   relatedCopy,
   sanitizeTopic,
@@ -100,15 +101,18 @@ describe("UI copy and list toolbar toggle", () => {
     expect(topicCopy("grace")).toBe("Sorted by closeness to “grace”");
     expect(topicCopy("")).toBe("Sorted by closeness");
     expect(jevHintCopy("relevant")).toBe(
-      "Type a passage above to find your most closely connected highlights.",
+      "Find the highlights in your library most closely connected to a passage.",
     );
     expect(jevHintCopy("surprising")).toBe(
-      "Type a passage above to find highlights that connect in unexpected ways.",
+      "Find highlights in your library that connect to a passage in unexpected ways.",
     );
     expect(jevHintCopy("surprising")).not.toBe(jevHintCopy("relevant"));
     expect(jevHintCopy("topic")).toBe(
-      "Type a topic above to sort your highlights by closeness to it.",
+      "Sort all your highlights by how closely they speak to a theme.",
     );
+    expect(jevCtaCopy("relevant")).toBe("Choose a passage");
+    expect(jevCtaCopy("surprising")).toBe("Choose a passage");
+    expect(jevCtaCopy("topic")).toBe("Enter a topic");
     expect(sanitizeTopic("  grace  ")).toBe("grace");
     expect(emptyRelevanceCopy(17, "Hab 2:2")).toBe("None of your 17 highlights connect to Hab 2:2");
     expect(emptyRelevanceCopy(1, "Romans 8:28")).toBe("None of your 1 highlight connect to Romans 8:28");
@@ -166,10 +170,14 @@ describe("UI copy and list toolbar toggle", () => {
     // Topic must not treat a leftover Relevant passage as scope (mode-specific hasScope).
     expect(app).toContain("jevWaiting");
     expect(app).toContain("jevHintCopy(groupBy)");
+    expect(app).toContain("jevCtaCopy(groupBy)");
+    expect(app).toContain('box.className = "offer rank-empty"');
     expect(app).toContain('hint.className = "rank-hint"');
+    expect(app).toContain('cta.className = "quiet rank-cta"');
     expect(app).toContain('$("#list-total").textContent = ""');
     expect(app).toMatch(/RANK_MODES\.includes\(groupBy\)\s*\?\s*!!relevance\?\.passage/);
     expect(app).toContain('relevance?.setTopicInput("")');
+    expect(css).toContain(".rank-empty");
     expect(css).toContain(".rank-hint");
     // Foot never shows topicCopy / “Sorted by closeness” while the list is empty.
     expect(app).not.toMatch(/list-total"\)\.textContent =\s*\n\s*groupBy === TOPIC_MODE \? topicCopy/);

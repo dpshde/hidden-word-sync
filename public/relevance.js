@@ -139,9 +139,15 @@ export function rankStatusCopy(shown, total, mode) {
 
 /** Hint when Relevant/Surprising/Topic is on but the person hasn't typed a scope yet. */
 export function jevHintCopy(mode) {
-  if (mode === "topic") return "Type a topic above to sort your highlights by closeness to it.";
-  if (mode === "surprising") return "Type a passage above to find highlights that connect in unexpected ways.";
-  return "Type a passage above to find your most closely connected highlights.";
+  if (mode === "topic") return "Sort all your highlights by how closely they speak to a theme.";
+  if (mode === "surprising") return "Find highlights in your library that connect to a passage in unexpected ways.";
+  return "Find the highlights in your library most closely connected to a passage.";
+}
+
+/** Primary CTA button label in the empty scope state. */
+export function jevCtaCopy(mode) {
+  if (mode === "topic") return "Enter a topic";
+  return "Choose a passage";
 }
 
 /** List-foot status while a ranking request is in flight. */

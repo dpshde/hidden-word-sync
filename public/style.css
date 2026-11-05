@@ -373,13 +373,19 @@ button.dot[aria-pressed="true"] { border-color: var(--fg); }
     height: 40px;
   }
 }
-/* Jev empty scope: calm hint in the list area (not the bar status). */
-.rank-hint {
-  margin: 1.25rem .75rem;
-  color: var(--muted);
-  font-size: .9375rem;
+/* Jev empty scope: calm .offer panel in the list area with an explicit CTA button that focuses/opens the top scope input. */
+.rank-empty {
+  margin: 0 0 .75rem;
+}
+.rank-empty .rank-hint {
+  margin: 0 0 .625rem;
+  color: var(--fg-2);
+  font-size: .875rem;
   line-height: 1.45;
-  text-align: center;
+  text-align: left;
+}
+.rank-empty .row {
+  padding: 0;
 }
 /* Topic mode: plain text field (no verse autocomplete) in the same top #add slot as #ref. */
 .topic-input {

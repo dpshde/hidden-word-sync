@@ -22,6 +22,7 @@ import {
   topicCopy,
   rankStatusCopy,
   jevHintCopy,
+  jevCtaCopy,
   rankingCopy,
   rankErrorMessage,
   sanitizeTopic,
@@ -478,13 +479,31 @@ function render() {
   const sig = JSON.stringify([shown, colors, groupBy, [...filter], verseText.key, editing, ranking && scopeKey, rankOrder, rankFailed, noneRelevant, !!rankPending, jevWaiting, verseText.open, rankPaint]);
   if (!editing && sig !== listSig) {
     if (jevWaiting) {
-      // Hint lives in the list area; foot status stays empty so it never fights the mode control.
+      // Actionable empty scope CTA in the list area; foot status stays empty.
       $("#list-total").textContent = "";
+      const box = document.createElement("div");
+      box.className = "offer rank-empty";
+      box.setAttribute("role", "status");
       const hint = document.createElement("p");
       hint.className = "rank-hint";
-      hint.setAttribute("role", "status");
       hint.textContent = jevHintCopy(groupBy);
-      $("#list").replaceChildren(hint);
+      const row = document.createElement("div");
+      row.className = "row";
+      const cta = document.createElement("button");
+      cta.type = "button";
+      cta.className = "quiet rank-cta";
+      cta.textContent = jevCtaCopy(groupBy);
+      cta.addEventListener("click", () => {
+        if (groupBy === TOPIC_MODE) {
+          $("#topic-ref")?.focus();
+        } else {
+          refField?.focus();
+          refField?.suggest?.();
+        }
+      });
+      row.append(cta);
+      box.append(hint, row);
+      $("#list").replaceChildren(box);
       showRankPreview(null);
       $("#empty").hidden = true;
     } else if (ranking) {
@@ -598,11 +617,6 @@ function selectMode(next) {
     verseText.open = null;
     beginRankPaint({ resetUser: true });
     render();
-    if (next === TOPIC_MODE) $("#topic-ref")?.focus();
-    else if (willPassage) {
-      refField?.focus();
-      if (!refText(refField).trim()) refField?.close?.();
-    }
   }
 }
 
