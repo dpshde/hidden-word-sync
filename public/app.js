@@ -285,8 +285,13 @@ async function highlight(verses, color) {
 
 // The reference field is scripture-inline's <si-passage-input>: book, chapter and verse suggestions
 // as people type. Its value is a USFM id like ROM.5.3-5 once it reads a passage.
+// Relevant/Surprising hijack the same field as the ranking scope (no second passage box).
 definePassageInput();
 const refField = $("#ref");
+const REF_ADD = { placeholder: "John 3:16", aria: "Verse or passage" };
+const REF_RANK = { placeholder: "Rom 8:18–25", aria: "Passage to rank highlights against" };
+/** Debounce timer for ranking-from-#ref (Relevant/Surprising). */
+let refRankTimer = 0;
 /** What's in a passage field: its passage id when it read one, else the typed text, which readPassage reads
  * more loosely (the field won't take passages across chapters, like Genesis 1–2, but Selah Vault does). */
 function refText(field = refField) {
@@ -295,15 +300,41 @@ function refText(field = refField) {
 }
 /** Whether the field's suggestion list is showing (Enter and Escape act on it first). */
 const suggesting = (field) => field.shadowRoot?.querySelector("[role=listbox]")?.hidden === false;
-// Enter that settles a passage highlights it; Enter that only fills in a book name keeps typing.
-// The field's own handler runs first (it's on the inner input), so its list shows what Enter did.
+
+/** Swap #ref between add-highlight and rank-against chrome. Hides Highlight + color while ranking. */
+function syncRefFieldMode() {
+  const ranking = RANK_MODES.includes(groupBy);
+  const meta = ranking ? REF_RANK : REF_ADD;
+  refField.setAttribute("placeholder", meta.placeholder);
+  refField.setAttribute("aria-label", meta.aria);
+  // si-passage-input copies aria-label only on connect; keep the inner input in sync.
+  refField.shadowRoot?.querySelector("input")?.setAttribute("aria-label", meta.aria);
+  const form = $("#add");
+  form.classList.toggle("rank-scope", ranking);
+  $("#add-dot").hidden = ranking;
+  form.querySelector('button[type="submit"]').hidden = ranking;
+}
+
+// Enter: settle suggestions first; else rank (Relevant/Surprising) or add a highlight (Date/Genre/Topic).
 refField.addEventListener("keydown", (e) => {
   if (e.key !== "Enter" || e.isComposing) return;
-  if (!suggesting(refField)) $("#add").requestSubmit();
+  if (suggesting(refField)) return;
+  if (RANK_MODES.includes(groupBy)) {
+    e.preventDefault();
+    clearTimeout(refRankTimer);
+    void runRelevance();
+    return;
+  }
+  $("#add").requestSubmit();
 });
 
 $("#add").addEventListener("submit", async (e) => {
   e.preventDefault();
+  // Ranking modes never add from this form — #ref is the scope field (Highlight is hidden).
+  if (RANK_MODES.includes(groupBy)) {
+    void runRelevance();
+    return;
+  }
   const form = e.target;
   const found = readPassage(refText());
   if (found.error) return errorIn(form, found.error);
@@ -485,18 +516,14 @@ function renderGroupBy(any) {
   $("#group-by").hidden = !any;
   $("#list-foot").hidden = !any;
   const bar = $("#relevance-bar");
-  const jev = JEV_MODES.includes(groupBy);
-  bar.hidden = !any || !jev;
-  const passageMode = RANK_MODES.includes(groupBy);
+  // Topic keeps a foot field; Relevant/Surprising use #ref (bar only needed for topic + its errors).
   const topicMode = groupBy === TOPIC_MODE;
-  const passageField = $("#relevance-ref");
+  bar.hidden = !any || !topicMode;
   const topicField = $("#topic-ref");
-  const passageLabel = document.querySelector('label[for="relevance-ref"]');
   const topicLabel = document.querySelector('label[for="topic-ref"]');
-  if (passageLabel) passageLabel.hidden = !passageMode;
-  passageField.hidden = !passageMode;
   if (topicLabel) topicLabel.hidden = !topicMode;
   topicField.hidden = !topicMode;
+  syncRefFieldMode();
   for (const b of document.querySelectorAll("#group-by button")) b.setAttribute("aria-pressed", String(b.dataset.mode === groupBy));
 }
 
@@ -509,14 +536,21 @@ for (const b of document.querySelectorAll("#group-by button")) {
     const willPassage = RANK_MODES.includes(next);
     groupBy = next;
     localStorage.setItem(GROUP_BY, groupBy);
-    if (wasJev && !willJev) clearRelevanceInput();
+    // Leaving Relevant/Surprising: clear ranking scope from #ref so Date/Genre don't inherit it as an add.
+    if (wasPassage && !willPassage) clearRankScopeFromRef();
+    if (wasJev && !willJev) clearRelevanceInput({ keepRef: wasPassage });
+    // Entering Relevant/Surprising from Date/Genre/Topic: start with an empty rank field (don't rank a half-typed add).
+    if (willPassage && !wasPassage) {
+      refField.value = "";
+      errorIn($("#add"), "");
+    }
     renderGroupBy(!!$("#list-foot") && !$("#list-foot").hidden);
     if (willPassage && wasPassage && relevance?.passage && !rankFailed) {
       // Relevant ↔ Surprising: reorder cached verdicts, no network call.
       // New final paint so auto-expand follows the new top (unless the person toggled a row).
       beginRankPaint();
       void reorderRelevance();
-    } else if (willPassage && refText($("#relevance-ref")).trim()) {
+    } else if (willPassage && refText(refField).trim()) {
       void runRelevance();
     } else if (next === TOPIC_MODE && sanitizeTopic($("#topic-ref").value)) {
       void runTopic();
@@ -533,9 +567,15 @@ for (const b of document.querySelectorAll("#group-by button")) {
   });
 }
 
-function clearRelevanceInput() {
-  const field = $("#relevance-ref");
-  field.value = "";
+/** Clear #ref ranking text and restore add-mode placeholder/aria (Highlight stays until renderGroupBy). */
+function clearRankScopeFromRef() {
+  clearTimeout(refRankTimer);
+  refField.value = "";
+  errorIn($("#add"), "");
+}
+
+function clearRelevanceInput({ keepRef = false } = {}) {
+  if (!keepRef) clearRankScopeFromRef();
   $("#topic-ref").value = "";
   const err = $("#relevance-error");
   err.hidden = true;
@@ -588,8 +628,7 @@ $("#relevance-none-chapter").addEventListener("click", () => {
   const ref = $("#relevance-none").dataset.ref;
   const chapter = chapterRefOf(ref);
   if (!chapter) return;
-  const field = $("#relevance-ref");
-  field.value = labelRef(chapter);
+  refField.value = labelRef(chapter);
   void runRelevance();
 });
 
@@ -632,9 +671,8 @@ function currentRuns() {
 async function runRelevance() {
   const session = await ensureRelevance();
   if (!session || !RANK_MODES.includes(groupBy)) return;
-  const field = $("#relevance-ref");
-  const raw = refText(field);
-  const err = $("#relevance-error");
+  const form = $("#add");
+  const raw = refText(refField);
   const gen = ++rankGeneration;
   // Drop prior results immediately so a slow second call can't flash an intermediate list.
   rankOrder = [];
@@ -644,8 +682,7 @@ async function runRelevance() {
   showRelevanceNone(null);
   showRankPreview(null);
   if (!String(raw).trim()) {
-    err.hidden = true;
-    err.textContent = "";
+    errorIn(form, "");
     session.clearPassage();
     rankPending = null;
     if (gen === rankGeneration) render();
@@ -656,8 +693,7 @@ async function runRelevance() {
   const found = await session.setPassageInput(raw);
   if (gen !== rankGeneration) return;
   if (found.error) {
-    err.hidden = false;
-    err.textContent = found.error;
+    errorIn(form, found.error);
     session.clearPassage();
     rankOrder = [];
     rankPending = null;
@@ -665,8 +701,7 @@ async function runRelevance() {
     render();
     return;
   }
-  err.hidden = true;
-  err.textContent = "";
+  errorIn(form, "");
   const runs = currentRuns();
   const items = runs.map((r) => ({ id: r.ref, ref: r.ref }));
   try {
@@ -677,8 +712,7 @@ async function runRelevance() {
     beginRankPaint({ resetUser: true }); // final paint for this query
   } catch (e) {
     if (gen !== rankGeneration) return;
-    err.hidden = false;
-    err.textContent = rankErrorMessage(e);
+    errorIn(form, rankErrorMessage(e));
     rankOrder = [];
     rankFailed = true;
   } finally {
@@ -746,44 +780,31 @@ async function reorderRelevance() {
   render();
 }
 
-{
-  const relevanceField = $("#relevance-ref");
-  let relevanceTimer = 0;
-  // Same suggestion field as Highlight: book / chapter / verse, keyboard-selectable.
-  relevanceField.addEventListener("input", () => {
-    clearTimeout(relevanceTimer);
-    const err = $("#relevance-error");
-    const raw = refText(relevanceField);
-    if (!String(raw).trim()) err.hidden = true, (err.textContent = "");
-    // Leave the old ranked list immediately when the passage changes; debounce the network call.
-    if (RANK_MODES.includes(groupBy)) {
-      rankGeneration++;
-      rankOrder = [];
-      rankFailed = false;
-      beginRankPaint({ resetUser: true });
-      verseText.open = null;
-      showRelevanceNone(null);
-      showRankPreview(null);
-      if (String(raw).trim()) {
-        rankPending = true;
-      } else {
-        relevance?.clearPassage();
-        rankPending = null;
-      }
-      render();
-    }
-    // Invalid refs show inline and make no call; wait for a pause so typing doesn't flash errors.
-    relevanceTimer = setTimeout(() => void runRelevance(), 400);
-  });
-  // Enter that settles a suggestion keeps typing; Enter on a full passage ranks it.
-  relevanceField.addEventListener("keydown", (e) => {
-    if (e.key !== "Enter" || e.isComposing) return;
-    if (suggesting(relevanceField)) return;
-    e.preventDefault();
-    clearTimeout(relevanceTimer);
-    void runRelevance();
-  });
-}
+// Ranking input is #ref (hijacked in Relevant/Surprising). Autocomplete stays on that one field.
+refField.addEventListener("input", () => {
+  if (!RANK_MODES.includes(groupBy)) return;
+  clearTimeout(refRankTimer);
+  const form = $("#add");
+  const raw = refText(refField);
+  if (!String(raw).trim()) errorIn(form, "");
+  // Leave the old ranked list immediately when the passage changes; debounce the network call.
+  rankGeneration++;
+  rankOrder = [];
+  rankFailed = false;
+  beginRankPaint({ resetUser: true });
+  verseText.open = null;
+  showRelevanceNone(null);
+  showRankPreview(null);
+  if (String(raw).trim()) {
+    rankPending = true;
+  } else {
+    relevance?.clearPassage();
+    rankPending = null;
+  }
+  render();
+  // Invalid refs show inline and make no call; wait for a pause so typing doesn't flash errors.
+  refRankTimer = setTimeout(() => void runRelevance(), 400);
+});
 
 {
   const topicField = $("#topic-ref");
