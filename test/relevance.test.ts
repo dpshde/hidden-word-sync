@@ -156,9 +156,10 @@ describe("UI copy and list toolbar toggle", () => {
     // Typing a new ref clears the old list and shows loading before the debounced request.
     expect(app).toMatch(/addEventListener\("input"[\s\S]*?rankGeneration\+\+[\s\S]*?rankPending = true/);
     expect(app).toContain('rankPending = true;\n  render(); // loading before any network / verse fetch');
-    // List bar keeps status right-aligned with wrap when needed.
+    // List bar stretches full-width across the column with integrated status cell.
     expect(css).toContain("white-space: nowrap");
-    expect(css).toMatch(/\.list-bar\s*\{[^}]*justify-content:\s*space-between/);
+    expect(css).toMatch(/\.list-bar\s*\{[^}]*width:\s*100%/);
+    expect(css).toMatch(/\.list-bar \.segmented\s*\{[^}]*flex:\s*1 1 0/);
     expect(css).toContain(".list-total:empty { display: none; }");
   });
 

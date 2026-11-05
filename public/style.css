@@ -164,8 +164,9 @@ button.danger:not(.quiet) { background: transparent; border-color: transparent; 
 .error:empty { display: none; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 
-header { display: flex; align-items: center; gap: .75rem; margin-bottom: 1.5rem; }
+header { display: flex; align-items: center; gap: .75rem; margin-bottom: 1.5rem; width: 100%; }
 #menu { margin-left: auto; }
+#menu > summary { padding-right: 0; }
 /* The library's name, edited in place: plain heading text until it has focus. */
 #lib-name { min-width: 2ch; max-width: 70%; overflow-wrap: anywhere; font-size: 1.25rem; font-weight: 700; letter-spacing: -.03em; line-height: 1.3; padding: .125rem .375rem; margin-left: -.375rem; border-radius: 0; outline: none; cursor: text; -webkit-user-modify: read-write-plaintext-only; transition: background-color var(--ease), box-shadow var(--ease); }
 #lib-name:focus { box-shadow: inset 0 0 0 1px var(--line); background: var(--raised); }
@@ -255,28 +256,59 @@ button.dot[aria-pressed="true"] { border-color: var(--fg); }
 #list .group[open] > summary::before { transform: rotate(45deg) translate(-1px, -1px); }
 #list .group > summary:hover { background: color-mix(in oklab, var(--accent) 86%, var(--bg)); }
 #list .group > summary:focus-visible { outline-offset: 2px; }
-/* Top list toolbar: sort/group modes on the left and total/status on the right, directly above the list. */
+/* Top list toolbar: sort/group modes fill the available row width and total/status sits inside the same
+   bordered bar on the right (or collapses when empty), so every row shares the exact same left/right edges. */
 .list-bar {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: .5rem .75rem;
+  align-items: stretch;
+  width: 100%;
   margin: 0 0 .75rem;
   min-width: 0;
+  border: 1px solid var(--line);
+  background: var(--surface);
 }
 .list-bar[hidden] { display: none; }
+.list-bar .segmented {
+  display: flex;
+  flex: 1 1 0;
+  width: auto;
+  min-width: 0;
+  margin: 0;
+  border: 0;
+  flex-wrap: nowrap;
+  background: transparent;
+}
+.list-bar .segmented[hidden] { display: none; }
+.list-bar .segmented button {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: .4375rem .5rem;
+  font-size: .6875rem;
+  text-align: center;
+  justify-content: center;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.list-bar .segmented button + button {
+  border-left: 1px solid var(--line);
+}
 .list-total {
-  font-family: var(--font-label); font-size: .75rem; color: var(--muted);
-  font-variant-numeric: tabular-nums; white-space: nowrap; line-height: 1.2;
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  padding: 0 .625rem;
+  border-left: 1px solid var(--line);
+  font-family: var(--font-label); font-size: .6875rem; font-weight: 500; letter-spacing: .04em; text-transform: uppercase;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums; white-space: nowrap; line-height: 1;
   min-width: 0; overflow: hidden; text-overflow: ellipsis;
-  margin-left: auto;
 }
 .list-total:empty { display: none; }
-.list-bar .segmented { margin: 0; flex: none; max-width: 100%; flex-wrap: wrap; }
-.list-bar .segmented button { padding: .25rem .625rem; font-size: .6875rem; cursor: pointer; }
-@media (max-width: 420px) {
-  .list-bar .segmented button { padding: .25rem .45rem; font-size: .625rem; letter-spacing: .04em; }
+@media (max-width: 520px) {
+  .list-bar { flex-direction: column; border: 0; background: transparent; gap: .375rem; }
+  .list-bar .segmented { width: 100%; border: 1px solid var(--line); background: var(--surface); }
+  .list-bar .segmented button { padding: .4375rem .25rem; font-size: .625rem; letter-spacing: .03em; }
+  .list-total { border-left: 0; padding: 0; align-self: flex-end; }
 }
 /* Jev empty scope: calm hint in the list area (not the bar status). */
 .rank-hint {
@@ -406,7 +438,7 @@ button.link[data-state="error"] { color: var(--danger); }
 .dot[data-color="own"] { background: transparent; }
 
 /* Color filters: route.bible's chips, small uppercase Geist in a square hairline box. */
-#filters { display: flex; flex-wrap: wrap; gap: .375rem; margin: 0 0 .75rem; }
+#filters { display: flex; flex-wrap: wrap; gap: .375rem; width: 100%; margin: 0 0 .75rem; }
 #filters:empty { display: none; }
 .chip { display: inline-flex; align-items: center; gap: .375rem; padding: .25rem .5rem; font-family: var(--font-label); font-size: .75rem; font-weight: 500; letter-spacing: .04em; text-transform: uppercase; background: transparent; color: var(--muted); border: 1px solid var(--line); border-radius: 0; }
 .chip:hover { background: var(--hover); color: var(--fg); border-color: var(--hover-line); }
