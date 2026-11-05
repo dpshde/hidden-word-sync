@@ -547,11 +547,13 @@ html, body { overscroll-behavior: none; overflow-x: clip; }
 html:has(#main:not([hidden])), body:has(#main:not([hidden])) { height: 100dvh; overflow: hidden; }
 body:has(#main:not([hidden])) main { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; padding-bottom: 1rem; }
 /* Desktop/tablet: grid so #chrome-dock can be display:contents while add stays above the list and
-   the foot below it, with ••• back in the header row. */
+   the foot below it, with ••• back in the header row. The list row MUST be 1fr — without it every
+   row sizes to content and the column collapses mid-canvas (barren #ref + orphan modes tray). */
 #main:not([hidden]) {
   flex: 1 1 auto; min-height: 0;
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto auto auto auto auto auto auto minmax(0, 1fr) auto auto;
   grid-template-areas:
     "head menu"
     "flash flash"
@@ -574,8 +576,8 @@ body:has(#main:not([hidden])) main { flex: 1 1 auto; min-height: 0; display: fle
 #main:not([hidden]) > #empty { grid-area: empty; }
 #main:not([hidden]) > #color-pop { grid-area: list; } /* popover; not laid out */
 #chrome-dock { display: contents; }
-#chrome-dock > #add { grid-area: add; }
-#chrome-dock > #list-foot { grid-area: foot; }
+#chrome-dock > #add { grid-area: add; min-width: 0; width: 100%; }
+#chrome-dock > #list-foot { grid-area: foot; min-width: 0; width: 100%; }
 #chrome-dock > #dock-tray { grid-area: menu; justify-self: end; align-self: start; margin-bottom: 1.5rem; }
 .dock-tray { display: flex; align-items: center; gap: .5rem; }
 .dock-meta { display: none; } /* mobile only — desktop uses .shell-meta */
