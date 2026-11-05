@@ -66,6 +66,7 @@ test("phone ••• stays in <header> (reachable even when library is empty); 
   expect(mobile).toContain("--dock-pad-x: .75rem");
   expect(mobile).toMatch(/#menu > summary \{[\s\S]*?min-height: 44px;/);
   expect(mobile).toMatch(/#menu > div button,[\s\S]*?\.menu-status \{[\s\S]*?min-height: 44px;/);
+  expect(css).toContain("details > div { position: absolute; right: 0; top: calc(100% - 1px);");
   expect(css).toContain("#menu > div { min-width: 12rem; padding: 0; }");
 });
 

@@ -166,7 +166,18 @@ button.danger:not(.quiet) { background: transparent; border-color: transparent; 
 
 header { display: flex; align-items: center; gap: .75rem; margin-bottom: 1.5rem; width: 100%; }
 #menu { margin-left: auto; }
-#menu > summary { padding-right: 0; }
+#menu > summary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.25rem;
+  min-height: 2rem;
+  padding: .25rem .5rem;
+  text-indent: .1em; /* balance trailing letter-spacing on ••• so the three dots sit centered in the cell */
+  border: 1px solid transparent;
+  user-select: none;
+  -webkit-user-select: none;
+}
 /* The library's name, edited in place: plain heading text until it has focus. */
 #lib-name { min-width: 2ch; max-width: 70%; overflow-wrap: anywhere; font-size: 1.25rem; font-weight: 700; letter-spacing: -.03em; line-height: 1.3; padding: .125rem .375rem; margin-left: -.375rem; border-radius: 0; outline: none; cursor: text; -webkit-user-modify: read-write-plaintext-only; transition: background-color var(--ease), box-shadow var(--ease); }
 #lib-name:focus { box-shadow: inset 0 0 0 1px var(--line); background: var(--raised); }
@@ -186,9 +197,10 @@ header { display: flex; align-items: center; gap: .75rem; margin-bottom: 1.5rem;
 details { position: relative; }
 summary { list-style: none; cursor: pointer; padding: .25rem .5rem; border-radius: 0; color: var(--muted); letter-spacing: .1em; transition: background-color var(--ease), color var(--ease); }
 summary::-webkit-details-marker { display: none; }
-#menu > summary:hover, #menu[open] > summary { background: var(--hover); color: var(--fg); }
+#menu > summary:hover { background: var(--hover); color: var(--fg); border-color: var(--line); }
+#menu[open] > summary { position: relative; z-index: 21; background: var(--surface); color: var(--fg); border-color: var(--line); border-bottom-color: var(--surface); }
 /* Popovers: route.bible's autocomplete panel, square on the soft surface, rows that light up with an edge. */
-details > div { position: absolute; right: 0; top: 2.25rem; z-index: 20; display: grid; min-width: 11rem; padding: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 0; box-shadow: var(--shadow); }
+details > div { position: absolute; right: 0; top: calc(100% - 1px); z-index: 20; display: grid; min-width: 11rem; padding: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 0; box-shadow: var(--shadow); }
 details > div button { background: transparent; border: 0; color: var(--fg); text-align: left; font-weight: 500; padding: .5rem .625rem; box-shadow: inset 3px 0 0 transparent; }
 details > div button.danger { color: var(--danger); }
 details > div button:hover { background: var(--hover); box-shadow: inset 3px 0 0 var(--brand); }
@@ -607,21 +619,31 @@ button.link[data-state="error"] { color: var(--danger); }
 .filter-menu[open] > summary::after {
   transform: rotate(-135deg) translateY(-1px);
 }
-.filter-menu > summary:hover,
-.filter-menu[open] > summary {
+.filter-menu > summary:hover {
   background: var(--hover);
   color: var(--fg);
   border-color: var(--hover-line);
+}
+.filter-menu[open] > summary {
+  position: relative;
+  z-index: 26;
+  background: var(--surface);
+  color: var(--fg);
+  border-color: var(--line);
+  border-bottom-color: var(--surface);
 }
 .filter-menu[data-active="true"] > summary {
   color: var(--fg);
   border-color: var(--fg);
 }
+.filter-menu[data-active="true"][open] > summary {
+  border-bottom-color: var(--surface);
+}
 .filter-menu > div {
   position: absolute;
   left: 0;
   right: auto;
-  top: calc(100% + 4px);
+  top: calc(100% - 1px);
   z-index: 25;
   display: grid;
   min-width: 12rem;
@@ -837,19 +859,21 @@ body:has(#main:not([hidden])) .shell-meta { flex-shrink: 0; }
     height: 44px;
   }
   #menu > summary {
-    display: grid;
-    place-items: center;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     min-width: 44px;
     min-height: 44px;
     padding: 0 .5rem;
     font-size: 1.125rem;
     letter-spacing: .16em;
+    text-indent: .16em;
     color: var(--fg);
     box-sizing: border-box;
   }
-  #menu[open] > summary { background: var(--hover); color: var(--fg); }
+  #menu[open] > summary { background: var(--surface); color: var(--fg); border-color: var(--line); border-bottom-color: var(--surface); }
   #menu > div {
-    top: calc(100% + 6px);
+    top: calc(100% - 1px);
     right: 0;
     min-width: 13.5rem;
     box-sizing: border-box;
