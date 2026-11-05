@@ -491,7 +491,7 @@ function render() {
       row.className = "row";
       const cta = document.createElement("button");
       cta.type = "button";
-      cta.className = "quiet rank-cta";
+      cta.className = "rank-cta";
       cta.textContent = jevCtaCopy(groupBy);
       cta.addEventListener("click", () => {
         if (groupBy === TOPIC_MODE) {
