@@ -173,8 +173,9 @@ describe("UI copy and list toolbar toggle", () => {
     expect(app).toContain("jevCtaCopy(groupBy)");
     expect(app).toContain('box.className = "offer rank-empty"');
     expect(app).toContain('hint.className = "rank-hint"');
-    expect(app).toContain('cta.className = "rank-cta"');
-    expect(css).toMatch(/\.rank-empty \.rank-cta\s*\{[\s\S]*?background:\s*var\(--accent\)/);
+    expect(app).toContain('cta.className = "quiet rank-cta"');
+    expect(css).toMatch(/\.rank-empty\s*\{[\s\S]*?background:\s*var\(--surface\)/);
+    expect(css).toMatch(/\.rank-empty \.rank-cta\s*\{[\s\S]*?background:\s*var\(--raised\)/);
     expect(app).toContain('$("#list-total").textContent = ""');
     expect(app).toMatch(/RANK_MODES\.includes\(groupBy\)\s*\?\s*!!relevance\?\.passage/);
     expect(app).toContain('relevance?.setTopicInput("")');

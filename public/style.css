@@ -376,6 +376,7 @@ button.dot[aria-pressed="true"] { border-color: var(--fg); }
 /* Jev empty scope: calm .offer panel in the list area with an explicit CTA button that focuses/opens the top scope input. */
 .rank-empty {
   margin: 0 0 .75rem;
+  background: var(--surface);
 }
 .rank-empty .rank-hint {
   margin: 0 0 .625rem;
@@ -389,12 +390,13 @@ button.dot[aria-pressed="true"] { border-color: var(--fg); }
 }
 .rank-empty .rank-cta {
   padding: .375rem .75rem;
-  background: var(--accent);
-  color: var(--on-accent);
-  border-color: var(--accent);
+  background: var(--raised);
+  color: var(--fg);
+  border-color: var(--line);
 }
 .rank-empty .rank-cta:hover {
-  background: color-mix(in oklab, var(--accent) 86%, var(--bg));
+  background: var(--hover);
+  border-color: var(--hover-line);
 }
 /* Topic mode: plain text field (no verse autocomplete) in the same top #add slot as #ref. */
 .topic-input {
