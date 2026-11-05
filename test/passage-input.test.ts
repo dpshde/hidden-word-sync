@@ -132,6 +132,53 @@ test("chapter, verse, and range suggestions render a sticky header and pure-numb
   }
 });
 
+test("accepting a chapter advances to the verse number grid instead of committing the chapter", () => {
+  const makeNode = (tag: string): any => ({
+    tag,
+    id: "",
+    className: "",
+    textContent: "",
+    dataset: {} as Record<string, string>,
+    attrs: {} as Record<string, string>,
+    children: [] as any[],
+    get childElementCount() { return this.children.length; },
+    setAttribute(k: string, v: string) { this.attrs[k] = v; },
+    removeAttribute(k: string) { delete this.attrs[k]; },
+    append(...nodes: any[]) { this.children.push(...nodes); },
+    replaceChildren(...nodes: any[]) { this.children = nodes; },
+  });
+  const prevCreate = document.createElement;
+  document.createElement = makeNode;
+  const committed: string[] = [];
+  try {
+    const f = Object.create(Field.prototype);
+    const list = makeNode("ul");
+    list.id = "l";
+    Object.assign(f, {
+      list,
+      getAttribute: () => null,
+      input: { value: "John ", setAttribute() {}, removeAttribute() {} },
+      commit: (val: string) => committed.push(val),
+      close() { this.list.hidden = true; },
+    });
+    f.suggest();
+    expect(list.dataset.kind).toBe("chapter");
+    const chapter = f.suggestions.find((s: { canonical: string }) => s.canonical === "JHN.3");
+    expect(chapter?.kind).toBe("chapter");
+    f.accept(chapter);
+    expect(committed).toEqual([]);
+    expect(f.input.value).toBe("John 3:");
+    expect(list.dataset.kind).toBe("verse");
+    expect(list.hidden).toBe(false);
+    expect(list.children[0].className).toBe("si-grid-head");
+    expect(list.children[0].children[0].textContent).toBe("John 3");
+    expect(list.children[1].textContent).toBe("1");
+    expect(list.children[16].textContent).toBe("16");
+  } finally {
+    document.createElement = prevCreate;
+  }
+});
+
 test("verse grid supports range selection and Shift+Arrow range extension", () => {
   const committed: string[] = [];
   const verseSuggestions = [

@@ -1,5 +1,8 @@
+diff --git a/node_modules/@faith-tools/scripture-inline/.bun-tag-c5276cdf6b0c09c4 b/.bun-tag-c5276cdf6b0c09c4
+new file mode 100644
+index 0000000000000000000000000000000000000000..e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
 diff --git a/dist/index.js b/dist/index.js
-index 6780b42e10f3a5415c64a25c435f5556f478ada2..3106d3cde2d9f7ffd22df38097861a128d2be24c 100644
+index 6780b42e10f3a5415c64a25c435f5556f478ada2..fc52802cd98c4e61ff2aa5d4a7f4c5499903daca 100644
 --- a/dist/index.js
 +++ b/dist/index.js
 @@ -404,7 +404,7 @@ function N(e) {
@@ -154,8 +157,9 @@ index 6780b42e10f3a5415c64a25c435f5556f478ada2..3106d3cde2d9f7ffd22df38097861a12
 +		this.close(), this.commit(`${n.insertText}-${i}`);
  	}
  	accept(e) {
- 		e.kind === "book" ? (this.input.value = `${e.insertText} `, this.suggest()) : (this.close(), this.commit(e.insertText));
- 	}
+-		e.kind === "book" ? (this.input.value = `${e.insertText} `, this.suggest()) : (this.close(), this.commit(e.insertText));
++		e.kind === "book" ? (this.input.value = `${e.insertText} `, this.suggest()) : e.kind === "chapter" ? (this.input.value = `${e.insertText}:`, this.suggest()) : (this.close(), this.commit(e.insertText));
++	}
 +	gridCols() {
 +		let e = [...this.list.children].filter((e) => e.dataset?.index !== void 0);
 +		if (e.length < 2) return 1;
@@ -163,7 +167,7 @@ index 6780b42e10f3a5415c64a25c435f5556f478ada2..3106d3cde2d9f7ffd22df38097861a12
 +		if (typeof t !== "number") return 6;
 +		let n = e.findIndex((e, n) => n > 0 && e.offsetTop > t);
 +		return n > 0 ? n : e.length;
-+	}
+ 	}
  	onKeydown(e) {
 -		let t = !this.list.hidden, n = this.suggestions.length;
 +		let t = !this.list.hidden, n = this.suggestions.length, r = this.list.dataset?.kind, i = r === "chapter" || r === "verse" || r === "range";
