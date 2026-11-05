@@ -38,7 +38,13 @@ export function setupThemeToggle(buttons, { onChange = () => {} } = {}) {
     const next = flipped(theme);
     for (const button of buttons) {
       button.dataset.theme = theme;
-      button.innerHTML = theme === "dark" ? MOON : SUN;
+      // Menu rows show icon + current theme name; footer chips stay icon-only.
+      if (button.classList.contains("menu-theme")) {
+        const label = theme === "dark" ? "Dark theme" : "Light theme";
+        button.innerHTML = `${theme === "dark" ? MOON : SUN}<span class="menu-theme-label">${label}</span>`;
+      } else {
+        button.innerHTML = theme === "dark" ? MOON : SUN;
+      }
       button.setAttribute("aria-label", `Switch to ${next} mode`);
       button.title = `Switch to ${next} mode`;
     }

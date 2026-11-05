@@ -7,9 +7,7 @@ const css = readFileSync(new URL("../public/style.css", import.meta.url), "utf8"
 const footer = /<footer class="shell-meta">([\s\S]*?)<\/footer>/.exec(html)?.[1] ?? "";
 
 test("the footer holds the theme, the contract and the auth status, and nothing else", () => {
-  // Ignore the phone-only panel ••• (details), which mirrors the dock tray on Sync/Colors/Backup.
-  const chips = footer.replace(/<details[\s\S]*?<\/details>/, "");
-  const items = [...chips.matchAll(/<(button|a|span)\b[^>]*>/g)].map((m) => m[0]);
+  const items = [...footer.matchAll(/<(button|a|span)\b[^>]*>/g)].map((m) => m[0]);
   expect(items).toHaveLength(3);
   expect(items[0]).toContain("theme-toggle");
   expect(items[1]).toContain('href="https://github.com/dpshde/selah-vault/blob/main/SPEC.md"');
@@ -20,31 +18,33 @@ test("the contract link goes where For developers' spec link does", () => {
   expect(html).toContain('Read <a href="https://github.com/dpshde/selah-vault/blob/main/SPEC.md"');
 });
 
-test("the ••• menu stays Sync · Colors · Backup · Log out; theme lives in footer and mobile dock", () => {
-  // Desktop footer + mobile dock each carry a theme control (same setupThemeToggle wiring).
+test("the ••• menu is Sync · Colors · Backup, then theme/contract/status on phones, then Log out", () => {
+  // Desktop footer chip + menu theme row (phones) share setupThemeToggle.
   expect(html.match(/theme-toggle/g)).toHaveLength(2);
-  expect(html).toContain('id="dock-auth-status"');
+  expect(html).toContain('id="menu-auth-status"');
+  expect(html).toContain('id="modes-menu"');
+  expect(html).toContain('id="panel-slot"');
   const menu = /<details id="menu">([\s\S]*?)<\/details>/.exec(html)?.[1] ?? "";
-  expect([...menu.matchAll(/<(button|hr)\b[^>]*>([^<]*)/g)].map((m) => (m[1] === "hr" ? "—" : m[2]))).toEqual(["Sync", "Colors", "Backup", "—", "Log out"]);
-  // Settings screens keep a matching ••• so the tray grid doesn't shift when a panel opens.
-  expect(html).toContain('id="panel-menu"');
-  const panel = /<details id="panel-menu"[\s\S]*?<\/details>/.exec(html)?.[0] ?? "";
-  expect(panel).toContain('data-panel-open="sync"');
-  expect(panel).toContain('data-panel-open="colors"');
-  expect(panel).toContain('data-panel-open="backup"');
-  expect(panel).toContain('id="panel-lock"');
+  expect(menu).toContain('id="open-sync"');
+  expect(menu).toContain('id="open-colors"');
+  expect(menu).toContain('id="open-backup"');
+  expect(menu).toContain("menu-theme");
+  expect(menu).toContain("menu-link");
+  expect(menu).toContain('id="menu-auth-status"');
+  expect(menu).toContain('id="lock"');
+  // Desktop keeps the short popover; phone-only rows are hidden above 600px.
+  expect(css).toMatch(/@media \(min-width: 601px\)[\s\S]*?#menu \.menu-theme/);
 });
 
 test("the footer never says anything about sync, and auth status is only signed in or out", () => {
-  // The phone panel ••• mirrors Sync/Colors/Backup; the always-visible chips must not mention sync.
-  const chips = footer.replace(/<details[\s\S]*?<\/details>/, "");
-  const visible = chips.replace(/<[^>]*>/g, " ").toLowerCase(); // the repo name in the link's address is fine
+  const visible = footer.replace(/<[^>]*>/g, " ").toLowerCase();
   expect(visible).not.toContain("sync");
   expect(visible).not.toMatch(/online|offline|syncing/);
   const show = /function show\(id\) \{([\s\S]*?)\n\}/.exec(app)?.[1] ?? "";
   expect(show).toContain('SIGNED_IN.has(id) ? "Signed in" : "Signed out"');
-  expect(show).toContain("#auth-status, #dock-auth-status");
+  expect(show).toContain("#auth-status, #menu-auth-status");
   expect(app).toContain('const SIGNED_IN = new Set(["main", "colors", "backup", "sync"]);');
+  expect(app).toContain("function placeMenu()");
 });
 
 test("small screens get a fixed thumb dock; desktop keeps shell-meta", () => {
@@ -53,31 +53,22 @@ test("small screens get a fixed thumb dock; desktop keeps shell-meta", () => {
   expect(css).toContain("#chrome-dock { display: contents; }");
   expect(css).toMatch(/@media \(max-width: 600px\)[\s\S]*?#chrome-dock\s*\{[^}]*position:\s*fixed/);
   expect(css).toMatch(/@media \(max-width: 600px\)[\s\S]*?min-height:\s*44px/);
-  expect(css).toMatch(/body:has\(#main:not\(\[hidden\]\)\) > \.shell-meta \{ display: none; \}/);
-  // Dock theme control matches the footer icon (SVG), not a text glyph.
-  expect(css).toContain(".dock-tray .theme-toggle svg { display: block; margin: 0 auto; }");
-  // Mode labels stay unclipped at 375px (SURPRISING): tighter type, nowrap, no ellipsis.
-  expect(css).toMatch(/#group-by\.segmented button \{[\s\S]*?font-size: \.625rem;[\s\S]*?letter-spacing: 0;[\s\S]*?white-space: nowrap/);
+  // Phone library/settings hide the desktop footer chips (they live in the ••• sheet).
+  expect(css).toMatch(/body:has\(#main:not\(\[hidden\]\), #colors:not\(\[hidden\]\), #backup:not\(\[hidden\]\), #sync:not\(\[hidden\]\)\) > \.shell-meta \{[\s\S]*?display: none/);
 });
 
-test("phone sheets from the dock share one width system with ≥44px full-width rows", () => {
+test("phone ••• sits on the modes row; sheet holds theme/contract/status", () => {
   const mobile = css.slice(css.indexOf("@media (max-width: 600px)"));
   expect(mobile).toContain("--dock-pad-x: .75rem");
-  // Bottom tray: full dock width, ••• + theme squares, Contract / Signed in share the rest.
-  expect(mobile).toMatch(/\.dock-tray \{[\s\S]*?grid-template-columns: 44px 44px minmax\(0, 1fr\) minmax\(0, 1fr\);/);
-  expect(mobile).toContain(".dock-meta {\n    display: contents;\n  }");
-  // ••• sheet stretches to the dock content width (not shrink-to-label).
-  expect(mobile).toMatch(/#menu \{[\s\S]*?position: static;/);
-  expect(mobile).toMatch(/#menu > div \{[\s\S]*?left: 0;[\s\S]*?right: 0;[\s\S]*?min-width: 0;/);
-  expect(mobile).toMatch(/#menu > div button \{[\s\S]*?width: 100%;[\s\S]*?min-height: 44px;/);
-  // Sync / Colors / Backup use the same horizontal inset and the same 4-cell tray.
-  expect(mobile).toMatch(/body:has\(#colors:not\(\[hidden\]\), #backup:not\(\[hidden\]\), #sync:not\(\[hidden\]\)\) main \{[\s\S]*?padding-left: var\(--dock-pad-x\);[\s\S]*?padding-right: var\(--dock-pad-x\);/);
-  expect(mobile).toMatch(/body:has\(#colors:not\(\[hidden\]\), #backup:not\(\[hidden\]\), #sync:not\(\[hidden\]\)\) > \.shell-meta \{[\s\S]*?grid-template-columns: 44px 44px minmax\(0, 1fr\) minmax\(0, 1fr\);/);
-  expect(css).toContain(".panel-menu { display: none; }");
-  // Color rows: shared field height and 44px Delete/Add slot (built-in and custom match).
-  expect(mobile).toMatch(/#color-list \.field-action,[\s\S]*?#add-color \.field-action \{[\s\S]*?min-width: 44px;[\s\S]*?height: 44px;/);
-  expect(mobile).toMatch(/#backup \.backup-actions > button,[\s\S]*?width: 100%;[\s\S]*?min-height: 44px;/);
-  // Desktop popover still shrink-wraps; the 12rem min-width stays outside the phone block.
+  // No bottom tray on phones — dock-tray is the desktop menu host only.
+  expect(mobile).toMatch(/#chrome-dock > #dock-tray \{ display: none; \}/);
+  // Modes + 44px ••• share one full-width row.
+  expect(mobile).toMatch(/\.modes-menu \{[\s\S]*?grid-template-columns: minmax\(0, 1fr\) 44px;/);
+  expect(mobile).toMatch(/#group-by\.segmented button \{[\s\S]*?font-size: \.5625rem;[\s\S]*?letter-spacing: 0;[\s\S]*?white-space: nowrap/);
+  // Sheet rows are full-width ≥44px including theme/contract/status.
+  expect(mobile).toMatch(/#menu > div button,[\s\S]*?\.menu-status \{[\s\S]*?min-height: 44px;/);
+  expect(mobile).toMatch(/\.panel-slot:not\(\[hidden\]\) \{[\s\S]*?position: fixed;/);
+  // Desktop popover still shrink-wraps.
   expect(css).toContain("#menu > div { min-width: 12rem; padding: 0; }");
   expect(css.indexOf("#menu > div { min-width: 12rem")).toBeLessThan(css.indexOf("@media (max-width: 600px)"));
 });

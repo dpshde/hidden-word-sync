@@ -534,11 +534,18 @@ a.shell-link:focus-visible, button.shell-link:focus-visible { color: var(--fg); 
 }
 .shell-meta .theme-toggle { width: 36px; min-width: 36px; flex: 0 0 36px; padding: 0; border-color: color-mix(in oklab, var(--brand) 36%, var(--line)); color: var(--fg); }
 .shell-meta .theme-toggle svg { display: block; margin: 0 auto; }
-/* Phone settings tray mirrors #dock-tray; hidden on desktop / tablet. */
-.panel-menu { display: none; }
 /* Auth status is a label, not a control. */
 .shell-status { cursor: default; }
 .shell-status[hidden] { display: none; }
+.menu-status { cursor: default; }
+.menu-status[hidden] { display: none; }
+/* Phone settings ••• host; desktop never shows it. */
+.panel-slot { display: none; }
+.modes-menu { display: contents; } /* desktop: group-by stays in foot; #menu is moved to #dock-tray */
+/* Desktop popover stays Sync · Colors · Backup · Log out (phone-only rows hidden). */
+@media (min-width: 601px) {
+  #menu .menu-link, #menu .menu-theme, #menu .menu-status, #menu .menu-extra { display: none; }
+}
 
 /* A passage still fetching shows nothing for 300ms, then its spinner: a fast answer never flashes one. */
 si-passage::part(loader) { visibility: hidden; animation: si-loader-late 0s linear .3s forwards; }
@@ -596,105 +603,22 @@ body:has(#main:not([hidden])) .shell-meta { flex-shrink: 0; }
     padding-bottom: 0;
     max-width: none;
   }
-  /* Panels opened from the dock share the dock's left/right inset (not main's 1.25rem). */
+  /* Panels: same inset; room for the fixed ••• slot + Done stays on-page. */
   body:has(#colors:not([hidden]), #backup:not([hidden]), #sync:not([hidden])) main {
     max-width: none;
     padding-left: var(--dock-pad-x);
     padding-right: var(--dock-pad-x);
-    /* Room for the same 4-cell tray as #dock-tray. */
-    padding-bottom: calc(4.25rem + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
   }
-  /* Settings tray = dock tray grid (••• · theme · Contract · Signed in), so widths don't shift. */
-  body:has(#colors:not([hidden]), #backup:not([hidden]), #sync:not([hidden])) > .shell-meta {
-    transform: none;
-    display: grid;
-    grid-template-columns: 44px 44px minmax(0, 1fr) minmax(0, 1fr);
-    gap: 1px;
-    align-items: stretch;
-    justify-content: stretch;
-    width: 100%;
-    box-sizing: border-box;
-    padding: .625rem var(--dock-pad-x) max(.625rem, env(safe-area-inset-bottom, 0px));
-    border-top: 1px solid var(--line);
-    background: var(--line);
+  /* Phone footer chips are in the ••• sheet; hide shell-meta whenever a library screen is open. */
+  body:has(#main:not([hidden]), #colors:not([hidden]), #backup:not([hidden]), #sync:not([hidden])) > .shell-meta {
+    display: none;
   }
-  body:has(#colors:not([hidden]), #backup:not([hidden]), #sync:not([hidden])) > .shell-meta > .panel-menu,
-  body:has(#colors:not([hidden]), #backup:not([hidden]), #sync:not([hidden])) > .shell-meta > .shell-link {
-    background: var(--surface);
-    min-height: 44px;
-    min-width: 0;
-    width: 100%;
-    justify-self: stretch;
-    align-self: stretch;
-    flex: unset;
-    border: 0;
-    border-radius: 0;
-    padding: 0 8px;
-    font-size: .75rem;
-    box-sizing: border-box;
-  }
-  body:has(#colors:not([hidden]), #backup:not([hidden]), #sync:not([hidden])) > .shell-meta > .panel-menu {
-    display: flex;
-    flex-direction: column;
-    position: static;
-    padding: 0;
-  }
-  body:has(#colors:not([hidden]), #backup:not([hidden]), #sync:not([hidden])) > .shell-meta > .panel-menu > summary {
-    display: grid;
-    place-items: center;
-    flex: 1 1 auto;
-    width: 100%;
-    min-height: 44px;
-    height: 100%;
-    padding: 0;
-    font-size: 1.125rem;
-    letter-spacing: .16em;
-    color: var(--fg);
-    box-sizing: border-box;
-  }
-  body:has(#colors:not([hidden]), #backup:not([hidden]), #sync:not([hidden])) > .shell-meta > .theme-toggle {
-    padding: 0;
-    color: var(--fg);
-  }
-  body:has(#colors:not([hidden]), #backup:not([hidden]), #sync:not([hidden])) > .shell-meta > .theme-toggle svg {
-    display: block;
-    margin: 0 auto;
-  }
-  /* Panel ••• sheet matches the library sheet: full tray width, ≥44px rows. */
-  #panel-menu > div {
-    position: absolute;
-    left: var(--dock-pad-x);
-    right: var(--dock-pad-x);
-    bottom: calc(100% + 6px);
-    top: auto;
-    width: auto;
-    min-width: 0;
-    z-index: 20;
-    display: grid;
-    padding: 0;
-    background: var(--surface);
-    border: 1px solid var(--line);
-    box-shadow: var(--shadow);
-  }
-  #panel-menu > div button {
-    width: 100%;
-    min-height: 44px;
-    padding: .75rem .875rem;
-    box-sizing: border-box;
-    background: transparent;
-    border: 0;
-    color: var(--fg);
-    text-align: left;
-    font-weight: 500;
-    box-shadow: inset 3px 0 0 transparent;
-  }
-  #panel-menu > div button:hover { background: var(--hover); box-shadow: inset 3px 0 0 var(--brand); }
-  #panel-menu > div hr { border: 0; border-top: 1px solid var(--line); margin: 0; }
   #main:not([hidden]) {
     display: flex;
     flex-direction: column;
-    /* --dock-h is measured from #chrome-dock (see app.js); fallback covers modes+add+tray. */
-    padding-bottom: var(--dock-h, calc(12.5rem + env(safe-area-inset-bottom, 0px)));
+    /* --dock-h from #chrome-dock (app.js); shorter without the old tray row. */
+    padding-bottom: var(--dock-h, calc(9.5rem + env(safe-area-inset-bottom, 0px)));
   }
   #main:not([hidden]) > header { margin-bottom: .75rem; }
   #main:not([hidden]) > #list { flex: 1 1 auto; }
@@ -713,54 +637,20 @@ body:has(#main:not([hidden])) .shell-meta { flex-shrink: 0; }
     border-top: 1px solid var(--line);
     box-shadow: 0 -10px 28px color-mix(in oklab, var(--fg) 10%, transparent);
   }
-  /* Thumb order: sort modes (+ passage/topic) → add/Highlight → menu + theme */
+  /* Thumb order: sort modes (+ •••) → add/Highlight. No bottom tray. */
   #chrome-dock > #list-foot { order: 1; margin: 0; }
   #chrome-dock > #add { order: 2; margin: 0; }
-  #chrome-dock > #dock-tray { order: 3; margin: 0; justify-self: stretch; align-self: stretch; width: 100%; }
+  #chrome-dock > #dock-tray { display: none; }
   #list-foot {
-    /* Same content width as #add / tray — no extra horizontal inset. */
     padding: .5rem 0 0;
     border: 0;
     background: transparent;
   }
   .list-foot-row { gap: .375rem; }
-  #group-by.segmented {
-    display: flex;
-    width: 100%;
-    align-self: stretch;
-    flex-wrap: nowrap;
-    margin: 0;
-  }
-  #group-by.segmented button {
-    flex: 1 1 0;
-    min-width: 0;
-    min-height: 44px;
-    padding: .5rem .1rem;
-    /* 375px must fit SURPRISING unclipped — tighten type, never truncate. */
-    font-size: .625rem;
-    letter-spacing: 0;
-    white-space: nowrap;
-    overflow: visible;
-  }
-  #add {
-    margin: 0;
-  }
-  #add > button[type="submit"],
-  #add-dot,
-  #add si-passage-input::part(input) {
-    min-height: 44px;
-    height: 44px;
-  }
-  /* Suggestions open upward above the dock so the keyboard and dock don't cover them. */
-  #add si-passage-input::part(listbox) {
-    top: auto;
-    bottom: calc(100% - 1px);
-  }
-  /* Bottom tray: full dock content width — ••• · theme · Contract · Signed in. */
-  .dock-tray {
-    position: relative;
+  /* Modes + ••• share one full-width row (same inset as the add/reference row). */
+  .modes-menu {
     display: grid;
-    grid-template-columns: 44px 44px minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) 44px;
     gap: 1px;
     align-items: stretch;
     width: 100%;
@@ -769,42 +659,48 @@ body:has(#main:not([hidden])) .shell-meta { flex-shrink: 0; }
     border: 1px solid var(--line);
     box-sizing: border-box;
   }
-  /* Unwrap so theme / Contract / Signed in become grid cells beside •••. */
-  .dock-meta {
-    display: contents;
-  }
-  .dock-tray > #menu,
-  .dock-tray .shell-link {
-    background: var(--surface);
-    min-height: 44px;
-    min-width: 0;
+  #group-by.segmented {
+    display: flex;
     width: 100%;
-    justify-self: stretch;
-    align-self: stretch;
-    box-sizing: border-box;
-  }
-  .dock-tray .shell-link {
-    height: auto;
-    flex: unset;
-    border: 0;
-    border-radius: 0;
-    padding: 0 8px;
-    font-size: .75rem;
-  }
-  .dock-tray .theme-toggle {
     min-width: 0;
-    flex: unset;
-    padding: 0;
-    color: var(--fg);
+    align-self: stretch;
+    flex-wrap: nowrap;
+    margin: 0;
+    background: var(--surface);
   }
-  .dock-tray .theme-toggle svg { display: block; margin: 0 auto; }
-  /* Menu opens upward into the list, away from the thumb rest. */
+  #group-by.segmented button {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 44px;
+    padding: .5rem .05rem;
+    /* 375px: five modes + 44px ••• — SURPRISING must stay unclipped. */
+    font-size: .5625rem;
+    letter-spacing: 0;
+    white-space: nowrap;
+    overflow: visible;
+  }
+  #add { margin: 0; }
+  #add > button[type="submit"],
+  #add-dot,
+  #add si-passage-input::part(input) {
+    min-height: 44px;
+    height: 44px;
+  }
+  #add si-passage-input::part(listbox) {
+    top: auto;
+    bottom: calc(100% - 1px);
+  }
+  /* ••• cell on the modes row; sheet opens upward across the full modes-menu width. */
+  .modes-menu { position: relative; }
   #menu {
     position: static;
     display: flex;
     flex-direction: column;
     min-width: 0;
+    width: 100%;
+    height: 100%;
     padding: 0;
+    background: var(--surface);
   }
   #menu > summary {
     display: grid;
@@ -820,28 +716,80 @@ body:has(#main:not([hidden])) .shell-meta { flex-shrink: 0; }
     color: var(--fg);
     box-sizing: border-box;
   }
-  /* Sheet spans the dock content width (same inset as modes / reference row), not shrink-to-label. */
+  #menu[open] > summary { background: var(--hover); color: var(--fg); }
   #menu > div {
+    position: absolute;
     top: auto;
     bottom: calc(100% + 6px);
     left: 0;
     right: 0;
     width: auto;
     min-width: 0;
+    box-sizing: border-box;
   }
-  #menu > div button {
+  #menu > div button,
+  #menu > div .menu-link,
+  #menu > div .menu-theme,
+  #menu > div .menu-status {
+    display: flex;
+    align-items: center;
+    gap: .625rem;
     width: 100%;
     min-height: 44px;
     padding: .75rem .875rem;
     box-sizing: border-box;
+    background: transparent;
+    border: 0;
+    color: var(--fg);
+    text-align: left;
+    font: inherit;
+    font-weight: 500;
+    text-decoration: none;
+    box-shadow: inset 3px 0 0 transparent;
   }
+  #menu > div button:hover,
+  #menu > div .menu-link:hover,
+  #menu > div .menu-theme:hover {
+    background: var(--hover);
+    box-shadow: inset 3px 0 0 var(--brand);
+  }
+  #menu > div .menu-status {
+    color: var(--muted);
+    font-size: .875rem;
+    font-weight: 500;
+  }
+  #menu > div .menu-theme-label { font-weight: 500; }
   #menu > div hr {
+    display: block;
     border: 0;
     border-top: 1px solid var(--line);
     margin: 0;
   }
-  /* Desktop footer chips move into the dock on small screens. */
-  body:has(#main:not([hidden])) > .shell-meta { display: none; }
+  #menu > div .menu-extra { display: block; }
+  /* Settings •••: same sheet, fixed above the safe area. */
+  .panel-slot:not([hidden]) {
+    display: block;
+    position: fixed;
+    left: var(--dock-pad-x);
+    bottom: max(.625rem, env(safe-area-inset-bottom, 0px));
+    z-index: 40;
+    width: 44px;
+    min-height: 44px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    box-sizing: border-box;
+  }
+  .panel-slot #menu {
+    position: static;
+    width: 100%;
+    height: 100%;
+  }
+  .panel-slot #menu > div {
+    left: 0;
+    right: auto;
+    width: calc(100vw - 2 * var(--dock-pad-x));
+    bottom: calc(100% + 6px);
+  }
   /* Passage / topic field stays reachable above the modes. */
   .relevance-bar si-passage-input::part(input),
   .topic-input {

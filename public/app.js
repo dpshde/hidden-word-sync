@@ -58,10 +58,11 @@ const SIGNED_IN = new Set(["main", "colors", "backup", "sync"]);
 function show(id) {
   for (const section of document.querySelectorAll("main > section")) section.hidden = section.id !== id;
   const label = SIGNED_IN.has(id) ? "Signed in" : "Signed out";
-  for (const status of document.querySelectorAll("#auth-status, #dock-auth-status")) {
+  for (const status of document.querySelectorAll("#auth-status, #menu-auth-status")) {
     status.textContent = label;
     status.hidden = false;
   }
+  placeMenu();
 }
 
 /** Shows a passing message, with an optional button such as `{ label: "Undo", run, ms }`. */
@@ -1325,21 +1326,38 @@ libName.addEventListener("blur", () => {
 });
 
 // ---- menu
-// Close the library ••• and the settings-tray ••• on outside press or Escape.
-const MENUS = () => [...document.querySelectorAll("#menu, #panel-menu")].filter(Boolean);
+// One ••• control: desktop parks it in #dock-tray (header); phones put it on the modes row
+// (library) or in #panel-slot (Sync/Colors/Backup).
+function placeMenu() {
+  const menu = $("#menu");
+  const tray = $("#dock-tray");
+  const modes = $("#modes-menu");
+  const slot = $("#panel-slot");
+  if (!menu || !tray || !modes || !slot) return;
+  const mobile = matchMedia("(max-width: 600px)").matches;
+  const onMain = $("#main") && !$("#main").hidden;
+  const onPanel = ["colors", "backup", "sync"].some((id) => {
+    const el = document.getElementById(id);
+    return el && !el.hidden;
+  });
+  slot.hidden = !(mobile && onPanel);
+  const dest = mobile && onMain ? modes : mobile && onPanel ? slot : tray;
+  if (menu.parentElement !== dest) dest.append(menu);
+}
+
 document.addEventListener("pointerdown", (e) => {
-  for (const menu of MENUS()) {
-    if (menu.open && !menu.contains(e.target)) menu.open = false;
-  }
+  const menu = $("#menu");
+  if (menu?.open && !menu.contains(e.target)) menu.open = false;
 });
 document.addEventListener("keydown", (e) => {
-  if (e.key !== "Escape") return;
-  for (const menu of MENUS()) {
-    if (!menu.open) continue;
+  const menu = $("#menu");
+  if (e.key === "Escape" && menu?.open) {
     menu.open = false;
     menu.querySelector("summary")?.focus();
   }
 });
+addEventListener("resize", placeMenu);
+queueMicrotask(placeMenu);
 
 /** Keep #main's bottom padding equal to the fixed mobile dock so the list never sits under it. */
 {
@@ -1366,7 +1384,8 @@ document.addEventListener("keydown", (e) => {
 function menuAction(sel, fn) {
   for (const el of document.querySelectorAll(sel)) {
     el.addEventListener("click", async () => {
-      for (const menu of MENUS()) menu.open = false;
+      const menu = $("#menu");
+      if (menu) menu.open = false;
       try {
         await fn();
       } catch (error) {
@@ -1376,9 +1395,9 @@ function menuAction(sel, fn) {
   }
 }
 
-menuAction("#open-sync, [data-panel-open='sync']", () => (renderSync(), hideKey(), ($("#access-note").textContent = ""), show("sync")));
-menuAction("#open-colors, [data-panel-open='colors']", () => (renderColors(), show("colors")));
-menuAction("#open-backup, [data-panel-open='backup']", () => (($("#backup-note").textContent = ""), show("backup")));
+menuAction("#open-sync", () => (renderSync(), hideKey(), ($("#access-note").textContent = ""), show("sync")));
+menuAction("#open-colors", () => (renderColors(), show("colors")));
+menuAction("#open-backup", () => (($("#backup-note").textContent = ""), show("backup")));
 
 /** Runs a button on a settings screen, saying how it went in that screen's status line. */
 function screenAction(id, note, fn) {
@@ -1454,7 +1473,7 @@ $("#import-file").addEventListener("change", async (e) => {
   }
 });
 
-menuAction("#lock, #panel-lock", lock);
+menuAction("#lock", lock);
 
 $("#erase").addEventListener("click", async () => {
   const ok = confirm("Erase this library from the server and this device? A device that still has it will put it back when it syncs.");

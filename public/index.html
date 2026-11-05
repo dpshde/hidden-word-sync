@@ -112,32 +112,34 @@
         </div>
         <div class="list-foot-row">
           <span id="list-total" class="list-total" role="status"></span>
-          <div id="group-by" class="segmented" role="group" aria-label="Sort highlights" hidden>
-            <button type="button" data-mode="date" aria-pressed="true">Date</button>
-            <button type="button" data-mode="genre" aria-pressed="false">Genre</button>
-            <button type="button" data-mode="relevant" aria-pressed="false">Relevant</button>
-            <button type="button" data-mode="surprising" aria-pressed="false">Surprising</button>
-            <button type="button" data-mode="topic" aria-pressed="false">Topic</button>
+          <!-- modes-menu: on phones ••• sits on the modes row; on desktop JS parks #menu in #dock-tray. -->
+          <div id="modes-menu" class="modes-menu">
+            <div id="group-by" class="segmented" role="group" aria-label="Sort highlights" hidden>
+              <button type="button" data-mode="date" aria-pressed="true">Date</button>
+              <button type="button" data-mode="genre" aria-pressed="false">Genre</button>
+              <button type="button" data-mode="relevant" aria-pressed="false">Relevant</button>
+              <button type="button" data-mode="surprising" aria-pressed="false">Surprising</button>
+              <button type="button" data-mode="topic" aria-pressed="false">Topic</button>
+            </div>
+            <details id="menu">
+              <summary aria-label="Menu">•••</summary>
+              <div>
+                <button type="button" id="open-sync">Sync</button>
+                <button type="button" id="open-colors">Colors</button>
+                <button type="button" id="open-backup">Backup</button>
+                <hr>
+                <button type="button" class="theme-toggle menu-theme" aria-label="Switch to dark mode" title="Switch to dark mode"></button>
+                <a class="menu-link" href="https://github.com/dpshde/selah-vault/blob/main/SPEC.md" target="_blank" rel="noopener">Contract</a>
+                <hr class="menu-extra">
+                <span class="menu-status" id="menu-auth-status" hidden></span>
+                <button type="button" id="lock">Log out</button>
+              </div>
+            </details>
           </div>
         </div>
       </div>
-      <div id="dock-tray" class="dock-tray">
-        <details id="menu">
-          <summary aria-label="Menu">•••</summary>
-          <div>
-            <button type="button" id="open-sync">Sync</button>
-            <button type="button" id="open-colors">Colors</button>
-            <button type="button" id="open-backup">Backup</button>
-            <hr>
-            <button type="button" id="lock">Log out</button>
-          </div>
-        </details>
-        <div class="dock-meta" aria-label="Theme and contract">
-          <button type="button" class="shell-link theme-toggle" aria-label="Switch to dark mode" title="Switch to dark mode"></button>
-          <a class="shell-link" href="https://github.com/dpshde/selah-vault/blob/main/SPEC.md" target="_blank" rel="noopener">Contract</a>
-          <span class="shell-link shell-status" id="dock-auth-status" hidden></span>
-        </div>
-      </div>
+      <!-- Desktop/tablet only host for #menu (header grid-area). Empty on phones. -->
+      <div id="dock-tray" class="dock-tray"></div>
     </div>
     <div id="color-pop" popover role="group" aria-label="Highlight color"></div>
     <p id="empty" class="quiet-text">No highlights yet.</p>
@@ -195,21 +197,13 @@
   </section>
 </main>
 <!-- route.bible's footer bar (.shell-meta): the theme, the contract, and whether a library is open.
-     On phones, Sync/Colors/Backup reuse this bar as the same 4-cell tray as #dock-tray (••• stays put). -->
+     Phones hide this; theme/contract/status live in the ••• sheet, and #panel-slot hosts ••• on settings. -->
 <footer class="shell-meta">
-  <details id="panel-menu" class="panel-menu">
-    <summary aria-label="Menu">•••</summary>
-    <div>
-      <button type="button" data-panel-open="sync">Sync</button>
-      <button type="button" data-panel-open="colors">Colors</button>
-      <button type="button" data-panel-open="backup">Backup</button>
-      <hr>
-      <button type="button" id="panel-lock">Log out</button>
-    </div>
-  </details>
   <button type="button" class="shell-link theme-toggle" aria-label="Switch to dark mode" title="Switch to dark mode"></button>
   <a class="shell-link" href="https://github.com/dpshde/selah-vault/blob/main/SPEC.md" target="_blank" rel="noopener">Contract</a>
   <span class="shell-link shell-status" id="auth-status" hidden></span>
 </footer>
+<!-- Phone settings: fixed ••• host so Sync/Colors/Backup stay reachable without the old tray. -->
+<div id="panel-slot" class="panel-slot" hidden></div>
 </body>
 </html>
