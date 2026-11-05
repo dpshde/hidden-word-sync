@@ -1469,11 +1469,15 @@ $("#add-color").addEventListener("submit", async (e) => {
 
 function renderSync() {
   if (!library) return;
-  $("#use-server").checked = settings(library.lib).server;
+  const on = settings(library.lib).server;
+  $("#use-server").checked = on;
+  $("#use-server").setAttribute("aria-checked", String(on));
 }
 
 $("#use-server").addEventListener("change", async (e) => {
-  saveSettings(library.lib, { ...settings(library.lib), server: e.target.checked });
+  const on = e.target.checked;
+  e.target.setAttribute("aria-checked", String(on));
+  saveSettings(library.lib, { ...settings(library.lib), server: on });
   await connect();
 });
 
@@ -1585,7 +1589,19 @@ $("#offer-passkey").addEventListener("click", async () => {
 $("#skip-passkey").addEventListener("click", () => ($("#passkey-offer").hidden = true));
 
 // The key shows on the Sync screen until hidden again or the screen is left.
+const COPY_KEY_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>';
+const COPIED_KEY_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>';
+let copyKeyTimer;
+function resetCopyKeyButton() {
+  clearTimeout(copyKeyTimer);
+  const btn = $("#copy-key");
+  if (!btn) return;
+  btn.innerHTML = COPY_KEY_ICON;
+  btn.setAttribute("aria-label", "Copy sync key");
+  btn.title = "Copy sync key";
+}
 function hideKey() {
+  resetCopyKeyButton();
   $("#key-reveal").hidden = true;
   $("#key-text").textContent = "";
   $("#show-key").textContent = "Show sync key";
@@ -1597,6 +1613,16 @@ $("#show-key").addEventListener("click", () => {
   $("#key-reveal").hidden = false;
   $("#show-key").textContent = "Hide sync key";
   $("#show-key").setAttribute("aria-expanded", "true");
+});
+$("#copy-key").addEventListener("click", async () => {
+  if (!library) return;
+  await navigator.clipboard.writeText(library.keyText);
+  const btn = $("#copy-key");
+  btn.innerHTML = COPIED_KEY_ICON;
+  btn.setAttribute("aria-label", "Copied");
+  btn.title = "Copied";
+  clearTimeout(copyKeyTimer);
+  copyKeyTimer = setTimeout(resetCopyKeyButton, 1500);
 });
 
 screenAction("#export", "#backup-note", () => {

@@ -190,12 +190,15 @@
     </header>
     <div class="panel-body">
       <div class="row sync-actions">
-        <button type="button" id="show-key" aria-controls="key-reveal" aria-expanded="false">Show sync key</button>
-        <button type="button" class="cta-raised" id="add-passkey">Add passkey</button>
+        <button type="button" class="quiet" id="show-key" aria-controls="key-reveal" aria-expanded="false">Show sync key</button>
+        <button type="button" id="add-passkey">Add passkey</button>
       </div>
-      <div class="key-box" id="key-reveal" hidden><code id="key-text" data-1p-ignore></code></div>
+      <div class="key-box" id="key-reveal" hidden>
+        <code id="key-text" data-1p-ignore></code>
+        <button type="button" class="icon" id="copy-key" aria-label="Copy sync key" title="Copy sync key"><svg viewBox="0 0 24 24" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg></button>
+      </div>
       <p class="status-line" id="access-note" role="status"></p>
-      <label class="check"><input type="checkbox" id="use-server"> <span>Sync through this site<small>Encrypted on this device.</small></span></label>
+      <label class="check"><input type="checkbox" role="switch" id="use-server" aria-checked="true"> <span>Sync across devices<small>Encrypted. Server can’t read it.</small></span></label>
       <details id="danger">
         <summary>Danger zone</summary>
         <p class="quiet-text">Removes this library from the server and this device.</p>
