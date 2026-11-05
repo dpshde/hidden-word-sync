@@ -26,7 +26,7 @@ test("one way to sync: the Sync screen offers this site's server and no folder",
   const sync = /<section id="sync"[\s\S]*?<\/section>/.exec(read("index.html"))?.[0] ?? "";
   expect(sync).toContain('id="use-server"');
   expect(sync).toContain('role="switch"');
-  expect(sync).toContain("Sync across devices");
+  expect(sync).toContain("Across devices");
   expect(sync).toContain('class="row sync-actions"');
   expect(sync).toContain('<button type="button" class="quiet" id="show-key"');
   expect(sync).toContain('<button type="button" id="add-passkey"');

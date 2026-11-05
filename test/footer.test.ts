@@ -20,7 +20,7 @@ test("the footer holds the theme, the contract and the auth status, and #list-to
 });
 
 test("the contract link goes where For developers' spec link does", () => {
-  expect(html).toContain('For developers: <a href="https://github.com/dpshde/selah-vault/blob/main/SPEC.md"');
+  expect(html).toContain('<span>For developers</span><span><a href="https://github.com/dpshde/selah-vault/blob/main/SPEC.md"');
 });
 
 test("the ••• menu is Sync · Colors · Backup, then theme/contract/status on phones, then Log out", () => {
