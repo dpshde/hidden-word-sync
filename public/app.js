@@ -46,11 +46,21 @@ const store = {
 const settingsKey = (lib) => `hidden-word:settings:${lib}`;
 const settings = (lib) => ({ server: true, ...JSON.parse(localStorage.getItem(settingsKey(lib)) ?? "{}") });
 const saveSettings = (lib, s) => localStorage.setItem(settingsKey(lib), JSON.stringify(s));
+const filtersKey = (lib) => `hidden-word:filters:${lib}`;
 
 let library = null;
 let colors = palette([]);
-let filter = null;
+/** Multi-select color filter ids (empty Set = show all). */
+let filter = new Set();
 let flashTimer = 0;
+
+function saveFilters() {
+  if (!library) return;
+  try {
+    if (filter.size) localStorage.setItem(filtersKey(library.lib), JSON.stringify([...filter]));
+    else localStorage.removeItem(filtersKey(library.lib));
+  } catch {}
+}
 
 // The screens with a library open. The footer says only whether one is: never the key, never sync.
 const SIGNED_IN = new Set(["main", "colors", "backup", "sync"]);
@@ -64,6 +74,8 @@ function show(id) {
   }
   const menu = $("#menu");
   if (menu?.open) menu.open = false;
+  const filters = $("#filters");
+  if (filters?.open) filters.open = false;
 }
 
 /** Shows a passing message, with an optional button such as `{ label: "Undo", run, ms }`. */
@@ -99,6 +111,12 @@ function paint(el, id) {
 async function enter(keyText, given) {
   library = await Library.open({ keyText, name: given, store });
   library.localName = localStorage.getItem(nameKey(library.lib)) || given;
+  try {
+    const saved = JSON.parse(localStorage.getItem(filtersKey(library.lib)) ?? "[]");
+    filter = new Set(Array.isArray(saved) ? saved : []);
+  } catch {
+    filter = new Set();
+  }
   highlightStamp = new Map();
   relevance = null;
   rankOrder = [];
@@ -414,10 +432,21 @@ function render() {
   const rows = library.all("highlight").sort((a, b) => compareRefs(a.ref, b.ref));
   const counts = new Map();
   for (const r of rows) counts.set(topColor(r, ids), (counts.get(topColor(r, ids)) ?? 0) + 1);
-  if (filter && !counts.has(filter)) filter = null;
+  let filterPruned = false;
+  for (const id of filter) {
+    if (!counts.has(id)) {
+      filter.delete(id);
+      filterPruned = true;
+    }
+  }
+  if (counts.size <= 1 && filter.size) {
+    filter.clear();
+    filterPruned = true;
+  }
+  if (filterPruned) saveFilters();
   renderFilters(counts);
 
-  const shown = filter ? rows.filter((r) => topColor(r, ids) === filter) : rows;
+  const shown = filter.size ? rows.filter((r) => filter.has(topColor(r, ids))) : rows;
   const jevActive = JEV_MODES.includes(groupBy);
   // Scope is mode-specific: a leftover Relevant passage must not count as Topic scope (and vice versa).
   const hasScope = RANK_MODES.includes(groupBy)
@@ -446,7 +475,7 @@ function render() {
     : groupBy === TOPIC_MODE
       ? relevance?.topic || ""
       : "";
-  const sig = JSON.stringify([shown, colors, groupBy, filter, verseText.key, editing, ranking && scopeKey, rankOrder, rankFailed, noneRelevant, !!rankPending, jevWaiting, verseText.open, rankPaint]);
+  const sig = JSON.stringify([shown, colors, groupBy, [...filter], verseText.key, editing, ranking && scopeKey, rankOrder, rankFailed, noneRelevant, !!rankPending, jevWaiting, verseText.open, rankPaint]);
   if (!editing && sig !== listSig) {
     if (jevWaiting) {
       // Hint lives in the list area; foot status stays empty so it never fights the mode control.
@@ -665,7 +694,7 @@ async function ensureRelevance() {
 function currentRuns() {
   const ids = colors.map((c) => c.id);
   const records = library.all("highlight").sort((a, b) => compareRefs(a.ref, b.ref));
-  const shown = filter ? records.filter((r) => topColor(r, ids) === filter) : records;
+  const shown = filter.size ? records.filter((r) => filter.has(topColor(r, ids))) : records;
   const runs = groupRuns(shown, (r) => topColor(r, ids));
   bsbText.warm(runs.map((r) => r.ref));
   return runs;
@@ -862,30 +891,48 @@ function group({ id, name, runs }) {
 }
 
 function renderFilters(counts) {
-  const chips = [];
-  if (counts.size > 1) {
-    const all = document.createElement("button");
-    all.type = "button";
-    all.className = "chip";
-    all.textContent = "All";
-    all.setAttribute("aria-pressed", String(!filter));
-    all.addEventListener("click", () => ((filter = null), render()));
-    chips.push(all);
-    for (const c of colors) {
-      if (!counts.has(c.id)) continue;
-      const chip = document.createElement("button");
-      chip.type = "button";
-      chip.className = "chip";
-      chip.setAttribute("aria-pressed", String(filter === c.id));
-      const dot = document.createElement("span");
-      dot.className = "dot";
-      paint(dot, c.id);
-      chip.append(dot, `${colorName(c)} ${counts.get(c.id)}`);
-      chip.addEventListener("click", () => ((filter = filter === c.id ? null : c.id), render()));
-      chips.push(chip);
-    }
+  const details = $("#filters");
+  const summary = $("#filter-summary");
+  const box = $("#filter-options");
+  if (!details || !summary || !box) return;
+  if (counts.size <= 1) {
+    details.open = false;
+    details.hidden = true;
+    box.replaceChildren();
+    return;
   }
-  $("#filters").replaceChildren(...chips);
+  details.hidden = false;
+  details.dataset.active = String(filter.size > 0);
+  summary.textContent = filter.size > 0 ? `Filter · ${filter.size}` : "Filter";
+  summary.setAttribute("aria-label", filter.size > 0 ? `Filter by color (${filter.size} active)` : "Filter by color");
+
+  const items = [];
+  for (const c of colors) {
+    if (!counts.has(c.id)) continue;
+    const label = document.createElement("label");
+    label.className = "filter-option";
+    const check = document.createElement("input");
+    check.type = "checkbox";
+    check.checked = filter.has(c.id);
+    check.addEventListener("change", () => {
+      if (check.checked) filter.add(c.id);
+      else filter.delete(c.id);
+      saveFilters();
+      render();
+    });
+    const dot = document.createElement("span");
+    dot.className = "dot";
+    paint(dot, c.id);
+    const name = document.createElement("span");
+    name.className = "filter-name";
+    name.textContent = colorName(c);
+    const count = document.createElement("span");
+    count.className = "filter-count";
+    count.textContent = String(counts.get(c.id));
+    label.append(check, dot, name, count);
+    items.push(label);
+  }
+  box.replaceChildren(...items);
 }
 
 const ICONS = {
@@ -1361,12 +1408,19 @@ document.addEventListener("focusin", (e) => {
 document.addEventListener("pointerdown", (e) => {
   const menu = $("#menu");
   if (menu?.open && !menu.contains(e.target)) menu.open = false;
+  const filters = $("#filters");
+  if (filters?.open && !filters.contains(e.target)) filters.open = false;
 });
 document.addEventListener("keydown", (e) => {
   const menu = $("#menu");
   if (e.key === "Escape" && menu?.open) {
     menu.open = false;
     menu.querySelector("summary")?.focus();
+  }
+  const filters = $("#filters");
+  if (e.key === "Escape" && filters?.open) {
+    filters.open = false;
+    filters.querySelector("summary")?.focus();
   }
 });
 

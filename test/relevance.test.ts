@@ -55,7 +55,8 @@ describe("UI copy and list toolbar toggle", () => {
     expect(app).toContain("rank-scope");
     expect(app).toContain("clearRankScopeFromRef");
     expect(css).toContain("#add.rank-scope");
-    // Topic field lives inside #add beside #ref; #list-bar sits directly below #add and above #filters / #list.
+    // Topic field lives inside #add beside #ref; #list-bar sits directly below #add and above #list,
+    // and hosts the multi-select #filters popover beside #group-by.
     const addStart = html.indexOf('id="add"');
     const barStart = html.indexOf('id="list-bar"');
     const filtersStart = html.indexOf('id="filters"');
@@ -65,13 +66,18 @@ describe("UI copy and list toolbar toggle", () => {
     expect(barStart).toBeGreaterThan(addStart);
     expect(filtersStart).toBeGreaterThan(barStart);
     expect(listStart).toBeGreaterThan(filtersStart);
-    const listBar = html.slice(barStart, filtersStart);
+    const listBar = html.slice(barStart, listStart);
+    expect(listBar).toContain('id="filters"');
+    expect(listBar).toContain('id="filter-options"');
     expect(listBar).toContain('id="group-by"');
     expect(listBar).toContain('id="list-total"');
-    // Preview sits above the list, after filters.
+    expect(app).toContain("let filter = new Set()");
+    expect(app).toContain('check.type = "checkbox"');
+    // Preview sits above the list, after list-bar.
     expect(html.indexOf('id="rank-preview"')).toBeLessThan(listStart);
     expect(html.indexOf('id="rank-preview"')).toBeGreaterThan(filtersStart);
     expect(css).toContain(".list-bar");
+    expect(css).toContain(".filter-menu");
     expect(css).toContain(".rank-preview");
     expect(css).toContain("-webkit-line-clamp");
   });

@@ -104,17 +104,21 @@
     </form>
 
     <div id="list-bar" class="list-bar" hidden>
-      <div id="group-by" class="segmented" role="group" aria-label="Sort highlights" hidden>
-        <button type="button" data-mode="date" aria-pressed="true">Date</button>
-        <button type="button" data-mode="genre" aria-pressed="false">Genre</button>
-        <button type="button" data-mode="relevant" aria-pressed="false">Relevant</button>
-        <button type="button" data-mode="surprising" aria-pressed="false">Surprising</button>
-        <button type="button" data-mode="topic" aria-pressed="false">Topic</button>
+      <div class="list-bar-top">
+        <details id="filters" class="filter-menu" hidden>
+          <summary id="filter-summary" aria-label="Filter by color">Filter</summary>
+          <div id="filter-options" role="group" aria-label="Filter by color"></div>
+        </details>
+        <div id="group-by" class="segmented" role="group" aria-label="Sort highlights" hidden>
+          <button type="button" data-mode="date" aria-pressed="true">Date</button>
+          <button type="button" data-mode="genre" aria-pressed="false">Genre</button>
+          <button type="button" data-mode="relevant" aria-pressed="false">Relevant</button>
+          <button type="button" data-mode="surprising" aria-pressed="false">Surprising</button>
+          <button type="button" data-mode="topic" aria-pressed="false">Topic</button>
+        </div>
       </div>
       <span id="list-total" class="list-total" role="status"></span>
     </div>
-
-    <div id="filters" role="group" aria-label="Show"></div>
     <div id="relevance-none" class="offer relevance-none" hidden role="status">
       <p id="relevance-none-copy"></p>
       <div class="row">

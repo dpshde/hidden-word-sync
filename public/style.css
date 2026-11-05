@@ -256,27 +256,34 @@ button.dot[aria-pressed="true"] { border-color: var(--fg); }
 #list .group[open] > summary::before { transform: rotate(45deg) translate(-1px, -1px); }
 #list .group > summary:hover { background: color-mix(in oklab, var(--accent) 86%, var(--bg)); }
 #list .group > summary:focus-visible { outline-offset: 2px; }
-/* Top list toolbar: sort/group modes fill the available row width and total/status sits inside the same
-   bordered bar on the right (or collapses when empty), so every row shares the exact same left/right edges. */
+/* Top list toolbar: Filter popover on the left (when >1 color) + equal-flex sort/group modes across
+   the full 32rem column width, with total/status quietly right-aligned below (never a 6th mode segment). */
 .list-bar {
   display: flex;
+  flex-direction: column;
   align-items: stretch;
+  gap: .375rem;
   width: 100%;
   margin: 0 0 .75rem;
   min-width: 0;
-  border: 1px solid var(--line);
-  background: var(--surface);
 }
 .list-bar[hidden] { display: none; }
+.list-bar-top {
+  display: flex;
+  align-items: stretch;
+  gap: .5rem;
+  width: 100%;
+  min-width: 0;
+}
 .list-bar .segmented {
   display: flex;
   flex: 1 1 0;
   width: auto;
   min-width: 0;
   margin: 0;
-  border: 0;
+  border: 1px solid var(--line);
   flex-wrap: nowrap;
-  background: transparent;
+  background: var(--surface);
 }
 .list-bar .segmented[hidden] { display: none; }
 .list-bar .segmented button {
@@ -293,22 +300,17 @@ button.dot[aria-pressed="true"] { border-color: var(--fg); }
   border-left: 1px solid var(--line);
 }
 .list-total {
-  display: inline-flex;
-  align-items: center;
-  flex: none;
-  padding: 0 .625rem;
-  border-left: 1px solid var(--line);
-  font-family: var(--font-label); font-size: .6875rem; font-weight: 500; letter-spacing: .04em; text-transform: uppercase;
+  align-self: flex-end;
+  font-family: var(--font-label); font-size: .75rem; font-weight: 500; letter-spacing: .04em; text-transform: uppercase;
   color: var(--muted);
-  font-variant-numeric: tabular-nums; white-space: nowrap; line-height: 1;
+  font-variant-numeric: tabular-nums; white-space: nowrap; line-height: 1.2;
   min-width: 0; overflow: hidden; text-overflow: ellipsis;
+  text-align: right;
 }
 .list-total:empty { display: none; }
-@media (max-width: 520px) {
-  .list-bar { flex-direction: column; border: 0; background: transparent; gap: .375rem; }
-  .list-bar .segmented { width: 100%; border: 1px solid var(--line); background: var(--surface); }
-  .list-bar .segmented button { padding: .4375rem .25rem; font-size: .625rem; letter-spacing: .03em; }
-  .list-total { border-left: 0; padding: 0; align-self: flex-end; }
+@media (max-width: 420px) {
+  .list-bar-top { gap: .375rem; }
+  .list-bar .segmented button { padding: .4375rem .2rem; font-size: .625rem; letter-spacing: .02em; }
 }
 /* Jev empty scope: calm hint in the list area (not the bar status). */
 .rank-hint {
@@ -437,13 +439,110 @@ button.link:hover { background: transparent; color: var(--fg); }
 button.link[data-state="error"] { color: var(--danger); }
 .dot[data-color="own"] { background: transparent; }
 
-/* Color filters: route.bible's chips, small uppercase Geist in a square hairline box. */
-#filters { display: flex; flex-wrap: wrap; gap: .375rem; width: 100%; margin: 0 0 .75rem; }
-#filters:empty { display: none; }
-.chip { display: inline-flex; align-items: center; gap: .375rem; padding: .25rem .5rem; font-family: var(--font-label); font-size: .75rem; font-weight: 500; letter-spacing: .04em; text-transform: uppercase; background: transparent; color: var(--muted); border: 1px solid var(--line); border-radius: 0; }
-.chip:hover { background: var(--hover); color: var(--fg); border-color: var(--hover-line); }
-.chip[aria-pressed="true"] { color: var(--fg); border-color: var(--fg); }
-.chip .dot { width: .625rem; height: .625rem; border: 0; }
+/* Color filter disclosure in #list-bar: single button that opens multi-select color checkboxes. */
+.filter-menu { position: relative; flex: none; margin: 0; }
+.filter-menu[hidden] { display: none; }
+.filter-menu > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: .375rem;
+  height: 100%;
+  padding: .4375rem .625rem;
+  font-family: var(--font-label);
+  font-size: .6875rem;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  background: var(--surface);
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 0;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.filter-menu > summary::after {
+  content: "";
+  width: .35rem;
+  height: .35rem;
+  border: solid currentColor;
+  border-width: 0 1.5px 1.5px 0;
+  transform: rotate(45deg) translateY(-1px);
+  transition: transform .15s;
+}
+.filter-menu[open] > summary::after {
+  transform: rotate(-135deg) translateY(-1px);
+}
+.filter-menu > summary:hover,
+.filter-menu[open] > summary {
+  background: var(--hover);
+  color: var(--fg);
+  border-color: var(--hover-line);
+}
+.filter-menu[data-active="true"] > summary {
+  color: var(--fg);
+  border-color: var(--fg);
+}
+.filter-menu > div {
+  position: absolute;
+  left: 0;
+  right: auto;
+  top: calc(100% + 4px);
+  z-index: 25;
+  display: grid;
+  min-width: 12rem;
+  padding: .25rem 0;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+}
+.filter-option {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .4375rem .75rem;
+  font-family: var(--font-label);
+  font-size: .75rem;
+  font-weight: 500;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--fg);
+  cursor: pointer;
+  user-select: none;
+  box-shadow: inset 3px 0 0 transparent;
+}
+.filter-option:hover {
+  background: var(--hover);
+  box-shadow: inset 3px 0 0 var(--brand);
+}
+.filter-option input[type="checkbox"] {
+  width: .875rem;
+  height: .875rem;
+  margin: 0;
+  padding: 0;
+  flex: none;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.filter-option .dot {
+  width: .6875rem;
+  height: .6875rem;
+  border: 0;
+}
+.filter-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.filter-count {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 600px) {
+  .filter-option { min-height: 40px; }
+}
 
 
 #color-list { list-style: none; margin: 0; padding: 0; }
@@ -563,8 +662,10 @@ body:has(#main:not([hidden])) main { flex: 1 1 auto; min-height: 0; display: fle
   flex: 1 1 auto; min-height: 0;
   display: flex;
   flex-direction: column;
+  width: 100%;
 }
-#main:not([hidden]) > #list { flex: 1 1 auto; min-height: 0; min-width: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+#main:not([hidden]) > #list { width: 100%; flex: 1 1 auto; min-height: 0; min-width: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+#list .group, #list .group > summary, #list .rows, #list .rows > li { width: 100%; }
 body:has(#main:not([hidden])) .shell-meta { flex-shrink: 0; }
 /* Short screens: pull the offset toward the safe-area floor so the list keeps a usable height. */
 @media (max-height: 40rem) { main:not(.oauth-main) { padding-top: max(calc(env(safe-area-inset-top) + 1rem), calc(34dvh - 140px)); } }
