@@ -139,9 +139,9 @@ export function rankStatusCopy(shown, total, mode) {
 
 /** Hint when Relevant/Surprising/Topic is on but the person hasn't typed a scope yet. */
 export function jevHintCopy(mode) {
-  if (mode === "topic") return "Enter a topic in the box above to sort all your highlights by closeness to that theme.";
-  if (mode === "surprising") return "Enter a passage in the box above to find highlights that connect to it in unexpected ways.";
-  return "Enter a passage in the box above to find your most closely connected highlights.";
+  if (mode === "topic") return "Type a topic above to sort your highlights by closeness to it.";
+  if (mode === "surprising") return "Type a passage above to find highlights that connect in unexpected ways.";
+  return "Type a passage above to find your most closely connected highlights.";
 }
 
 /** List-foot status while a ranking request is in flight. */

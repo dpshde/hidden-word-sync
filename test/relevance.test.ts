@@ -50,13 +50,13 @@ describe("UI copy and list toolbar toggle", () => {
     expect(html).toContain('id="ref"');
     expect(html).toContain("<si-passage-input id=\"ref\"");
     expect(html).toContain('id="topic-ref"');
-    expect(html).toContain('id="scope-prefix"');
-    expect(app).toContain('placeholder: "Compare against passage — e.g. Rom 8:18–25"');
+    expect(html).not.toContain('id="scope-prefix"');
+    expect(app).toContain('placeholder: "Rom 8:18–25"');
     expect(app).toContain("syncRefFieldMode");
     expect(app).toContain("rank-scope");
     expect(app).toContain("clearRankScopeFromRef");
-    expect(css).toContain("#add.rank-scope");
-    expect(css).toContain(".scope-prefix");
+    expect(css).toContain("#add.rank-scope { grid-template-columns: 1fr; }");
+    expect(css).toContain(":focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }");
     // Topic field lives inside #add beside #ref; #list-bar sits directly below #add and above #list,
     // and hosts the multi-select #filters popover beside #group-by.
     const addStart = html.indexOf('id="add"');
@@ -100,14 +100,14 @@ describe("UI copy and list toolbar toggle", () => {
     expect(topicCopy("grace")).toBe("Sorted by closeness to “grace”");
     expect(topicCopy("")).toBe("Sorted by closeness");
     expect(jevHintCopy("relevant")).toBe(
-      "Enter a passage in the box above to find your most closely connected highlights.",
+      "Type a passage above to find your most closely connected highlights.",
     );
     expect(jevHintCopy("surprising")).toBe(
-      "Enter a passage in the box above to find highlights that connect to it in unexpected ways.",
+      "Type a passage above to find highlights that connect in unexpected ways.",
     );
     expect(jevHintCopy("surprising")).not.toBe(jevHintCopy("relevant"));
     expect(jevHintCopy("topic")).toBe(
-      "Enter a topic in the box above to sort all your highlights by closeness to that theme.",
+      "Type a topic above to sort your highlights by closeness to it.",
     );
     expect(sanitizeTopic("  grace  ")).toBe("grace");
     expect(emptyRelevanceCopy(17, "Hab 2:2")).toBe("None of your 17 highlights connect to Hab 2:2");
