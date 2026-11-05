@@ -62,7 +62,8 @@ function show(id) {
     status.textContent = label;
     status.hidden = false;
   }
-  placeMenu();
+  const menu = $("#menu");
+  if (menu?.open) menu.open = false;
 }
 
 /** Shows a passing message, with an optional button such as `{ label: "Undo", run, ms }`. */
@@ -304,21 +305,25 @@ function refText(field = refField) {
 /** Whether the field's suggestion list is showing (Enter and Escape act on it first). */
 const suggesting = (field) => field.shadowRoot?.querySelector("[role=listbox]")?.hidden === false;
 
-/** Swap #ref between add-highlight and rank-against chrome. Hides Highlight + color while ranking. */
+/** Swap #add between add-highlight, passage-ranking (#ref), and topic-ranking (#topic-ref) chrome. */
 function syncRefFieldMode() {
   const ranking = RANK_MODES.includes(groupBy);
+  const topicMode = groupBy === TOPIC_MODE;
+  const jevActive = JEV_MODES.includes(groupBy);
   const meta = ranking ? REF_RANK : REF_ADD;
   refField.setAttribute("placeholder", meta.placeholder);
   refField.setAttribute("aria-label", meta.aria);
   // si-passage-input copies aria-label only on connect; keep the inner input in sync.
   refField.shadowRoot?.querySelector("input")?.setAttribute("aria-label", meta.aria);
+  refField.hidden = topicMode;
+  $("#topic-ref").hidden = !topicMode;
   const form = $("#add");
-  form.classList.toggle("rank-scope", ranking);
-  $("#add-dot").hidden = ranking;
-  form.querySelector('button[type="submit"]').hidden = ranking;
+  form.classList.toggle("rank-scope", jevActive);
+  $("#add-dot").hidden = jevActive;
+  form.querySelector('button[type="submit"]').hidden = jevActive;
 }
 
-// Enter: settle suggestions first; else rank (Relevant/Surprising) or add a highlight (Date/Genre/Topic).
+// Enter: settle suggestions first; else rank (Relevant/Surprising) or add a highlight (Date/Genre).
 refField.addEventListener("keydown", (e) => {
   if (e.key !== "Enter" || e.isComposing) return;
   if (suggesting(refField)) return;
@@ -333,9 +338,13 @@ refField.addEventListener("keydown", (e) => {
 
 $("#add").addEventListener("submit", async (e) => {
   e.preventDefault();
-  // Ranking modes never add from this form — #ref is the scope field (Highlight is hidden).
+  // Ranking modes never add from this form — #ref or #topic-ref is the scope field (Highlight is hidden).
   if (RANK_MODES.includes(groupBy)) {
     void runRelevance();
+    return;
+  }
+  if (groupBy === TOPIC_MODE) {
+    void runTopic();
     return;
   }
   const form = e.target;
@@ -517,15 +526,7 @@ let highlightStamp = new Map();
 
 function renderGroupBy(any) {
   $("#group-by").hidden = !any;
-  $("#list-foot").hidden = !any;
-  const bar = $("#relevance-bar");
-  // Topic keeps a foot field; Relevant/Surprising use #ref (bar only needed for topic + its errors).
-  const topicMode = groupBy === TOPIC_MODE;
-  bar.hidden = !any || !topicMode;
-  const topicField = $("#topic-ref");
-  const topicLabel = document.querySelector('label[for="topic-ref"]');
-  if (topicLabel) topicLabel.hidden = !topicMode;
-  topicField.hidden = !topicMode;
+  $("#list-bar").hidden = !any;
   syncRefFieldMode();
   for (const b of document.querySelectorAll("#group-by button")) b.setAttribute("aria-pressed", String(b.dataset.mode === groupBy));
 }
@@ -547,7 +548,8 @@ for (const b of document.querySelectorAll("#group-by button")) {
       refField.value = "";
       errorIn($("#add"), "");
     }
-    renderGroupBy(!!$("#list-foot") && !$("#list-foot").hidden);
+    if (next === TOPIC_MODE) errorIn($("#add"), "");
+    renderGroupBy(!!$("#list-bar") && !$("#list-bar").hidden);
     if (willPassage && wasPassage && relevance?.passage && !rankFailed) {
       // Relevant ↔ Surprising: reorder cached verdicts, no network call.
       // New final paint so auto-expand follows the new top (unless the person toggled a row).
@@ -580,9 +582,7 @@ function clearRankScopeFromRef() {
 function clearRelevanceInput({ keepRef = false } = {}) {
   if (!keepRef) clearRankScopeFromRef();
   $("#topic-ref").value = "";
-  const err = $("#relevance-error");
-  err.hidden = true;
-  err.textContent = "";
+  errorIn($("#add"), "");
   rankGeneration++; // drop any in-flight response
   relevance?.clearPassage();
   rankOrder = [];
@@ -729,9 +729,9 @@ async function runRelevance() {
 async function runTopic() {
   const session = await ensureRelevance();
   if (!session || groupBy !== TOPIC_MODE) return;
+  const form = $("#add");
   const raw = $("#topic-ref").value;
   const cleaned = sanitizeTopic(raw);
-  const err = $("#relevance-error");
   const gen = ++rankGeneration;
   rankOrder = [];
   rankFailed = false;
@@ -740,8 +740,7 @@ async function runTopic() {
   showRelevanceNone(null);
   showRankPreview(null);
   if (!cleaned) {
-    err.hidden = true;
-    err.textContent = "";
+    errorIn(form, "");
     session.clearPassage();
     rankPending = null;
     if (gen === rankGeneration) render();
@@ -750,8 +749,7 @@ async function runTopic() {
   rankPending = true;
   session.setTopicInput(cleaned);
   render(); // loading before any network
-  err.hidden = true;
-  err.textContent = "";
+  errorIn(form, "");
   const runs = currentRuns();
   const items = runs.map((r) => ({ id: r.ref, ref: r.ref }));
   try {
@@ -762,8 +760,7 @@ async function runTopic() {
     beginRankPaint({ resetUser: true });
   } catch (e) {
     if (gen !== rankGeneration) return;
-    err.hidden = false;
-    err.textContent = rankErrorMessage(e);
+    errorIn(form, rankErrorMessage(e));
     rankOrder = [];
     rankFailed = true;
   } finally {
@@ -814,9 +811,9 @@ refField.addEventListener("input", () => {
   let topicTimer = 0;
   topicField.addEventListener("input", () => {
     clearTimeout(topicTimer);
-    const err = $("#relevance-error");
+    const form = $("#add");
     const cleaned = sanitizeTopic(topicField.value);
-    if (!cleaned) err.hidden = true, (err.textContent = "");
+    if (!cleaned) errorIn(form, "");
     if (groupBy === TOPIC_MODE) {
       rankGeneration++;
       rankOrder = [];
@@ -1347,19 +1344,7 @@ libName.addEventListener("blur", () => {
 });
 
 // ---- menu
-// One ••• control: desktop parks it in #dock-tray (header); phones put it on the modes row.
-// Settings panels hide ••• (Done/Close go back) so nothing is orphaned at the bottom.
-function placeMenu() {
-  const menu = $("#menu");
-  const tray = $("#dock-tray");
-  const modes = $("#modes-menu");
-  if (!menu || !tray || !modes) return;
-  const mobile = matchMedia("(max-width: 600px)").matches;
-  const onMain = $("#main") && !$("#main").hidden;
-  const dest = mobile && onMain ? modes : tray;
-  if (menu.parentElement !== dest) dest.append(menu);
-  if (menu.open && !(mobile && onMain)) menu.open = false;
-}
+// One ••• control permanently in <header>: reachable on both desktop and phone, even when the library is empty.
 
 // Keep the focused field on screen when the soft keyboard opens on phone settings.
 document.addEventListener("focusin", (e) => {
@@ -1384,30 +1369,6 @@ document.addEventListener("keydown", (e) => {
     menu.querySelector("summary")?.focus();
   }
 });
-addEventListener("resize", placeMenu);
-queueMicrotask(placeMenu);
-
-/** Keep #main's bottom padding equal to the fixed mobile dock so the list never sits under it. */
-{
-  const dock = $("#chrome-dock");
-  const main = $("#main");
-  const syncDockPad = () => {
-    if (!dock || !main || main.hidden) return;
-    if (!matchMedia("(max-width: 600px)").matches) {
-      main.style.removeProperty("--dock-h");
-      return;
-    }
-    main.style.setProperty("--dock-h", `${dock.getBoundingClientRect().height}px`);
-  };
-  if (typeof ResizeObserver === "function") new ResizeObserver(syncDockPad).observe(dock);
-  addEventListener("resize", syncDockPad);
-  // After mode / relevance-bar toggles change the dock's height.
-  const mo = typeof MutationObserver === "function"
-    ? new MutationObserver(syncDockPad)
-    : null;
-  mo?.observe(dock, { attributes: true, subtree: true, attributeFilter: ["hidden", "aria-pressed"] });
-  queueMicrotask(syncDockPad);
-}
 
 function menuAction(sel, fn) {
   for (const el of document.querySelectorAll(sel)) {

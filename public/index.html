@@ -69,6 +69,20 @@
   <section id="main" hidden>
     <header>
       <strong id="lib-name" contenteditable="plaintext-only" role="textbox" aria-label="Library name" spellcheck="false" enterkeyhint="done"></strong>
+      <details id="menu">
+        <summary aria-label="Menu">•••</summary>
+        <div>
+          <button type="button" id="open-sync">Sync</button>
+          <button type="button" id="open-colors">Colors</button>
+          <button type="button" id="open-backup">Backup</button>
+          <hr>
+          <button type="button" class="theme-toggle menu-theme" aria-label="Switch to dark mode" title="Switch to dark mode"></button>
+          <a class="menu-link" href="https://github.com/dpshde/selah-vault/blob/main/SPEC.md" target="_blank" rel="noopener">Contract</a>
+          <hr class="menu-extra">
+          <span class="menu-status" id="menu-auth-status" hidden></span>
+          <button type="button" id="lock">Log out</button>
+        </div>
+      </details>
     </header>
     <p id="flash" role="status"></p>
     <div id="passkey-offer" class="offer" hidden>
@@ -77,6 +91,27 @@
         <button type="button" class="quiet" id="offer-passkey">Add a passkey</button>
         <button type="button" class="link" id="skip-passkey">Not now</button>
       </div>
+    </div>
+
+    <form id="add" autocomplete="off" novalidate>
+      <button type="button" id="add-dot" class="pick" aria-haspopup="true" aria-label="Highlight color: Yellow"><span class="dot" data-color="yellow"></span></button>
+      <!-- Relevant/Surprising hijack #ref as the ranking scope; Topic swaps in #topic-ref in this same top slot. -->
+      <si-passage-input id="ref" placeholder="John 3:16" aria-label="Verse or passage"></si-passage-input>
+      <input id="topic-ref" class="topic-input" type="text" maxlength="200" placeholder="grace, fear of the Lord…" aria-label="Topic to sort highlights by" autocomplete="off" hidden>
+      <input type="hidden" name="color" value="yellow">
+      <button type="submit">Highlight</button>
+      <p class="error" role="alert"></p>
+    </form>
+
+    <div id="list-bar" class="list-bar" hidden>
+      <div id="group-by" class="segmented" role="group" aria-label="Sort highlights" hidden>
+        <button type="button" data-mode="date" aria-pressed="true">Date</button>
+        <button type="button" data-mode="genre" aria-pressed="false">Genre</button>
+        <button type="button" data-mode="relevant" aria-pressed="false">Relevant</button>
+        <button type="button" data-mode="surprising" aria-pressed="false">Surprising</button>
+        <button type="button" data-mode="topic" aria-pressed="false">Topic</button>
+      </div>
+      <span id="list-total" class="list-total" role="status"></span>
     </div>
 
     <div id="filters" role="group" aria-label="Show"></div>
@@ -93,54 +128,6 @@
       <p class="rank-preview-text"></p>
     </div>
     <div id="list"></div>
-    <!-- Desktop: display:contents so add/menu/foot keep their grid places. Mobile (≤600px): fixed thumb dock. -->
-    <div id="chrome-dock">
-      <form id="add" autocomplete="off" novalidate>
-        <button type="button" id="add-dot" class="pick" aria-haspopup="true" aria-label="Highlight color: Yellow"><span class="dot" data-color="yellow"></span></button>
-        <!-- Relevant/Surprising hijack this field as the ranking scope (placeholder/aria swap in app.js). -->
-        <si-passage-input id="ref" placeholder="John 3:16" aria-label="Verse or passage"></si-passage-input>
-        <input type="hidden" name="color" value="yellow">
-        <button type="submit">Highlight</button>
-        <p class="error" role="alert"></p>
-      </form>
-      <div id="list-foot" class="list-foot" hidden>
-        <!-- Topic keeps its own field here. Relevant/Surprising reuse #ref (no second passage box). -->
-        <div id="relevance-bar" class="relevance-bar" hidden>
-          <label class="relevance-label" for="topic-ref">Topic</label>
-          <input id="topic-ref" class="topic-input" type="text" maxlength="200" placeholder="grace, fear of the Lord…" aria-label="Topic to sort highlights by" autocomplete="off" hidden>
-          <p id="relevance-error" class="error" role="alert" hidden></p>
-        </div>
-        <div class="list-foot-row">
-          <span id="list-total" class="list-total" role="status"></span>
-          <!-- modes-menu: on phones ••• sits on the modes row; on desktop JS parks #menu in #dock-tray. -->
-          <div id="modes-menu" class="modes-menu">
-            <div id="group-by" class="segmented" role="group" aria-label="Sort highlights" hidden>
-              <button type="button" data-mode="date" aria-pressed="true" aria-label="Date" title="Date"><svg class="mode-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><rect x="3.5" y="5" width="17" height="15.5" rx="1.5"/><path d="M8 3.5v3"/><path d="M16 3.5v3"/><path d="M3.5 9.5h17"/></svg><span class="mode-label">Date</span></button>
-              <button type="button" data-mode="genre" aria-pressed="false" aria-label="Genre" title="Genre"><svg class="mode-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M5 4.5h5.5A3.5 3.5 0 0 1 14 8v12.5H8.5A3.5 3.5 0 0 0 5 17Z"/><path d="M19 4.5h-5.5A3.5 3.5 0 0 0 10 8v12.5h5.5A3.5 3.5 0 0 1 19 17Z"/></svg><span class="mode-label">Genre</span></button>
-              <button type="button" data-mode="relevant" aria-pressed="false" aria-label="Relevant" title="Relevant"><svg class="mode-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><circle cx="12" cy="12" r="7.5"/><circle cx="12" cy="12" r="2.25"/><path d="M12 2.5v2.5"/><path d="M12 19v2.5"/><path d="M2.5 12H5"/><path d="M19 12h2.5"/></svg><span class="mode-label">Relevant</span></button>
-              <button type="button" data-mode="surprising" aria-pressed="false" aria-label="Surprising" title="Surprising"><svg class="mode-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M12 3.5 13.6 9.2 19.5 11 13.6 12.8 12 18.5 10.4 12.8 4.5 11 10.4 9.2Z"/><path d="M18.2 4.5 18.8 6.6 21 7.2 18.8 7.8 18.2 10 17.6 7.8 15.4 7.2 17.6 6.6Z"/></svg><span class="mode-label">Surprising</span></button>
-              <button type="button" data-mode="topic" aria-pressed="false" aria-label="Topic" title="Topic"><svg class="mode-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M3.5 5.5h9.2L20.5 12l-7.8 6.5H3.5Z"/><circle cx="7.5" cy="12" r="1.25"/></svg><span class="mode-label">Topic</span></button>
-            </div>
-            <details id="menu">
-              <summary aria-label="Menu">•••</summary>
-              <div>
-                <button type="button" id="open-sync">Sync</button>
-                <button type="button" id="open-colors">Colors</button>
-                <button type="button" id="open-backup">Backup</button>
-                <hr>
-                <button type="button" class="theme-toggle menu-theme" aria-label="Switch to dark mode" title="Switch to dark mode"></button>
-                <a class="menu-link" href="https://github.com/dpshde/selah-vault/blob/main/SPEC.md" target="_blank" rel="noopener">Contract</a>
-                <hr class="menu-extra">
-                <span class="menu-status" id="menu-auth-status" hidden></span>
-                <button type="button" id="lock">Log out</button>
-              </div>
-            </details>
-          </div>
-        </div>
-      </div>
-      <!-- Desktop/tablet only host for #menu (header grid-area). Empty on phones. -->
-      <div id="dock-tray" class="dock-tray"></div>
-    </div>
     <div id="color-pop" popover role="group" aria-label="Highlight color"></div>
     <p id="empty" class="quiet-text">No highlights yet.</p>
   </section>

@@ -33,8 +33,8 @@ function verseText(map: Record<string, string>) {
   };
 }
 
-describe("UI copy and footer toggle", () => {
-  test("the list footer offers Date · Genre · Relevant · Surprising · Topic", () => {
+describe("UI copy and list toolbar toggle", () => {
+  test("the list bar offers Date · Genre · Relevant · Surprising · Topic above the list", () => {
     const bar = /<div id="group-by"[\s\S]*?<\/div>/.exec(html)?.[0] ?? "";
     expect([...bar.matchAll(/data-mode="([^"]+)"/g)].map((m) => m[1])).toEqual([
       "date",
@@ -43,8 +43,10 @@ describe("UI copy and footer toggle", () => {
       "surprising",
       "topic",
     ]);
-    // Relevant/Surprising hijack #ref — no second passage box. Topic keeps #topic-ref in the foot.
+    // Relevant/Surprising hijack #ref; Topic swaps in #topic-ref inside #add.
     expect(html).not.toContain('id="relevance-ref"');
+    expect(html).not.toContain('id="relevance-bar"');
+    expect(html).not.toContain('id="list-foot"');
     expect(html).toContain('id="ref"');
     expect(html).toContain("<si-passage-input id=\"ref\"");
     expect(html).toContain('id="topic-ref"');
@@ -53,26 +55,23 @@ describe("UI copy and footer toggle", () => {
     expect(app).toContain("rank-scope");
     expect(app).toContain("clearRankScopeFromRef");
     expect(css).toContain("#add.rank-scope");
-    // Topic field lives inside the list foot with the sort controls — inside #chrome-dock with add.
-    const footStart = html.indexOf('id="list-foot"');
-    const footEnd = html.indexOf('id="color-pop"');
-    const foot = html.slice(footStart, footEnd);
-    expect(footStart).toBeGreaterThan(html.indexOf('id="add"'));
-    expect(html.indexOf('id="chrome-dock"')).toBeLessThan(html.indexOf('id="add"'));
-    expect(foot).toContain('id="relevance-bar"');
-    expect(foot).not.toContain('id="relevance-ref"');
-    expect(foot).toContain('id="topic-ref"');
-    expect(foot).toContain('id="group-by"');
-    expect(foot).toContain("list-foot-row");
-    expect(html.indexOf('id="relevance-bar"')).toBeGreaterThan(footStart);
-    expect(html.indexOf('id="filters"') < html.indexOf('id="relevance-bar"')).toBe(true);
-    // Preview sits above the list; topic bar stays in the foot.
-    expect(html.indexOf('id="rank-preview"')).toBeLessThan(html.indexOf('id="list"'));
-    expect(html.indexOf('id="rank-preview"')).toBeGreaterThan(html.indexOf('id="filters"'));
-    const between = html.slice(html.indexOf('id="filters"'), html.indexOf('id="list"'));
-    expect(between).not.toContain('id="relevance-bar"');
-    expect(between).toContain('id="rank-preview"');
-    expect(css).toContain(".list-foot-row");
+    // Topic field lives inside #add beside #ref; #list-bar sits directly below #add and above #filters / #list.
+    const addStart = html.indexOf('id="add"');
+    const barStart = html.indexOf('id="list-bar"');
+    const filtersStart = html.indexOf('id="filters"');
+    const listStart = html.indexOf('id="list"');
+    expect(addStart).toBeGreaterThan(html.indexOf("<header>"));
+    expect(html.slice(addStart, barStart)).toContain('id="topic-ref"');
+    expect(barStart).toBeGreaterThan(addStart);
+    expect(filtersStart).toBeGreaterThan(barStart);
+    expect(listStart).toBeGreaterThan(filtersStart);
+    const listBar = html.slice(barStart, filtersStart);
+    expect(listBar).toContain('id="group-by"');
+    expect(listBar).toContain('id="list-total"');
+    // Preview sits above the list, after filters.
+    expect(html.indexOf('id="rank-preview"')).toBeLessThan(listStart);
+    expect(html.indexOf('id="rank-preview"')).toBeGreaterThan(filtersStart);
+    expect(css).toContain(".list-bar");
     expect(css).toContain(".rank-preview");
     expect(css).toContain("-webkit-line-clamp");
   });
@@ -157,9 +156,9 @@ describe("UI copy and footer toggle", () => {
     // Typing a new ref clears the old list and shows loading before the debounced request.
     expect(app).toMatch(/addEventListener\("input"[\s\S]*?rankGeneration\+\+[\s\S]*?rankPending = true/);
     expect(app).toContain('rankPending = true;\n  render(); // loading before any network / verse fetch');
-    // Foot status always above the mode control — never side-by-side overlap at mid widths.
+    // List bar keeps status right-aligned with wrap when needed.
     expect(css).toContain("white-space: nowrap");
-    expect(css).toMatch(/\.list-foot-row\s*\{[^}]*flex-direction:\s*column/);
+    expect(css).toMatch(/\.list-bar\s*\{[^}]*justify-content:\s*space-between/);
     expect(css).toContain(".list-total:empty { display: none; }");
   });
 

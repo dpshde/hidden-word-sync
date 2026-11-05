@@ -21,8 +21,11 @@ test("the contract link goes where For developers' spec link does", () => {
 test("the ••• menu is Sync · Colors · Backup, then theme/contract/status on phones, then Log out", () => {
   expect(html.match(/theme-toggle/g)).toHaveLength(2);
   expect(html).toContain('id="menu-auth-status"');
-  expect(html).toContain('id="modes-menu"');
+  expect(html).not.toContain('id="modes-menu"');
   expect(html).not.toContain('id="panel-slot"');
+  const header = /<section id="main"[\s\S]*?<header>([\s\S]*?)<\/header>/.exec(html)?.[1] ?? "";
+  expect(header).toContain('id="lib-name"');
+  expect(header).toContain('id="menu"');
   const menu = /<details id="menu">([\s\S]*?)<\/details>/.exec(html)?.[1] ?? "";
   expect(menu).toContain('id="open-sync"');
   expect(menu).toContain('id="open-colors"');
@@ -42,41 +45,34 @@ test("the footer never says anything about sync, and auth status is only signed 
   expect(show).toContain('SIGNED_IN.has(id) ? "Signed in" : "Signed out"');
   expect(show).toContain("#auth-status, #menu-auth-status");
   expect(app).toContain('const SIGNED_IN = new Set(["main", "colors", "backup", "sync"]);');
-  expect(app).toContain("function placeMenu()");
+  expect(app).not.toContain("function placeMenu()");
 });
 
-test("small screens get a fixed thumb dock; desktop keeps shell-meta", () => {
-  expect(html).toContain('id="chrome-dock"');
-  expect(html).toContain('id="dock-tray"');
-  expect(css).toContain("#chrome-dock { display: contents; }");
-  // Desktop grid: list row is 1fr so the column fills the viewport (not a barren mid-canvas stack).
-  expect(css).toMatch(/#main:not\(\[hidden\]\)\s*\{[\s\S]*?minmax\(0,\s*1fr\)/);
-  expect(css).toMatch(/@media \(max-width: 600px\)[\s\S]*?#chrome-dock\s*\{[^}]*position:\s*fixed/);
+test("top-down flow on desktop and phone: #add then #list-bar above #filters and #list; no #chrome-dock", () => {
+  expect(html).not.toContain('id="chrome-dock"');
+  expect(html).not.toContain('id="dock-tray"');
+  expect(html).not.toContain('id="list-foot"');
+  expect(html).toContain('id="list-bar"');
+  expect(css).not.toContain("#chrome-dock");
+  expect(css).toMatch(/#main:not\(\[hidden\]\)\s*\{[\s\S]*?display:\s*flex;[\s\S]*?flex-direction:\s*column/);
   expect(css).toMatch(/@media \(max-width: 600px\)[\s\S]*?min-height:\s*44px/);
   expect(css).toMatch(/body:has\(#main:not\(\[hidden\]\), #colors:not\(\[hidden\]\), #backup:not\(\[hidden\]\), #sync:not\(\[hidden\]\)\) > \.shell-meta \{[\s\S]*?display: none/);
 });
 
-test("phone ••• sits on the modes row; sheet holds theme/contract/status", () => {
+test("phone ••• stays in <header> (reachable even when library is empty); sheet holds theme/contract/status", () => {
   const mobile = css.slice(css.indexOf("@media (max-width: 600px)"));
   expect(mobile).toContain("--dock-pad-x: .75rem");
-  expect(mobile).toMatch(/#chrome-dock > #dock-tray \{ display: none; \}/);
-  expect(mobile).toMatch(/\.modes-menu \{[\s\S]*?grid-template-columns: minmax\(0, 1fr\) 44px;/);
+  expect(mobile).toMatch(/#menu > summary \{[\s\S]*?min-height: 44px;/);
   expect(mobile).toMatch(/#menu > div button,[\s\S]*?\.menu-status \{[\s\S]*?min-height: 44px;/);
   expect(css).toContain("#menu > div { min-width: 12rem; padding: 0; }");
 });
 
-test("phone mode segments use icons; inactive icon-only, active icon plus label", () => {
+test("mode segments use plain text labels in #list-bar on both desktop and phone", () => {
   for (const mode of ["date", "genre", "relevant", "surprising", "topic"]) {
-    expect(html).toMatch(new RegExp(`data-mode="${mode}"[^>]*aria-label="[^"]+"[^>]*title="`));
-    expect(html).toMatch(new RegExp(`data-mode="${mode}"[\\s\\S]*?<svg class="mode-icon"`));
-    expect(html).toMatch(new RegExp(`data-mode="${mode}"[\\s\\S]*?<span class="mode-label">`));
+    expect(html).toContain(`data-mode="${mode}"`);
   }
-  const mobile = css.slice(css.indexOf("@media (max-width: 600px)"));
-  expect(mobile).toContain("#group-by.segmented button .mode-icon");
-  expect(mobile).toContain('#group-by.segmented button .mode-label { display: none; }');
-  expect(mobile).toContain('#group-by.segmented button[aria-pressed="true"] .mode-label { display: block; }');
-  // Desktop keeps text; icons stay hidden.
-  expect(css).toContain(".mode-icon { display: none; }");
+  expect(html).not.toContain("mode-icon");
+  expect(css).toContain(".list-bar .segmented");
 });
 
 test("phone Colors/Sync/Backup are top-aligned pages with header close and pinned Done", () => {

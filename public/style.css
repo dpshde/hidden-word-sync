@@ -199,12 +199,14 @@ details > div button:hover { background: var(--hover); box-shadow: inset 3px 0 0
 /* The add form, built like route.bible's search row: the color in a square cell, the field, and the
    action as one inverted block, all one height and joined edge to edge. */
 #add { grid-template-columns: auto 1fr auto; align-items: stretch; gap: 0; }
-/* Relevant/Surprising hide the color + Highlight control; #ref alone is the ranking scope. */
+/* Relevant/Surprising/Topic hide the color + Highlight control; #ref or #topic-ref alone is the scope. */
 #add.rank-scope { grid-template-columns: 1fr; }
 #add .error { grid-column: 1 / -1; margin-top: .5rem; }
 #add > button[type="submit"] { height: 2.75rem; padding: 0 1.125rem; }
 #add > button[type="submit"][hidden],
-#add-dot[hidden] { display: none; }
+#add-dot[hidden],
+#ref[hidden],
+.topic-input[hidden] { display: none; }
 /* scripture-inline's <si-passage-input> reads these tokens inside its shadow root. Its --accent is the
    highlighted suggestion, so it gets the hover color here rather than ours (which fills buttons). */
 si-passage-input {
@@ -253,39 +255,30 @@ button.dot[aria-pressed="true"] { border-color: var(--fg); }
 #list .group[open] > summary::before { transform: rotate(45deg) translate(-1px, -1px); }
 #list .group > summary:hover { background: color-mix(in oklab, var(--accent) 86%, var(--bg)); }
 #list .group > summary:focus-visible { outline-offset: 2px; }
-/* One composition under the list: sort controls, and (when Relevant/Surprising) the passage field
-   in the same bordered block — not a second floating box under the add form. */
-.list-foot {
+/* Top list toolbar: sort/group modes on the left and total/status on the right, directly above the list. */
+.list-bar {
   display: flex;
-  flex-direction: column;
-  gap: .625rem;
-  margin: .75rem 0 0;
-  padding: .75rem;
-  border: 1px solid var(--line-subtle);
-  border-radius: 0;
-  background: var(--surface);
-}
-.list-foot[hidden] { display: none; }
-/* Status always above the mode control — side-by-side at mid widths was overlapping the long hint / “least obvious”. */
-.list-foot-row {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: .5rem;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem .75rem;
+  margin: 0 0 .75rem;
   min-width: 0;
 }
+.list-bar[hidden] { display: none; }
 .list-total {
   font-family: var(--font-label); font-size: .75rem; color: var(--muted);
   font-variant-numeric: tabular-nums; white-space: nowrap; line-height: 1.2;
   min-width: 0; overflow: hidden; text-overflow: ellipsis;
+  margin-left: auto;
 }
 .list-total:empty { display: none; }
-.list-foot .segmented { margin: 0; flex: none; max-width: 100%; align-self: flex-end; flex-wrap: wrap; justify-content: flex-end; }
-.list-foot .segmented button { padding: .25rem .625rem; font-size: .6875rem; cursor: pointer; }
+.list-bar .segmented { margin: 0; flex: none; max-width: 100%; flex-wrap: wrap; }
+.list-bar .segmented button { padding: .25rem .625rem; font-size: .6875rem; cursor: pointer; }
 @media (max-width: 420px) {
-  .list-foot .segmented button { padding: .25rem .45rem; font-size: .625rem; letter-spacing: .04em; }
+  .list-bar .segmented button { padding: .25rem .45rem; font-size: .625rem; letter-spacing: .04em; }
 }
-/* Jev empty scope: calm hint in the list area (not the foot status). */
+/* Jev empty scope: calm hint in the list area (not the bar status). */
 .rank-hint {
   margin: 1.25rem .75rem;
   color: var(--muted);
@@ -293,21 +286,13 @@ button.dot[aria-pressed="true"] { border-color: var(--fg); }
   line-height: 1.45;
   text-align: center;
 }
-/* Topic field lives with the sort toggle. Relevant/Surprising use #ref — no second passage box. */
-.relevance-bar { margin: 0; position: relative; z-index: 5; }
-.relevance-bar[hidden] { display: none; }
-.relevance-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
-/* Topic mode: plain text field (no verse autocomplete). */
+/* Topic mode: plain text field (no verse autocomplete) in the same top #add slot as #ref. */
 .topic-input {
-  display: block; width: 100%; height: 2.5rem; padding: 0 .75rem;
-  font: 450 .9375rem/1.5 var(--font-sans); color: var(--fg);
+  display: block; width: 100%; height: 2.75rem; padding: 0 .875rem;
+  font: 450 1rem/1.5 var(--font-sans); color: var(--fg);
   background: var(--raised); border: 1px solid var(--line); border-radius: 0;
 }
 .topic-input:focus-visible { outline: 2px solid var(--focus); outline-offset: -1px; }
-.topic-input[hidden] { display: none; }
-.relevance-label[hidden] { display: none; }
-#relevance-error { margin: .375rem 0 0; font-size: .8125rem; }
-#relevance-error[hidden] { display: none; }
 /* Input passage preview above Relevant/Surprising results (not used in Topic).
    Compact: clamp long BSB text to a few lines; no expand control exists for this block. */
 .rank-preview {
@@ -522,10 +507,6 @@ a.shell-link:focus-visible, button.shell-link:focus-visible { color: var(--fg); 
 .shell-status[hidden] { display: none; }
 .menu-status { cursor: default; }
 .menu-status[hidden] { display: none; }
-.modes-menu { display: contents; } /* desktop: group-by stays in foot; #menu is moved to #dock-tray */
-/* Mode icons are phone-only; desktop keeps text labels. */
-.mode-icon { display: none; }
-.mode-label { display: inline; }
 /* Desktop popover stays Sync · Colors · Backup · Log out (phone-only rows hidden). */
 @media (min-width: 601px) {
   #menu .menu-link, #menu .menu-theme, #menu .menu-status, #menu .menu-extra { display: none; }
@@ -541,57 +522,28 @@ si-passage::part(loader) { visibility: hidden; animation: si-loader-late 0s line
 @keyframes si-loader-late { to { visibility: visible; } }
 
 /* Library view: the page never scrolls, only the highlights list does. body is a 100dvh column
-   (main, then the footer); #main lays out header / add / list / foot while #list scrolls on its own.
-   Start/unlock pages keep normal flow. No rubber-band on the page anywhere. */
+   (main, then the footer); #main lays out header / add / list-bar / list in natural top-down flow
+   while #list scrolls on its own. Start/unlock pages keep normal flow. No rubber-band on the page. */
 html, body { overscroll-behavior: none; overflow-x: clip; }
 html:has(#main:not([hidden])), body:has(#main:not([hidden])) { height: 100dvh; overflow: hidden; }
 body:has(#main:not([hidden])) main { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; padding-bottom: 1rem; }
-/* Desktop/tablet: grid so #chrome-dock can be display:contents while add stays above the list and
-   the foot below it, with ••• back in the header row. The list row MUST be 1fr — without it every
-   row sizes to content and the column collapses mid-canvas (barren #ref + orphan modes tray). */
 #main:not([hidden]) {
   flex: 1 1 auto; min-height: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-rows: auto auto auto auto auto auto auto minmax(0, 1fr) auto auto;
-  grid-template-areas:
-    "head menu"
-    "flash flash"
-    "offer offer"
-    "add add"
-    "filters filters"
-    "rnone rnone"
-    "preview preview"
-    "list list"
-    "foot foot"
-    "empty empty";
+  display: flex;
+  flex-direction: column;
 }
-#main:not([hidden]) > header { grid-area: head; }
-#main:not([hidden]) > #flash { grid-area: flash; }
-#main:not([hidden]) > #passkey-offer { grid-area: offer; }
-#main:not([hidden]) > #filters { grid-area: filters; }
-#main:not([hidden]) > #relevance-none { grid-area: rnone; }
-#main:not([hidden]) > #rank-preview { grid-area: preview; }
-#main:not([hidden]) > #list { grid-area: list; min-height: 0; min-width: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
-#main:not([hidden]) > #empty { grid-area: empty; }
-#main:not([hidden]) > #color-pop { grid-area: list; } /* popover; not laid out */
-#chrome-dock { display: contents; }
-#chrome-dock > #add { grid-area: add; min-width: 0; width: 100%; }
-#chrome-dock > #list-foot { grid-area: foot; min-width: 0; width: 100%; }
-#chrome-dock > #dock-tray { grid-area: menu; justify-self: end; align-self: start; margin-bottom: 1.5rem; }
-.dock-tray { display: flex; align-items: center; gap: .5rem; }
-.dock-meta { display: none; } /* mobile only — desktop uses .shell-meta */
+#main:not([hidden]) > #list { flex: 1 1 auto; min-height: 0; min-width: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
 body:has(#main:not([hidden])) .shell-meta { flex-shrink: 0; }
 /* Short screens: pull the offset toward the safe-area floor so the list keeps a usable height. */
 @media (max-height: 40rem) { main:not(.oauth-main) { padding-top: max(calc(env(safe-area-inset-top) + 1rem), calc(34dvh - 140px)); } }
 
-/* —— Mobile library (≤600px): one-handed thumb dock — */
+/* —— Mobile library (≤600px): top-down list toolbar + header menu — */
 @media (max-width: 600px) {
-  /* One horizontal inset for the dock, the ••• sheet, and Sync/Colors/Backup. */
+  /* One horizontal inset for the ••• sheet and Sync/Colors/Backup. */
   :root { --dock-pad-x: .75rem; }
   body:has(#main:not([hidden])) main {
     padding-top: max(calc(env(safe-area-inset-top) + .75rem), 1.25rem);
-    padding-bottom: 0;
+    padding-bottom: max(env(safe-area-inset-bottom, 0px), .75rem);
     max-width: none;
   }
   /* Phone settings: top-aligned phone page (not the desktop optical vertical offset). */
@@ -607,118 +559,21 @@ body:has(#main:not([hidden])) .shell-meta { flex-shrink: 0; }
   body:has(#main:not([hidden]), #colors:not([hidden]), #backup:not([hidden]), #sync:not([hidden])) > .shell-meta {
     display: none;
   }
-  #main:not([hidden]) {
-    display: flex;
-    flex-direction: column;
-    /* --dock-h from #chrome-dock (app.js); shorter without the old tray row. */
-    padding-bottom: var(--dock-h, calc(9.5rem + env(safe-area-inset-bottom, 0px)));
-  }
   #main:not([hidden]) > header { margin-bottom: .75rem; }
-  #main:not([hidden]) > #list { flex: 1 1 auto; }
-  #chrome-dock {
-    display: flex;
-    flex-direction: column;
-    gap: .5rem;
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 40;
-    margin: 0;
-    padding: .625rem var(--dock-pad-x) calc(.625rem + env(safe-area-inset-bottom, 0px));
-    background: var(--surface);
-    border-top: 1px solid var(--line);
-    box-shadow: 0 -10px 28px color-mix(in oklab, var(--fg) 10%, transparent);
-  }
-  /* Thumb order: sort modes (+ •••) → add/Highlight. No bottom tray. */
-  #chrome-dock > #list-foot { order: 1; margin: 0; }
-  #chrome-dock > #add { order: 2; margin: 0; }
-  #chrome-dock > #dock-tray { display: none; }
-  #list-foot {
-    padding: .5rem 0 0;
-    border: 0;
-    background: transparent;
-  }
-  .list-foot-row { gap: .375rem; }
-  /* Modes + ••• share one full-width row (same inset as the add/reference row). */
-  .modes-menu {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 44px;
-    gap: 1px;
-    align-items: stretch;
-    width: 100%;
-    min-height: 44px;
-    background: var(--line);
-    border: 1px solid var(--line);
-    box-sizing: border-box;
-  }
-  #group-by.segmented {
-    display: flex;
-    width: 100%;
-    min-width: 0;
-    align-self: stretch;
-    flex-wrap: nowrap;
-    margin: 0;
-    background: var(--surface);
-  }
-  #group-by.segmented button {
-    display: inline-flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: .125rem;
-    flex: 1 1 0;
-    min-width: 0;
-    min-height: 44px;
-    padding: .35rem .05rem;
-    font-size: .5rem;
-    letter-spacing: 0;
-    white-space: nowrap;
-    overflow: visible;
-    line-height: 1.1;
-  }
-  #group-by.segmented button .mode-icon {
-    display: block;
-    flex: none;
-    width: 16px;
-    height: 16px;
-  }
-  /* Inactive: icon only; active: icon + label (fits at 375 with •••).
-     Active label is block so it stacks under the icon in the column flex button. */
-  #group-by.segmented button .mode-label { display: none; }
-  #group-by.segmented button[aria-pressed="true"] .mode-label { display: block; }
-  #add { margin: 0; }
+  #add { margin: 0 0 .75rem; }
   #add > button[type="submit"],
   #add-dot,
-  #add si-passage-input::part(input) {
+  #add si-passage-input::part(input),
+  .topic-input {
     min-height: 44px;
     height: 44px;
-  }
-  #add si-passage-input::part(listbox) {
-    top: auto;
-    bottom: calc(100% - 1px);
-  }
-  /* ••• cell on the modes row; sheet opens upward across the full modes-menu width. */
-  .modes-menu { position: relative; }
-  #menu {
-    position: static;
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-    width: 100%;
-    height: 100%;
-    padding: 0;
-    background: var(--surface);
   }
   #menu > summary {
     display: grid;
     place-items: center;
-    flex: 1 1 auto;
-    width: 100%;
-    min-width: 0;
+    min-width: 44px;
     min-height: 44px;
-    height: 100%;
-    padding: 0;
+    padding: 0 .5rem;
     font-size: 1.125rem;
     letter-spacing: .16em;
     color: var(--fg);
@@ -726,13 +581,9 @@ body:has(#main:not([hidden])) .shell-meta { flex-shrink: 0; }
   }
   #menu[open] > summary { background: var(--hover); color: var(--fg); }
   #menu > div {
-    position: absolute;
-    top: auto;
-    bottom: calc(100% + 6px);
-    left: 0;
+    top: calc(100% + 6px);
     right: 0;
-    width: auto;
-    min-width: 0;
+    min-width: 13.5rem;
     box-sizing: border-box;
   }
   #menu > div button,
@@ -774,11 +625,6 @@ body:has(#main:not([hidden])) .shell-meta { flex-shrink: 0; }
     margin: 0;
   }
   #menu > div .menu-extra { display: block; }
-  /* Topic field stays reachable above the modes (Relevant/Surprising use #ref). */
-  .topic-input {
-    min-height: 44px;
-    height: 44px;
-  }
   .rank-preview { margin-bottom: .5rem; }
 
   /* —— Phone settings pages (Colors / Sync / Backup) —— */
