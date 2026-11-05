@@ -57,9 +57,11 @@ const SIGNED_IN = new Set(["main", "colors", "backup", "sync"]);
 
 function show(id) {
   for (const section of document.querySelectorAll("main > section")) section.hidden = section.id !== id;
-  const status = $("#auth-status");
-  status.textContent = SIGNED_IN.has(id) ? "Signed in" : "Signed out";
-  status.hidden = false;
+  const label = SIGNED_IN.has(id) ? "Signed in" : "Signed out";
+  for (const status of document.querySelectorAll("#auth-status, #dock-auth-status")) {
+    status.textContent = label;
+    status.hidden = false;
+  }
 }
 
 /** Shows a passing message, with an optional button such as `{ label: "Undo", run, ms }`. */
@@ -1335,6 +1337,28 @@ document.addEventListener("keydown", (e) => {
     menu.querySelector("summary").focus();
   }
 });
+
+/** Keep #main's bottom padding equal to the fixed mobile dock so the list never sits under it. */
+{
+  const dock = $("#chrome-dock");
+  const main = $("#main");
+  const syncDockPad = () => {
+    if (!dock || !main || main.hidden) return;
+    if (!matchMedia("(max-width: 600px)").matches) {
+      main.style.removeProperty("--dock-h");
+      return;
+    }
+    main.style.setProperty("--dock-h", `${dock.getBoundingClientRect().height}px`);
+  };
+  if (typeof ResizeObserver === "function") new ResizeObserver(syncDockPad).observe(dock);
+  addEventListener("resize", syncDockPad);
+  // After mode / relevance-bar toggles change the dock's height.
+  const mo = typeof MutationObserver === "function"
+    ? new MutationObserver(syncDockPad)
+    : null;
+  mo?.observe(dock, { attributes: true, subtree: true, attributeFilter: ["hidden", "aria-pressed"] });
+  queueMicrotask(syncDockPad);
+}
 
 function menuAction(id, fn) {
   $(id).addEventListener("click", async () => {

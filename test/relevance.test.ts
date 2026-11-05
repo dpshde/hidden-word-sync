@@ -47,11 +47,12 @@ describe("UI copy and footer toggle", () => {
     expect(html).toContain("<si-passage-input id=\"relevance-ref\"");
     expect(html).toContain('id="topic-ref"');
     expect(html).toContain('placeholder="Rom 8:18–25"');
-    // Passage/topic field lives inside the list foot with the sort controls — not under the add form.
+    // Passage/topic field lives inside the list foot with the sort controls — inside #chrome-dock with add.
     const footStart = html.indexOf('id="list-foot"');
     const footEnd = html.indexOf('id="color-pop"');
     const foot = html.slice(footStart, footEnd);
     expect(footStart).toBeGreaterThan(html.indexOf('id="add"'));
+    expect(html.indexOf('id="chrome-dock"')).toBeLessThan(html.indexOf('id="add"'));
     expect(foot).toContain('id="relevance-bar"');
     expect(foot).toContain('id="relevance-ref"');
     expect(foot).toContain('id="topic-ref"');

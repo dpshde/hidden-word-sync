@@ -69,16 +69,6 @@
   <section id="main" hidden>
     <header>
       <strong id="lib-name" contenteditable="plaintext-only" role="textbox" aria-label="Library name" spellcheck="false" enterkeyhint="done"></strong>
-      <details id="menu">
-        <summary aria-label="Menu">•••</summary>
-        <div>
-          <button type="button" id="open-sync">Sync</button>
-          <button type="button" id="open-colors">Colors</button>
-          <button type="button" id="open-backup">Backup</button>
-          <hr>
-          <button type="button" id="lock">Log out</button>
-        </div>
-      </details>
     </header>
     <p id="flash" role="status"></p>
     <div id="passkey-offer" class="offer" hidden>
@@ -88,13 +78,6 @@
         <button type="button" class="link" id="skip-passkey">Not now</button>
       </div>
     </div>
-    <form id="add" autocomplete="off" novalidate>
-      <button type="button" id="add-dot" class="pick" aria-haspopup="true" aria-label="Highlight color: Yellow"><span class="dot" data-color="yellow"></span></button>
-      <si-passage-input id="ref" placeholder="John 3:16" aria-label="Verse or passage"></si-passage-input>
-      <input type="hidden" name="color" value="yellow">
-      <button type="submit">Highlight</button>
-      <p class="error" role="alert"></p>
-    </form>
 
     <div id="filters" role="group" aria-label="Show"></div>
     <div id="relevance-none" class="offer relevance-none" hidden role="status">
@@ -110,22 +93,49 @@
       <p class="rank-preview-text"></p>
     </div>
     <div id="list"></div>
-    <div id="list-foot" class="list-foot" hidden>
-      <div id="relevance-bar" class="relevance-bar" hidden>
-        <label class="relevance-label" for="relevance-ref">Passage</label>
-        <si-passage-input id="relevance-ref" placeholder="Rom 8:18–25" aria-label="Passage to rank highlights against"></si-passage-input>
-        <label class="relevance-label" for="topic-ref">Topic</label>
-        <input id="topic-ref" class="topic-input" type="text" maxlength="200" placeholder="grace, fear of the Lord…" aria-label="Topic to sort highlights by" autocomplete="off" hidden>
-        <p id="relevance-error" class="error" role="alert" hidden></p>
+    <!-- Desktop: display:contents so add/menu/foot keep their grid places. Mobile (≤600px): fixed thumb dock. -->
+    <div id="chrome-dock">
+      <form id="add" autocomplete="off" novalidate>
+        <button type="button" id="add-dot" class="pick" aria-haspopup="true" aria-label="Highlight color: Yellow"><span class="dot" data-color="yellow"></span></button>
+        <si-passage-input id="ref" placeholder="John 3:16" aria-label="Verse or passage"></si-passage-input>
+        <input type="hidden" name="color" value="yellow">
+        <button type="submit">Highlight</button>
+        <p class="error" role="alert"></p>
+      </form>
+      <div id="list-foot" class="list-foot" hidden>
+        <div id="relevance-bar" class="relevance-bar" hidden>
+          <label class="relevance-label" for="relevance-ref">Passage</label>
+          <si-passage-input id="relevance-ref" placeholder="Rom 8:18–25" aria-label="Passage to rank highlights against"></si-passage-input>
+          <label class="relevance-label" for="topic-ref">Topic</label>
+          <input id="topic-ref" class="topic-input" type="text" maxlength="200" placeholder="grace, fear of the Lord…" aria-label="Topic to sort highlights by" autocomplete="off" hidden>
+          <p id="relevance-error" class="error" role="alert" hidden></p>
+        </div>
+        <div class="list-foot-row">
+          <span id="list-total" class="list-total" role="status"></span>
+          <div id="group-by" class="segmented" role="group" aria-label="Sort highlights" hidden>
+            <button type="button" data-mode="date" aria-pressed="true">Date</button>
+            <button type="button" data-mode="genre" aria-pressed="false">Genre</button>
+            <button type="button" data-mode="relevant" aria-pressed="false">Relevant</button>
+            <button type="button" data-mode="surprising" aria-pressed="false">Surprising</button>
+            <button type="button" data-mode="topic" aria-pressed="false">Topic</button>
+          </div>
+        </div>
       </div>
-      <div class="list-foot-row">
-        <span id="list-total" class="list-total" role="status"></span>
-        <div id="group-by" class="segmented" role="group" aria-label="Sort highlights" hidden>
-          <button type="button" data-mode="date" aria-pressed="true">Date</button>
-          <button type="button" data-mode="genre" aria-pressed="false">Genre</button>
-          <button type="button" data-mode="relevant" aria-pressed="false">Relevant</button>
-          <button type="button" data-mode="surprising" aria-pressed="false">Surprising</button>
-          <button type="button" data-mode="topic" aria-pressed="false">Topic</button>
+      <div id="dock-tray" class="dock-tray">
+        <details id="menu">
+          <summary aria-label="Menu">•••</summary>
+          <div>
+            <button type="button" id="open-sync">Sync</button>
+            <button type="button" id="open-colors">Colors</button>
+            <button type="button" id="open-backup">Backup</button>
+            <hr>
+            <button type="button" id="lock">Log out</button>
+          </div>
+        </details>
+        <div class="dock-meta" aria-label="Theme and contract">
+          <button type="button" class="shell-link theme-toggle" aria-label="Switch to dark mode" title="Switch to dark mode"></button>
+          <a class="shell-link" href="https://github.com/dpshde/selah-vault/blob/main/SPEC.md" target="_blank" rel="noopener">Contract</a>
+          <span class="shell-link shell-status" id="dock-auth-status" hidden></span>
         </div>
       </div>
     </div>

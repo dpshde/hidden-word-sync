@@ -165,7 +165,7 @@ button.danger:not(.quiet) { background: transparent; border-color: transparent; 
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 
 header { display: flex; align-items: center; gap: .75rem; margin-bottom: 1.5rem; }
-header #menu { margin-left: auto; }
+#menu { margin-left: auto; }
 /* The library's name, edited in place: plain heading text until it has focus. */
 #lib-name { min-width: 2ch; max-width: 70%; overflow-wrap: anywhere; font-size: 1.25rem; font-weight: 700; letter-spacing: -.03em; line-height: 1.3; padding: .125rem .375rem; margin-left: -.375rem; border-radius: 0; outline: none; cursor: text; -webkit-user-modify: read-write-plaintext-only; transition: background-color var(--ease), box-shadow var(--ease); }
 #lib-name:focus { box-shadow: inset 0 0 0 1px var(--line); background: var(--raised); }
@@ -543,16 +543,159 @@ si-passage::part(loader) { visibility: hidden; animation: si-loader-late 0s line
 @keyframes si-loader-late { to { visibility: visible; } }
 
 /* Library view: the page never scrolls, only the highlights list does. body is a 100dvh column
-   (main, then the footer); #main is a column whose header, add field and Date/Genre toggle keep
-   their height while #list takes the rest and scrolls on its own, with expanded passages inside it.
-   Start/unlock pages keep normal flow, so they only scroll when they truly don't fit (a small phone
-   with the keyboard up). No rubber-band on the page anywhere. */
+   (main, then the footer); #main lays out header / add / list / foot while #list scrolls on its own.
+   Start/unlock pages keep normal flow. No rubber-band on the page anywhere. */
 html, body { overscroll-behavior: none; overflow-x: clip; }
 html:has(#main:not([hidden])), body:has(#main:not([hidden])) { height: 100dvh; overflow: hidden; }
 body:has(#main:not([hidden])) main { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; padding-bottom: 1rem; }
-#main:not([hidden]) { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
-#main:not([hidden]) > * { flex-shrink: 0; }
-#main:not([hidden]) > #list { flex: 1 1 auto; min-height: 0; min-width: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+/* Desktop/tablet: grid so #chrome-dock can be display:contents while add stays above the list and
+   the foot below it, with ••• back in the header row. */
+#main:not([hidden]) {
+  flex: 1 1 auto; min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas:
+    "head menu"
+    "flash flash"
+    "offer offer"
+    "add add"
+    "filters filters"
+    "rnone rnone"
+    "preview preview"
+    "list list"
+    "foot foot"
+    "empty empty";
+}
+#main:not([hidden]) > header { grid-area: head; }
+#main:not([hidden]) > #flash { grid-area: flash; }
+#main:not([hidden]) > #passkey-offer { grid-area: offer; }
+#main:not([hidden]) > #filters { grid-area: filters; }
+#main:not([hidden]) > #relevance-none { grid-area: rnone; }
+#main:not([hidden]) > #rank-preview { grid-area: preview; }
+#main:not([hidden]) > #list { grid-area: list; min-height: 0; min-width: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+#main:not([hidden]) > #empty { grid-area: empty; }
+#main:not([hidden]) > #color-pop { grid-area: list; } /* popover; not laid out */
+#chrome-dock { display: contents; }
+#chrome-dock > #add { grid-area: add; }
+#chrome-dock > #list-foot { grid-area: foot; }
+#chrome-dock > #dock-tray { grid-area: menu; justify-self: end; align-self: start; margin-bottom: 1.5rem; }
+.dock-tray { display: flex; align-items: center; gap: .5rem; }
+.dock-meta { display: none; } /* mobile only — desktop uses .shell-meta */
 body:has(#main:not([hidden])) .shell-meta { flex-shrink: 0; }
 /* Short screens: pull the offset toward the safe-area floor so the list keeps a usable height. */
 @media (max-height: 40rem) { main:not(.oauth-main) { padding-top: max(calc(env(safe-area-inset-top) + 1rem), calc(34dvh - 140px)); } }
+
+/* —— Mobile library (≤600px): one-handed thumb dock — */
+@media (max-width: 600px) {
+  body:has(#main:not([hidden])) main {
+    padding-top: max(calc(env(safe-area-inset-top) + .75rem), 1.25rem);
+    padding-bottom: 0;
+    max-width: none;
+  }
+  #main:not([hidden]) {
+    display: flex;
+    flex-direction: column;
+    /* --dock-h is measured from #chrome-dock (see app.js); fallback covers modes+add+tray. */
+    padding-bottom: var(--dock-h, calc(12.5rem + env(safe-area-inset-bottom, 0px)));
+  }
+  #main:not([hidden]) > header { margin-bottom: .75rem; }
+  #main:not([hidden]) > #list { flex: 1 1 auto; }
+  #chrome-dock {
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 40;
+    margin: 0;
+    padding: .625rem .75rem calc(.625rem + env(safe-area-inset-bottom, 0px));
+    background: var(--surface);
+    border-top: 1px solid var(--line);
+    box-shadow: 0 -10px 28px color-mix(in oklab, var(--fg) 10%, transparent);
+  }
+  /* Thumb order: sort modes (+ passage/topic) → add/Highlight → menu + theme */
+  #chrome-dock > #list-foot { order: 1; margin: 0; }
+  #chrome-dock > #add { order: 2; margin: 0; }
+  #chrome-dock > #dock-tray { order: 3; margin: 0; justify-self: stretch; align-self: stretch; width: 100%; }
+  #list-foot {
+    padding: .5rem .125rem 0;
+    border: 0;
+    background: transparent;
+  }
+  .list-foot-row { gap: .375rem; }
+  #group-by.segmented {
+    display: flex;
+    width: 100%;
+    align-self: stretch;
+    flex-wrap: nowrap;
+    margin: 0;
+  }
+  #group-by.segmented button {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 44px;
+    padding: .5rem .25rem;
+    font-size: .6875rem;
+    letter-spacing: .04em;
+  }
+  #add {
+    margin: 0;
+  }
+  #add > button[type="submit"],
+  #add-dot,
+  #add si-passage-input::part(input) {
+    min-height: 44px;
+    height: 44px;
+  }
+  /* Suggestions open upward above the dock so the keyboard and dock don't cover them. */
+  #add si-passage-input::part(listbox) {
+    top: auto;
+    bottom: calc(100% - 1px);
+  }
+  .dock-tray {
+    justify-content: space-between;
+    min-height: 44px;
+  }
+  .dock-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .dock-meta .shell-link {
+    min-height: 44px;
+    padding: 0 12px;
+    font-size: .75rem;
+  }
+  .dock-meta .theme-toggle {
+    width: 44px;
+    min-width: 44px;
+    flex: 0 0 44px;
+  }
+  /* Menu opens upward into the list, away from the thumb rest. */
+  #menu > summary {
+    display: grid;
+    place-items: center;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0 .75rem;
+    font-size: 1.125rem;
+    letter-spacing: .16em;
+  }
+  #menu > div {
+    top: auto;
+    bottom: calc(100% + 6px);
+    right: auto;
+    left: 0;
+  }
+  /* Desktop footer chips move into the dock on small screens. */
+  body:has(#main:not([hidden])) > .shell-meta { display: none; }
+  /* Passage / topic field stays reachable above the modes. */
+  .relevance-bar si-passage-input::part(input),
+  .topic-input {
+    min-height: 44px;
+    height: 44px;
+  }
+  .rank-preview { margin-bottom: .5rem; }
+}
