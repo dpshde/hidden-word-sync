@@ -59,8 +59,9 @@ export function createBsbText({
       const res = await fetch(url);
       if (!res.ok) throw new Error(`verse text ${res.status}`);
       const body = await res.json();
-      const text = plainFromHtml(body.content ?? body.text ?? "");
-      const entry = { text, truncated, fetchRef };
+      const rawHtml = String(body.content ?? body.text ?? "");
+      const text = plainFromHtml(rawHtml);
+      const entry = { text, html: rawHtml, truncated, fetchRef };
       cache.set(key, entry);
       return entry;
     })();

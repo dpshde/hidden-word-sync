@@ -364,8 +364,8 @@ export function createRelevance({
             return first;
           })();
       verseText.first?.(ref);
-      const { text } = await verseText.get(ref);
-      passage = { ref, label: found.label, text, verses: found.verses };
+      const { text, html } = await verseText.get(ref);
+      passage = { ref, label: found.label, text, html, verses: found.verses };
       return { label: found.label, ref, verses: found.verses };
     },
     setTopicInput(raw) {

@@ -102,6 +102,7 @@
       <button type="submit">Highlight</button>
       <p class="error" role="alert"></p>
     </form>
+    <p id="rank-epigraph" class="rank-epigraph" hidden></p>
 
     <div id="list-bar" class="list-bar" hidden>
       <div class="list-bar-top">
@@ -133,11 +134,15 @@
         <button type="button" class="link" id="relevance-none-date">Sort by Date</button>
       </div>
     </div>
-    <div id="rank-preview" class="rank-preview" hidden>
-      <p class="rank-preview-ref"></p>
-      <p class="rank-preview-text"></p>
-    </div>
+    <details id="rank-preview" class="rank-preview" hidden>
+      <summary class="rank-preview-summary">
+        <span class="rank-preview-text"></span>
+        <span class="rank-preview-toggle">Read ▾</span>
+      </summary>
+      <div id="rank-preview-body" class="rank-preview-body"></div>
+    </details>
     <div id="list"></div>
+    <p id="list-total" class="list-total" role="status"></p>
     <div id="color-pop" popover role="group" aria-label="Highlight color"></div>
     <p id="empty" class="quiet-text">No highlights yet.</p>
   </section>
@@ -215,6 +220,5 @@
   <a class="shell-link" href="https://github.com/dpshde/selah-vault/blob/main/SPEC.md" target="_blank" rel="noopener">Contract</a>
   <span class="shell-link shell-status" id="auth-status" hidden></span>
 </footer>
-<p id="list-total" class="list-total" role="status"></p>
 </body>
 </html>

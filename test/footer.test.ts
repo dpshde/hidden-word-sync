@@ -6,13 +6,14 @@ const app = readFileSync(new URL("../public/app.js", import.meta.url), "utf8");
 const css = readFileSync(new URL("../public/style.css", import.meta.url), "utf8");
 const footer = /<footer class="shell-meta">([\s\S]*?)<\/footer>/.exec(html)?.[1] ?? "";
 
-test("the footer holds the theme, the contract and the auth status, and #list-total sits beneath it", () => {
+test("the footer holds the theme, the contract and the auth status, and #list-total sits beneath #list inside #main", () => {
   const items = [...footer.matchAll(/<(button|a|span)\b[^>]*>/g)].map((m) => m[0]);
   expect(items).toHaveLength(3);
   expect(items[0]).toContain("theme-toggle");
   expect(items[1]).toContain('href="https://github.com/dpshde/selah-vault/blob/main/SPEC.md"');
   expect(items[2]).toContain('id="auth-status"');
-  expect(html.indexOf('id="list-total"')).toBeGreaterThan(html.indexOf("</footer>"));
+  expect(html.indexOf('id="list-total"')).toBeGreaterThan(html.indexOf('id="list"'));
+  expect(html.indexOf('id="list-total"')).toBeLessThan(html.indexOf('<footer class="shell-meta">'));
 });
 
 test("the contract link goes where For developers' spec link does", () => {

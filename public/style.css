@@ -337,19 +337,17 @@ button.dot[aria-pressed="true"] { border-color: var(--fg); }
 }
 .mode-select[hidden] { display: none; }
 .list-total {
-  position: relative;
-  z-index: 2;
-  flex-shrink: 0;
-  margin: 0;
-  padding: 0 max(24px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom)) max(24px, env(safe-area-inset-left));
-  font-family: var(--font-label); font-size: .6875rem; font-weight: 500; letter-spacing: .04em; text-transform: uppercase;
+  flex: none;
+  width: 100%;
+  margin: .375rem 0 0;
+  padding: 0;
+  font-family: var(--font-label); font-size: .75rem; font-weight: 500; letter-spacing: .04em; text-transform: uppercase;
   color: var(--muted);
   font-variant-numeric: tabular-nums; white-space: nowrap; line-height: 1.2;
   min-width: 0; overflow: hidden; text-overflow: ellipsis;
   text-align: right;
 }
-.list-total:empty,
-body:not(:has(#main:not([hidden]))) > .list-total { display: none; }
+.list-total:empty { display: none; }
 @media (max-width: 600px) {
   .list-bar .segmented { display: none; }
   .mode-select:not([hidden]) {
@@ -360,9 +358,6 @@ body:not(:has(#main:not([hidden]))) > .list-total { display: none; }
   .filter-menu > summary {
     min-height: 40px;
     height: 40px;
-  }
-  .list-total {
-    padding: .25rem 1.25rem max(.625rem, env(safe-area-inset-bottom, 0px));
   }
 }
 /* Jev empty scope: calm hint in the list area (not the bar status). */
@@ -380,21 +375,107 @@ body:not(:has(#main:not([hidden]))) > .list-total { display: none; }
   background: var(--raised); border: 1px solid var(--line); border-radius: 0;
 }
 .topic-input:focus-visible { outline: 2px solid var(--focus); outline-offset: -1px; }
-/* Input passage preview above Relevant/Surprising results (not used in Topic).
-   Compact: clamp long BSB text to a few lines; no expand control exists for this block. */
+/* Hybrid Relevant/Surprising passage preview:
+   - Short passages (≤ 2 verses, ≤ 200 chars): .rank-epigraph left-ruled under #add, no repeated title or box.
+   - Longer passages: .rank-preview one-line collapsible strip above #list that expands to BSB text with verse numbers. */
+.rank-epigraph {
+  width: 100%;
+  margin: -.25rem 0 .875rem;
+  padding: .125rem 0 .125rem .75rem;
+  border-left: 2px solid var(--line);
+  color: var(--muted);
+  font-size: .875rem;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+.rank-epigraph[hidden] { display: none; }
 .rank-preview {
-  margin: 0 0 .75rem; padding: .5rem .75rem;
-  background: var(--surface); border: 1px solid var(--line-subtle);
+  width: 100%;
+  margin: 0 0 .75rem;
+  padding: 0;
+  background: var(--surface);
+  border: 1px solid var(--line-subtle);
 }
 .rank-preview[hidden] { display: none; }
-.rank-preview-ref { margin: 0 0 .2rem; font-weight: 650; letter-spacing: -.015em; font-size: .9375rem; }
-.rank-preview-text {
-  margin: 0; color: var(--fg-2); font-size: .875rem; line-height: 1.4;
-  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden;
+.rank-preview > .rank-preview-summary {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .4375rem .75rem;
+  color: var(--fg-2);
+  font-size: .84375rem;
+  line-height: 1.35;
+  letter-spacing: normal;
+  cursor: pointer;
+  user-select: none;
 }
-@media (max-height: 40rem) {
-  .rank-preview { margin-bottom: .5rem; padding: .375rem .625rem; }
-  .rank-preview-text { -webkit-line-clamp: 2; font-size: .8125rem; }
+.rank-preview > .rank-preview-summary:hover {
+  background: var(--hover);
+  color: var(--fg);
+}
+.rank-preview-text {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  color: inherit;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rank-preview-toggle {
+  flex: none;
+  font-family: var(--font-label);
+  font-size: .6875rem;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.rank-preview > .rank-preview-body {
+  position: static;
+  display: block;
+  min-width: 0;
+  padding: .375rem .75rem .625rem;
+  background: var(--surface);
+  border: 0;
+  border-top: 1px solid var(--line-subtle);
+  box-shadow: none;
+  max-height: 14rem;
+  overflow-y: auto;
+}
+.rank-preview:not([open]) > .rank-preview-body { display: none; }
+.rank-preview-scripture {
+  margin: .125rem 0 0;
+  padding: .125rem 0 .125rem .875rem;
+  border-left: 2px solid var(--line);
+  color: var(--fg-2);
+  font-size: .9375rem;
+  line-height: 1.65;
+}
+.rank-preview-verses p { margin: 0 0 .45em; }
+.rank-preview-verses p:last-child { margin-bottom: 0; }
+.rank-preview-verses sup,
+.rank-preview-verses .yv-vlbl,
+.rank-preview-verses .va {
+  color: var(--muted);
+  font-size: .62em;
+  font-weight: 600;
+  letter-spacing: .02em;
+  vertical-align: .55em;
+  line-height: 0;
+  margin-inline: .2em .25em;
+  font-style: normal;
+}
+.rank-preview-cite {
+  margin-top: .25rem;
+  text-align: right;
+  font: 600 .6875rem/1 var(--font-label);
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--muted);
 }
 /* Add-field suggestions stay under that field and don't sprawl over the list foot. */
 #add si-passage-input { position: relative; z-index: 6; }
@@ -671,9 +752,6 @@ button.wide { width: 100%; padding: .8125rem 1rem; }
   padding: 0 max(24px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(24px, env(safe-area-inset-left));
   transform: scale(.85); transform-origin: bottom right;
 }
-body:has(#main:not([hidden])) > .shell-meta:has(+ .list-total:not(:empty)) {
-  padding-bottom: 6px;
-}
 .shell-link {
   display: inline-flex; align-items: center; justify-content: center;
   min-height: 32px; padding: 0 10px;
@@ -709,8 +787,9 @@ si-passage::part(loader) { visibility: hidden; animation: si-loader-late 0s line
 @keyframes si-loader-late { to { visibility: visible; } }
 
 /* Library view: the page never scrolls, only the highlights list does. body is a 100dvh column
-   (main, then the footer); #main lays out header / add / list-bar / list in natural top-down flow
-   while #list scrolls on its own. Start/unlock pages keep normal flow. No rubber-band on the page. */
+   (main, then the footer); #main lays out header / add / list-bar / list / list-total in natural top-down
+   flow while #list scrolls when it overflows. #list uses flex: 0 1 auto so #list-total hugs the bottom
+   of the highlight rows instead of being pushed down to the bottom of the viewport. */
 html, body { overscroll-behavior: none; overflow-x: clip; }
 html:has(#main:not([hidden])), body:has(#main:not([hidden])) { height: 100dvh; overflow: hidden; }
 body:has(#main:not([hidden])) main { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; padding-bottom: 1rem; }
@@ -720,7 +799,7 @@ body:has(#main:not([hidden])) main { flex: 1 1 auto; min-height: 0; display: fle
   flex-direction: column;
   width: 100%;
 }
-#main:not([hidden]) > #list { width: 100%; flex: 1 1 auto; min-height: 0; min-width: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+#main:not([hidden]) > #list { width: 100%; flex: 0 1 auto; min-height: 0; min-width: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
 #list .group, #list .group > summary, #list .rows, #list .rows > li { width: 100%; }
 body:has(#main:not([hidden])) .shell-meta { flex-shrink: 0; }
 /* Short screens: pull the offset toward the safe-area floor so the list keeps a usable height. */

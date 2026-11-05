@@ -71,14 +71,21 @@ describe("UI copy and list toolbar toggle", () => {
     expect(listBar).toContain('id="filter-options"');
     expect(listBar).toContain('id="group-by"');
     expect(listBar).not.toContain('id="list-total"');
-    expect(html.indexOf('id="list-total"')).toBeGreaterThan(html.indexOf('<footer class="shell-meta">'));
+    expect(html.indexOf('id="list-total"')).toBeGreaterThan(listStart);
+    expect(html.indexOf('id="list-total"')).toBeLessThan(html.indexOf('<footer class="shell-meta">'));
     expect(app).toContain("let filter = new Set()");
     expect(app).toContain('check.type = "checkbox"');
-    // Preview sits above the list, after list-bar.
+    // Hybrid preview: #rank-epigraph sits right under #add for short passages; collapsible #rank-preview sits above #list for longer passages.
+    const epigraphStart = html.indexOf('id="rank-epigraph"');
+    expect(epigraphStart).toBeGreaterThan(addStart);
+    expect(epigraphStart).toBeLessThan(barStart);
     expect(html.indexOf('id="rank-preview"')).toBeLessThan(listStart);
     expect(html.indexOf('id="rank-preview"')).toBeGreaterThan(filtersStart);
+    expect(app).toContain("SHORT_PREVIEW_MAX_VERSES");
+    expect(app).toContain("SHORT_PREVIEW_MAX_CHARS");
     expect(css).toContain(".list-bar");
     expect(css).toContain(".filter-menu");
+    expect(css).toContain(".rank-epigraph");
     expect(css).toContain(".rank-preview");
     expect(css).toContain("-webkit-line-clamp");
   });

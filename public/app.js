@@ -628,17 +628,96 @@ function clearRelevanceInput({ keepRef = false } = {}) {
   showRankPreview(null);
 }
 
-/** Compact preview of the input passage above Relevant/Surprising results (Topic uses header copy only). */
+/**
+ * Threshold for the hybrid Relevant/Surprising passage preview:
+ * - Short passages (≤ 2 verses and ≤ 200 chars, roughly ≤ 2 lines at the 32rem Vault measure):
+ *   Option 1 — quiet left-ruled epigraph (#rank-epigraph) directly under #ref, no repeated title or box.
+ * - Longer passages (> 2 verses or > 200 chars, e.g. multi-verse ranges or whole chapters):
+ *   Option 3 — one-line collapsible strip (#rank-preview) that expands to show the BSB text with verse numbers.
+ */
+const SHORT_PREVIEW_MAX_VERSES = 2;
+const SHORT_PREVIEW_MAX_CHARS = 200;
+let previewRenderedRef = null;
+
+function renderPreviewBody(body, passage) {
+  body.replaceChildren();
+  const block = document.createElement("div");
+  block.className = "rank-preview-scripture";
+  if (passage.html) {
+    const doc = new DOMParser().parseFromString(passage.html, "text/html");
+    for (const bad of doc.querySelectorAll("script, style, iframe, object")) bad.remove();
+    const p = document.createElement("div");
+    p.className = "rank-preview-verses";
+    p.innerHTML = doc.body.innerHTML;
+    block.append(p);
+  } else if (verseText.key) {
+    block.append(passageFor(passage.ref));
+  } else {
+    const p = document.createElement("p");
+    p.className = "rank-preview-verses";
+    p.textContent = passage.text;
+    block.append(p);
+  }
+  const cite = document.createElement("div");
+  cite.className = "rank-preview-cite";
+  cite.textContent = "BSB";
+  block.append(cite);
+  body.append(block);
+}
+
+/** Hybrid preview of the input passage in Relevant/Surprising (Topic uses header copy only). */
 function showRankPreview(passage) {
+  const epigraph = $("#rank-epigraph");
   const panel = $("#rank-preview");
   if (!passage?.text) {
-    panel.hidden = true;
+    if (epigraph) {
+      epigraph.hidden = true;
+      epigraph.textContent = "";
+    }
+    if (panel) {
+      panel.hidden = true;
+      panel.open = false;
+    }
+    previewRenderedRef = null;
     return;
   }
-  panel.querySelector(".rank-preview-ref").textContent = passage.label || labelRef(passage.ref);
-  panel.querySelector(".rank-preview-text").textContent = passage.text;
-  panel.hidden = false;
+  const verseCount = passage.verses?.length ?? 1;
+  const isShort = verseCount <= SHORT_PREVIEW_MAX_VERSES && passage.text.length <= SHORT_PREVIEW_MAX_CHARS;
+  if (isShort) {
+    if (panel) {
+      panel.hidden = true;
+      panel.open = false;
+    }
+    if (epigraph) {
+      epigraph.textContent = passage.text;
+      epigraph.hidden = false;
+    }
+    previewRenderedRef = passage.ref;
+    return;
+  }
+  if (epigraph) {
+    epigraph.hidden = true;
+    epigraph.textContent = "";
+  }
+  if (panel) {
+    panel.querySelector(".rank-preview-text").textContent = `“${passage.text}”`;
+    const body = $("#rank-preview-body");
+    if (previewRenderedRef !== passage.ref) {
+      panel.open = false;
+      const toggle = panel.querySelector(".rank-preview-toggle");
+      if (toggle) toggle.textContent = "Read ▾";
+      if (body) renderPreviewBody(body, passage);
+      previewRenderedRef = passage.ref;
+    }
+    panel.hidden = false;
+  }
 }
+
+$("#rank-preview")?.addEventListener("toggle", (e) => {
+  const panel = e.currentTarget;
+  const toggle = panel.querySelector(".rank-preview-toggle");
+  if (toggle) toggle.textContent = panel.open ? "Hide ▴" : "Read ▾";
+});
 
 /** Calm panel when a valid passage returns no relevant highlights — not the error line, not #empty. */
 function showRelevanceNone(info) {
