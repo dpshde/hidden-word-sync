@@ -225,7 +225,7 @@ details > div button:hover { background: var(--hover); box-shadow: inset 3px 0 0
    highlighted suggestion, so it gets the hover color here rather than ours (which fills buttons). */
 si-passage-input {
   min-width: 0;
-  --input: var(--line); --border: var(--line); --ring: var(--focus); --radius: 0px;
+  --input: var(--line); --border: var(--line); --grid-line: var(--line-subtle); --ring: var(--focus); --radius: 0px;
   --popover: var(--surface); --popover-foreground: var(--fg);
   --accent: var(--hover); --accent-foreground: var(--fg); --muted-foreground: var(--muted);
   --destructive: var(--danger);
@@ -237,8 +237,11 @@ si-passage-input::part(input):focus-visible { box-shadow: none; outline: 2px sol
 /* The field is narrow on a phone, beside the colors; its suggestions get room to read on one line. They
    hang from the field's bottom edge, square, like route.bible's. */
 si-passage-input::part(listbox) { top: calc(100% - 1px); right: auto; padding: 0; width: max-content; min-width: 100%; max-width: min(20rem, calc(100vw - 2.5rem)); border-radius: 0; box-shadow: var(--shadow); }
+si-passage-input::part(header) { padding: .4375rem .625rem; font-family: var(--font-label); font-size: .6875rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; background: var(--surface); color: var(--muted); }
 si-passage-input::part(option) { white-space: nowrap; padding: .625rem .875rem; border-radius: 0; border-bottom: 1px solid var(--line-subtle); font-size: .9375rem; font-weight: 600; letter-spacing: -.01em; transition: background-color .15s; }
 si-passage-input::part(option):last-child { border-bottom: 0; }
+si-passage-input::part(cell) { padding: .25rem; min-height: 2.5rem; border-bottom: 0; justify-content: center; text-align: center; font-variant-numeric: tabular-nums; cursor: pointer; }
+@media (max-width: 600px) { si-passage-input::part(cell) { min-height: 2.75rem; } }
 si-passage-input::part(count) { font-family: var(--font-label); font-size: .75rem; font-weight: 500; letter-spacing: .04em; text-transform: uppercase; }
 /* The add form's color: a dot like a row's, in a square cell joined to the field, centered over the
    row dots below (rows pad var(--gutter) on the left). */

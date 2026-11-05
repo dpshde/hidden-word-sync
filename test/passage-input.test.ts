@@ -82,3 +82,88 @@ test("hovering marks the option active without scrolling, so Enter takes it too"
   f.highlight(1);
   expect(scrolled).toBe(1); // arrow keys still scroll the option into view
 });
+
+test("chapter, verse, and range suggestions render a sticky header and pure-number grid cells while books stay a list", () => {
+  const makeNode = (tag: string): any => ({
+    tag,
+    id: "",
+    className: "",
+    textContent: "",
+    dataset: {} as Record<string, string>,
+    attrs: {} as Record<string, string>,
+    children: [] as any[],
+    setAttribute(k: string, v: string) { this.attrs[k] = v; },
+    removeAttribute(k: string) { delete this.attrs[k]; },
+    append(...nodes: any[]) { this.children.push(...nodes); },
+    replaceChildren(...nodes: any[]) { this.children = nodes; },
+  });
+  const prevCreate = document.createElement;
+  document.createElement = makeNode;
+  try {
+    const f = Object.create(Field.prototype);
+    const list = makeNode("ul");
+    list.id = "l";
+    Object.assign(f, {
+      list,
+      getAttribute: () => null,
+      input: { value: "Deuteronomy ", setAttribute() {}, removeAttribute() {} },
+    });
+    f.suggest();
+    expect(list.dataset.kind).toBe("chapter");
+    expect(list.children[0].className).toBe("si-grid-head");
+    expect(list.children[0].attrs.part).toBe("header");
+    expect(list.children[1].textContent).toBe("1");
+    expect(list.children[1].attrs.part).toBe("option cell");
+    expect(list.children[1].attrs["aria-label"]).toContain("Deuteronomy");
+
+    f.input.value = "Deuteronomy 29:";
+    f.suggest();
+    expect(list.dataset.kind).toBe("verse");
+    expect(list.children[0].className).toBe("si-grid-head");
+    expect(list.children[1].textContent).toBe("1");
+    expect(list.children[29].textContent).toBe("29");
+
+    f.input.value = "Joh";
+    f.suggest();
+    expect(list.dataset.kind).toBe("book");
+    expect(list.children[0].attrs.part).toBe("option");
+  } finally {
+    document.createElement = prevCreate;
+  }
+});
+
+test("verse grid supports range selection and Shift+Arrow range extension", () => {
+  const committed: string[] = [];
+  const verseSuggestions = [
+    { kind: "verse", canonical: "JHN.3.16", label: "John 3:16", insertText: "John 3:16" },
+    { kind: "verse", canonical: "JHN.3.17", label: "John 3:17", insertText: "John 3:17" },
+    { kind: "verse", canonical: "JHN.3.18", label: "John 3:18", insertText: "John 3:18" },
+  ];
+  const kids = [0, 1, 2].map((i) => ({
+    id: `l-${i}`,
+    dataset: { index: String(i) },
+    attrs: {} as Record<string, string>,
+    setAttribute(k: string, v: string) { this.attrs[k] = v; },
+    removeAttribute(k: string) { delete this.attrs[k]; },
+    scrollIntoView() {},
+  }));
+  const f = Object.create(Field.prototype);
+  Object.assign(f, {
+    suggestions: verseSuggestions,
+    active: 0,
+    rangeAnchor: -1,
+    draggingRange: false,
+    input: { value: "John 3:", setAttribute() {}, removeAttribute() {} },
+    list: { id: "l", hidden: false, dataset: { kind: "verse" }, children: kids },
+    commit: (val: string) => committed.push(val),
+  });
+  f.onKeydown({ key: "ArrowRight", shiftKey: true, preventDefault() {} });
+  f.onKeydown({ key: "ArrowRight", shiftKey: true, preventDefault() {} });
+  expect(f.rangeAnchor).toBe(0);
+  expect(f.active).toBe(2);
+  expect(kids[0].attrs["data-in-range"]).toBe("true");
+  expect(kids[1].attrs["data-in-range"]).toBe("true");
+  expect(kids[2].attrs["data-in-range"]).toBe("true");
+  f.onKeydown({ key: "Enter", preventDefault() {} });
+  expect(committed).toEqual(["John 3:16-18"]);
+});
