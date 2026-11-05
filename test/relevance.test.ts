@@ -183,6 +183,8 @@ describe("UI copy and list toolbar toggle", () => {
     expect(app).toContain('cta.className = "quiet rank-cta"');
     expect(css).toMatch(/\.rank-empty\s*\{[\s\S]*?background:\s*var\(--surface\)[\s\S]*?box-shadow:\s*none/);
     expect(css).toMatch(/\.rank-empty \.rank-cta\s*\{[\s\S]*?background:\s*var\(--raised\)/);
+    expect(css).toContain("#list .rows .row:hover");
+    expect(css).not.toContain("#list .row:hover");
     expect(app).toContain('$("#list-total").textContent = ""');
     expect(app).toMatch(/RANK_MODES\.includes\(groupBy\)\s*\?\s*!!relevance\?\.passage/);
     expect(app).toContain('relevance?.setTopicInput("")');
