@@ -70,7 +70,8 @@ describe("UI copy and list toolbar toggle", () => {
     expect(listBar).toContain('id="filters"');
     expect(listBar).toContain('id="filter-options"');
     expect(listBar).toContain('id="group-by"');
-    expect(listBar).toContain('id="list-total"');
+    expect(listBar).not.toContain('id="list-total"');
+    expect(html.indexOf('id="list-total"')).toBeGreaterThan(html.indexOf('<footer class="shell-meta">'));
     expect(app).toContain("let filter = new Set()");
     expect(app).toContain('check.type = "checkbox"');
     // Preview sits above the list, after list-bar.
@@ -166,7 +167,7 @@ describe("UI copy and list toolbar toggle", () => {
     expect(css).toContain("white-space: nowrap");
     expect(css).toMatch(/\.list-bar\s*\{[^}]*width:\s*100%/);
     expect(css).toMatch(/\.list-bar \.segmented\s*\{[^}]*flex:\s*1 1 0/);
-    expect(css).toContain(".list-total:empty { display: none; }");
+    expect(css).toContain(".list-total:empty");
   });
 
   test("network and Worker errors become human lines, not Failed to fetch", () => {
