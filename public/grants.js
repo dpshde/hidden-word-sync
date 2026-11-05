@@ -71,3 +71,4 @@ export function consentLines(scopes) {
   const cant = scopes.includes("highlights:write") ? "Can't delete your library or change your passkeys" : "Can't change or delete anything";
   return [...can, { ok: false, icon: "lock", text: cant }, { ok: true, icon: "clock", text: `Access expires in ${GRANT_DAYS} days · disconnect anytime` }];
 }
+/* asset-rev 2 */

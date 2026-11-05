@@ -206,3 +206,4 @@ export function registerSelahVaultTools(deps, modelContext = globalThis.document
   }
   return () => controller.abort();
 }
+/* asset-rev 2 */

@@ -38,10 +38,10 @@ def png(src, size):
 
 (PUB / "favicon.svg").write_text(svg())
 rounded, square = svg(css=False), svg(rx=0, css=False)
-for name, size in (("icon-192.png", 192), ("icon-512.png", 512)):
+for name, size in (("icon-192.r2.png", 192), ("icon-512.r2.png", 512)):
     png(rounded, size).save(PUB / name)
-png(square, 180).convert("RGB").save(PUB / "apple-touch-icon.png")  # iOS rounds it; no transparency
+png(square, 180).convert("RGB").save(PUB / "apple-touch-icon.r2.png")  # iOS rounds it; no transparency
 # Maskable: full bleed. The glyph's corners sit ~33% from centre, inside the 40% safe-zone circle.
-png(square, 512).convert("RGB").save(PUB / "icon-maskable-512.png")
-png(rounded, 256).save(PUB / "favicon.ico", sizes=[(16, 16), (32, 32), (48, 48)])
+png(square, 512).convert("RGB").save(PUB / "icon-maskable-512.r2.png")
+png(rounded, 256).save(PUB / "favicon.r2.ico", sizes=[(16, 16), (32, 32), (48, 48)])
 print("icons written, scale", SCALE)

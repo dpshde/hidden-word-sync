@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "cf dev",
-    "deploy": "cf deploy",
+    "deploy": "cf deploy && bun scripts/verify-assets.ts https://vault.selah.tools",
+    "verify:assets": "bun scripts/verify-assets.ts",
     "dry-run": "cf deploy --dry-run",
     "migrate:local": "sh scripts/d1-local.sh",
     "test": "bun test",

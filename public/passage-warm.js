@@ -82,3 +82,4 @@ export function defineKeepingLoaded(define, registry = globalThis.customElements
     registry.define = original;
   }
 }
+/* asset-rev 2 */

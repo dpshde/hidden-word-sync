@@ -135,3 +135,4 @@ $("#allow").addEventListener("click", async () => {
   }
 });
 $("#deny").addEventListener("click", () => finish({ error: "access_denied" }));
+/* asset-rev 2 */

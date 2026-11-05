@@ -41,3 +41,4 @@ export function armDelete(button, { label, idleHTML, onConfirm, ms = 3000, guard
   button.addEventListener("blur", disarm);
   return { disarm, armed: () => armedAt > 0 };
 }
+/* asset-rev 2 */
