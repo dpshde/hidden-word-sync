@@ -43,31 +43,36 @@ describe("UI copy and footer toggle", () => {
       "surprising",
       "topic",
     ]);
-    expect(html).toContain('id="relevance-ref"');
-    expect(html).toContain("<si-passage-input id=\"relevance-ref\"");
+    // Relevant/Surprising hijack #ref — no second passage box. Topic keeps #topic-ref in the foot.
+    expect(html).not.toContain('id="relevance-ref"');
+    expect(html).toContain('id="ref"');
+    expect(html).toContain("<si-passage-input id=\"ref\"");
     expect(html).toContain('id="topic-ref"');
-    expect(html).toContain('placeholder="Rom 8:18–25"');
-    // Passage/topic field lives inside the list foot with the sort controls — inside #chrome-dock with add.
+    expect(app).toContain('placeholder: "Rom 8:18–25"');
+    expect(app).toContain("syncRefFieldMode");
+    expect(app).toContain("rank-scope");
+    expect(app).toContain("clearRankScopeFromRef");
+    expect(css).toContain("#add.rank-scope");
+    // Topic field lives inside the list foot with the sort controls — inside #chrome-dock with add.
     const footStart = html.indexOf('id="list-foot"');
     const footEnd = html.indexOf('id="color-pop"');
     const foot = html.slice(footStart, footEnd);
     expect(footStart).toBeGreaterThan(html.indexOf('id="add"'));
     expect(html.indexOf('id="chrome-dock"')).toBeLessThan(html.indexOf('id="add"'));
     expect(foot).toContain('id="relevance-bar"');
-    expect(foot).toContain('id="relevance-ref"');
+    expect(foot).not.toContain('id="relevance-ref"');
     expect(foot).toContain('id="topic-ref"');
     expect(foot).toContain('id="group-by"');
     expect(foot).toContain("list-foot-row");
     expect(html.indexOf('id="relevance-bar"')).toBeGreaterThan(footStart);
     expect(html.indexOf('id="filters"') < html.indexOf('id="relevance-bar"')).toBe(true);
-    // Preview sits above the list; passage bar stays in the foot.
+    // Preview sits above the list; topic bar stays in the foot.
     expect(html.indexOf('id="rank-preview"')).toBeLessThan(html.indexOf('id="list"'));
     expect(html.indexOf('id="rank-preview"')).toBeGreaterThan(html.indexOf('id="filters"'));
     const between = html.slice(html.indexOf('id="filters"'), html.indexOf('id="list"'));
     expect(between).not.toContain('id="relevance-bar"');
     expect(between).toContain('id="rank-preview"');
     expect(css).toContain(".list-foot-row");
-    expect(css).toContain("bottom: calc(100% - 1px)");
     expect(css).toContain(".rank-preview");
     expect(css).toContain("-webkit-line-clamp");
   });
