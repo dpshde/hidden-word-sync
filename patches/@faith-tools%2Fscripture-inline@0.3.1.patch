@@ -1,3 +1,6 @@
+diff --git a/node_modules/@faith-tools/scripture-inline/.bun-tag-2032151b0a65619f b/.bun-tag-2032151b0a65619f
+new file mode 100644
+index 0000000000000000000000000000000000000000..e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
 diff --git a/node_modules/@faith-tools/scripture-inline/.bun-tag-6fe1738e50260aa b/.bun-tag-6fe1738e50260aa
 new file mode 100644
 index 0000000000000000000000000000000000000000..e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
@@ -5,7 +8,7 @@ diff --git a/node_modules/@faith-tools/scripture-inline/.bun-tag-c5276cdf6b0c09c
 new file mode 100644
 index 0000000000000000000000000000000000000000..e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
 diff --git a/dist/index.js b/dist/index.js
-index 6780b42e10f3a5415c64a25c435f5556f478ada2..beb29745b8269262dc211b3129111ab02489f7c2 100644
+index 6780b42e10f3a5415c64a25c435f5556f478ada2..b660fd644e83d69413268591fc5a5cd6fc4d8351 100644
 --- a/dist/index.js
 +++ b/dist/index.js
 @@ -404,7 +404,7 @@ function N(e) {
@@ -13,21 +16,22 @@ index 6780b42e10f3a5415c64a25c435f5556f478ada2..beb29745b8269262dc211b3129111ab0
  }
  // src/passage-input.ts
 -var P = "si-passage-input", F = "\n:host { display: block; position: relative; }\n.root { all: initial; display: block; position: relative; color: inherit; font: 0.875rem/1.5 var(--font-sans, system-ui, sans-serif); }\ninput {\n  box-sizing: border-box;\n  width: 100%;\n  height: 2.25rem;\n  margin: 0;\n  padding: 0.25rem 0.75rem;\n  font: inherit;\n  color: inherit;\n  background: none;\n  border: 1px solid var(--input, color-mix(in srgb, currentColor 20%, transparent));\n  border-radius: calc(var(--radius, 0.625rem) - 2px);\n  box-shadow: 0 1px 2px #0000000d;\n  outline: none;\n  transition: color 0.15s, box-shadow 0.15s;\n}\n/* iOS Safari zooms the page into a focused field whose text is under 16px. */\n@media (pointer: coarse) { input { font-size: 16px; } }\ninput:focus-visible {\n  border-color: var(--ring, Highlight);\n  box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring, Highlight) 50%, transparent);\n}\ninput[aria-invalid=\"true\"] { border-color: var(--destructive, #dc2626); }\ninput:disabled { cursor: not-allowed; opacity: 0.5; }\n[role=\"listbox\"] {\n  position: absolute;\n  inset: calc(100% + 4px) 0 auto;\n  z-index: 50;\n  box-sizing: border-box;\n  max-height: 16rem;\n  margin: 0;\n  padding: 4px;\n  overflow-y: auto;\n  list-style: none;\n  color: var(--popover-foreground, inherit);\n  background: var(--popover, Canvas);\n  border: 1px solid var(--border, color-mix(in srgb, currentColor 15%, transparent));\n  border-radius: var(--radius, 0.625rem);\n  box-shadow: 0 8px 24px -8px rgb(0 0 0 / 0.2);\n}\n[role=\"listbox\"][hidden] { display: none; }\n[role=\"option\"] > .si-passage-count {\n  /* The label wraps before the count does. */\n  flex-shrink: 0;\n  white-space: nowrap;\n  margin-inline-start: auto;\n  font-size: 0.75rem;\n  color: var(--muted-foreground, color-mix(in srgb, currentColor 60%, transparent));\n}\n[role=\"option\"] {\n  /* Baseline alignment keeps the smaller count on the label's line. */\n  display: flex;\n  align-items: baseline;\n  gap: 1rem;\n  padding: 0.375rem 0.5rem;\n  border-radius: calc(var(--radius, 0.625rem) - 4px);\n  cursor: default;\n}\n[role=\"option\"][aria-selected=\"true\"] {\n  color: var(--accent-foreground, inherit);\n  background: var(--accent, color-mix(in srgb, currentColor 10%, transparent));\n}\n[role=\"option\"][aria-disabled=\"true\"] {\n  color: var(--muted-foreground, color-mix(in srgb, currentColor 60%, transparent));\n}\n@media (hover: hover) and (pointer: fine) {\n  [role=\"option\"]:not([aria-disabled]):hover {\n    background: var(--accent, color-mix(in srgb, currentColor 10%, transparent));\n  }\n}", I = 0, L = (e, t) => `${e} ${t}${e === 1 ? "" : "s"}`, R = [...e].sort((e, n) => t[e].localeCompare(t[n], void 0, { numeric: !0 }));
-+var P = "si-passage-input", F = "\n:host { display: block; position: relative; }\n.root { all: initial; display: block; position: relative; color: inherit; font: 0.875rem/1.5 var(--font-sans, system-ui, sans-serif); }\ninput {\n  box-sizing: border-box;\n  width: 100%;\n  height: 2.25rem;\n  margin: 0;\n  padding: 0.25rem 0.75rem;\n  font: inherit;\n  color: inherit;\n  background: none;\n  border: 1px solid var(--input, color-mix(in srgb, currentColor 20%, transparent));\n  border-radius: calc(var(--radius, 0.625rem) - 2px);\n  box-shadow: 0 1px 2px #0000000d;\n  outline: none;\n  transition: color 0.15s, box-shadow 0.15s;\n}\n/* iOS Safari zooms the page into a focused field whose text is under 16px. */\n@media (pointer: coarse) { input { font-size: 16px; } }\ninput:focus-visible {\n  border-color: var(--ring, Highlight);\n  box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring, Highlight) 50%, transparent);\n}\ninput[aria-invalid=\"true\"] { border-color: var(--destructive, #dc2626); }\ninput:disabled { cursor: not-allowed; opacity: 0.5; }\n[role=\"listbox\"] {\n  position: absolute;\n  inset: calc(100% + 4px) 0 auto;\n  z-index: 50;\n  box-sizing: border-box;\n  max-height: 16rem;\n  margin: 0;\n  padding: 4px;\n  overflow-y: auto;\n  list-style: none;\n  color: var(--popover-foreground, inherit);\n  background: var(--popover, Canvas);\n  border: 1px solid var(--border, color-mix(in srgb, currentColor 15%, transparent));\n  border-radius: var(--radius, 0.625rem);\n  box-shadow: 0 8px 24px -8px rgb(0 0 0 / 0.2);\n}\n[role=\"listbox\"][hidden] { display: none; }\n[role=\"option\"] > .si-passage-count {\n  /* The label wraps before the count does. */\n  flex-shrink: 0;\n  white-space: nowrap;\n  margin-inline-start: auto;\n  font-size: 0.75rem;\n  color: var(--muted-foreground, color-mix(in srgb, currentColor 60%, transparent));\n}\n[role=\"option\"] {\n  /* Baseline alignment keeps the smaller count on the label's line. */\n  display: flex;\n  align-items: baseline;\n  gap: 1rem;\n  padding: 0.375rem 0.5rem;\n  border-radius: calc(var(--radius, 0.625rem) - 4px);\n  cursor: default;\n}\n[role=\"option\"][aria-selected=\"true\"] {\n  color: var(--accent-foreground, inherit);\n  background: var(--accent, color-mix(in srgb, currentColor 10%, transparent));\n}\n[role=\"option\"][aria-disabled=\"true\"] {\n  color: var(--muted-foreground, color-mix(in srgb, currentColor 60%, transparent));\n}\n[role=\"listbox\"]:is([data-kind=\"chapter\"], [data-kind=\"verse\"], [data-kind=\"range\"]) {\n  display: grid;\n  grid-template-columns: repeat(auto-fill, minmax(2.75rem, 1fr));\n  gap: 1px;\n  max-height: 18rem;\n  padding: 0;\n  background: var(--grid-line, var(--border, currentColor));\n}\n.si-grid-head {\n  grid-column: 1 / -1;\n  position: sticky;\n  top: 0;\n  z-index: 2;\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  gap: 0.375rem;\n  white-space: nowrap;\n  padding: 0.4375rem 0.625rem;\n  background: var(--popover, Canvas);\n  color: var(--muted-foreground, color-mix(in srgb, currentColor 60%, transparent));\n  font: 600 0.6875rem/1.2 var(--font-label, var(--font-sans, system-ui, sans-serif));\n  letter-spacing: 0.06em;\n  text-transform: uppercase;\n  user-select: none;\n}\n.si-grid-head strong {\n  color: var(--popover-foreground, inherit);\n  font-weight: 600;\n  overflow: hidden;\n  text-overflow: ellipsis;\n}\n[role=\"listbox\"]:is([data-kind=\"chapter\"], [data-kind=\"verse\"], [data-kind=\"range\"]) [role=\"option\"] {\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  gap: 0;\n  min-height: 2.5rem;\n  padding: 0.25rem;\n  border-radius: 0;\n  background: var(--popover, Canvas);\n  font-variant-numeric: tabular-nums;\n  font-weight: 600;\n  text-align: center;\n  user-select: none;\n}\n[role=\"listbox\"] [role=\"option\"]:is([aria-selected=\"true\"], [data-in-range=\"true\"]) {\n  color: var(--accent-foreground, inherit);\n  background: var(--accent, color-mix(in srgb, currentColor 10%, transparent));\n}\n@media (hover: hover) and (pointer: fine) {\n  [role=\"listbox\"] [role=\"option\"]:not([aria-disabled]):hover {\n    background: var(--accent, color-mix(in srgb, currentColor 10%, transparent));\n  }\n}", I = 0, L = (e, t) => `${e} ${t}${e === 1 ? "" : "s"}`, R = [...e].sort((e, n) => t[e].localeCompare(t[n], void 0, { numeric: !0 }));
++var P = "si-passage-input", F = "\n:host { display: block; position: relative; }\n.root { all: initial; display: block; position: relative; color: inherit; font: 0.875rem/1.5 var(--font-sans, system-ui, sans-serif); }\ninput {\n  box-sizing: border-box;\n  width: 100%;\n  height: 2.25rem;\n  margin: 0;\n  padding: 0.25rem 0.75rem;\n  font: inherit;\n  color: inherit;\n  background: none;\n  border: 1px solid var(--input, color-mix(in srgb, currentColor 20%, transparent));\n  border-radius: calc(var(--radius, 0.625rem) - 2px);\n  box-shadow: 0 1px 2px #0000000d;\n  outline: none;\n  transition: color 0.15s, box-shadow 0.15s;\n}\n/* iOS Safari zooms the page into a focused field whose text is under 16px. */\n@media (pointer: coarse) { input { font-size: 16px; } }\ninput:focus-visible {\n  border-color: var(--ring, Highlight);\n  box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring, Highlight) 50%, transparent);\n}\ninput[aria-invalid=\"true\"] { border-color: var(--destructive, #dc2626); }\ninput:disabled { cursor: not-allowed; opacity: 0.5; }\n[role=\"listbox\"] {\n  position: absolute;\n  inset: calc(100% + 4px) 0 auto;\n  z-index: 50;\n  box-sizing: border-box;\n  max-height: 16rem;\n  margin: 0;\n  padding: 4px;\n  overflow-y: auto;\n  list-style: none;\n  color: var(--popover-foreground, inherit);\n  background: var(--popover, Canvas);\n  border: 1px solid var(--border, color-mix(in srgb, currentColor 15%, transparent));\n  border-radius: var(--radius, 0.625rem);\n  box-shadow: 0 8px 24px -8px rgb(0 0 0 / 0.2);\n}\n/* !important: the grid kinds below set display: grid at the same specificity, which kept a closed grid on screen. */\n[role=\"listbox\"][hidden] { display: none !important; }\n[role=\"option\"] > .si-passage-count {\n  /* The label wraps before the count does. */\n  flex-shrink: 0;\n  white-space: nowrap;\n  margin-inline-start: auto;\n  font-size: 0.75rem;\n  color: var(--muted-foreground, color-mix(in srgb, currentColor 60%, transparent));\n}\n[role=\"option\"] {\n  /* Baseline alignment keeps the smaller count on the label's line. */\n  display: flex;\n  align-items: baseline;\n  gap: 1rem;\n  padding: 0.375rem 0.5rem;\n  border-radius: calc(var(--radius, 0.625rem) - 4px);\n  cursor: default;\n}\n[role=\"option\"][aria-selected=\"true\"] {\n  color: var(--accent-foreground, inherit);\n  background: var(--accent, color-mix(in srgb, currentColor 10%, transparent));\n}\n[role=\"option\"][aria-disabled=\"true\"] {\n  color: var(--muted-foreground, color-mix(in srgb, currentColor 60%, transparent));\n}\n[role=\"listbox\"]:is([data-kind=\"chapter\"], [data-kind=\"verse\"], [data-kind=\"range\"]) {\n  display: grid;\n  grid-template-columns: repeat(auto-fill, minmax(2.75rem, 1fr));\n  gap: 1px;\n  max-height: 18rem;\n  padding: 0;\n  background: var(--grid-line, var(--border, currentColor));\n}\n.si-grid-head {\n  grid-column: 1 / -1;\n  position: sticky;\n  top: 0;\n  z-index: 2;\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  gap: 0.375rem;\n  white-space: nowrap;\n  padding: 0.4375rem 0.625rem;\n  background: var(--popover, Canvas);\n  color: var(--muted-foreground, color-mix(in srgb, currentColor 60%, transparent));\n  font: 600 0.6875rem/1.2 var(--font-label, var(--font-sans, system-ui, sans-serif));\n  letter-spacing: 0.06em;\n  text-transform: uppercase;\n  user-select: none;\n}\n.si-grid-head strong {\n  color: var(--popover-foreground, inherit);\n  font-weight: 600;\n  overflow: hidden;\n  text-overflow: ellipsis;\n}\n[role=\"listbox\"]:is([data-kind=\"chapter\"], [data-kind=\"verse\"], [data-kind=\"range\"]) [role=\"option\"] {\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  gap: 0;\n  min-height: 2.5rem;\n  padding: 0.25rem;\n  border-radius: 0;\n  background: var(--popover, Canvas);\n  font-variant-numeric: tabular-nums;\n  font-weight: 600;\n  text-align: center;\n  user-select: none;\n}\n[role=\"listbox\"] [role=\"option\"]:is([aria-selected=\"true\"], [data-in-range=\"true\"]) {\n  color: var(--accent-foreground, inherit);\n  background: var(--accent, color-mix(in srgb, currentColor 10%, transparent));\n}\n@media (hover: hover) and (pointer: fine) {\n  [role=\"listbox\"] [role=\"option\"]:not([aria-disabled]):hover {\n    background: var(--accent, color-mix(in srgb, currentColor 10%, transparent));\n  }\n}", I = 0, L = (e, t) => `${e} ${t}${e === 1 ? "" : "s"}`, R = [...e].sort((e, n) => t[e].localeCompare(t[n], void 0, { numeric: !0 }));
  function z(n) {
  	return (n === "alphabetical" ? R : e).map((e) => ({
  		kind: "book",
-@@ -473,6 +473,9 @@ var K = class extends HTMLElement {
+@@ -473,6 +473,10 @@ var K = class extends HTMLElement {
  	list = document.createElement("ul");
  	suggestions = [];
  	active = -1;
 +	rangeAnchor = -1;
 +	draggingRange = !1;
 +	pendingChapter = null;
++	hoverArmed = !1;
  	committed = "";
  	constructor() {
  		super();
-@@ -489,14 +492,57 @@ var K = class extends HTMLElement {
+@@ -489,14 +493,64 @@ var K = class extends HTMLElement {
  			this.input.removeAttribute("aria-invalid"), this.internals.setValidity({}), this.suggest();
  		}), this.input.addEventListener("keydown", (e) => this.onKeydown(e)), this.input.addEventListener("focus", () => this.suggest()), this.input.addEventListener("click", () => this.list.hidden && this.suggest()), this.input.addEventListener("change", (e) => e.stopPropagation()), this.input.addEventListener("blur", () => {
  			this.close(), this.commit(this.input.value);
@@ -43,7 +47,14 @@ index 6780b42e10f3a5415c64a25c435f5556f478ada2..beb29745b8269262dc211b3129111ab0
 +			}
 +		});
 +		this.list.addEventListener("pointermove", (e) => {
-+			if (!this.draggingRange) return;
++			if (!this.draggingRange) {
++				if (e.pointerType === "mouse" && !this.hoverArmed) {
++					this.hoverArmed = !0;
++					let t = c(e);
++					t && Number(t.dataset.index) !== this.active && this.highlight(Number(t.dataset.index), !1);
++				}
++				return;
++			}
 +			let t = (this.shadowRoot?.elementFromPoint?.(e.clientX, e.clientY) ?? e.target)?.closest?.("[role=option]:not([aria-disabled])");
 +			if (t) {
 +				let e = Number(t.dataset.index);
@@ -73,7 +84,7 @@ index 6780b42e10f3a5415c64a25c435f5556f478ada2..beb29745b8269262dc211b3129111ab0
  		};
  		this.list.addEventListener("click", r);
 +		this.list.addEventListener("pointerover", (e) => {
-+			if (e.pointerType !== "mouse") return;
++			if (e.pointerType !== "mouse" || !this.hoverArmed) return;
 +			let t = c(e);
 +			t && Number(t.dataset.index) !== this.active && this.highlight(Number(t.dataset.index), !1);
 +		});
@@ -87,7 +98,7 @@ index 6780b42e10f3a5415c64a25c435f5556f478ada2..beb29745b8269262dc211b3129111ab0
  			let t = e.changedTouches[0];
  			!i || !t || Math.hypot(t.clientX - i.clientX, t.clientY - i.clientY) > 10 || (e.preventDefault(), r(e));
  		}), this.addEventListener("click", (e) => e.composedPath()[0] === this && this.input.focus());
-@@ -587,48 +633,123 @@ var K = class extends HTMLElement {
+@@ -587,48 +641,123 @@ var K = class extends HTMLElement {
  		}];
  	}
  	suggest() {
@@ -101,7 +112,7 @@ index 6780b42e10f3a5415c64a25c435f5556f478ada2..beb29745b8269262dc211b3129111ab0
 +		this.suggestions = this.pendingChapter ? (() => {
 +			let [n, r] = this.pendingChapter.canonical.split(".");
 +			return U(n, Number(r));
-+		})() : this.options(q), this.active = -1, this.rangeAnchor = -1, this.draggingRange = !1;
++		})() : this.options(q), this.active = -1, this.rangeAnchor = -1, this.draggingRange = !1, this.hoverArmed = !1;
 +		let e = this.suggestions[0]?.kind ?? "", n = e === "chapter" || e === "verse" || e === "range";
 +		this.list.dataset.kind = e;
 +		let r = [];

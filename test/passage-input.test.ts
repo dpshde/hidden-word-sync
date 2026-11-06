@@ -316,3 +316,53 @@ test("verse grid supports range selection and Shift+Arrow range extension", () =
   f.onKeydown({ key: "Enter", preventDefault() {} });
   expect(committed).toEqual(["John 3:16-18"]);
 });
+
+test("Enter on a chapter-only passage closes the verse grid with the field's own close()", () => {
+  const makeNode = (tag: string): any => ({
+    tag,
+    id: "",
+    className: "",
+    textContent: "",
+    dataset: {} as Record<string, string>,
+    attrs: {} as Record<string, string>,
+    children: [] as any[],
+    get childElementCount() { return this.children.length; },
+    setAttribute(k: string, v: string) { this.attrs[k] = v; },
+    removeAttribute(k: string) { delete this.attrs[k]; },
+    append(...nodes: any[]) { this.children.push(...nodes); },
+    replaceChildren(...nodes: any[]) { this.children = nodes; },
+  });
+  const prevCreate = document.createElement;
+  document.createElement = makeNode;
+  const committed: string[] = [];
+  try {
+    const f = Object.create(Field.prototype);
+    const list = makeNode("ul");
+    list.id = "l";
+    const input = makeNode("input");
+    input.value = "John ";
+    Object.assign(f, { list, input, getAttribute: () => null, pendingChapter: null, commit: (val: string) => committed.push(val) });
+    f.suggest();
+    f.accept(f.suggestions.find((s: { canonical: string }) => s.canonical === "JHN.3"));
+    expect(list.hidden).toBe(false);
+    expect(input.attrs["aria-expanded"]).toBe("true");
+    // A stationary mouse over the new grid must not pre-select a verse (Enter would commit John 3:N).
+    expect(f.active).toBe(-1);
+    expect(f.hoverArmed).toBe(false);
+
+    f.onKeydown({ key: "Enter", preventDefault() {} });
+    expect(committed).toEqual(["John 3"]);
+    expect(list.hidden).toBe(true);
+    expect(input.attrs["aria-expanded"]).toBe("false");
+    expect(f.pendingChapter).toBeNull();
+  } finally {
+    document.createElement = prevCreate;
+  }
+});
+
+test("a closed grid listbox stays hidden: [hidden] beats the grid kinds' display: grid", async () => {
+  // The chapter/verse/range grid rule sets display: grid at the same specificity as [hidden] and comes later,
+  // so without !important a closed verse grid kept painting after a chapter-only submit.
+  const src = await Bun.file(new URL("../public/vendor/scripture-inline.js", import.meta.url)).text();
+  expect(src).toContain('[role="listbox"][hidden] { display: none !important; }');
+});
