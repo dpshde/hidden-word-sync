@@ -118,9 +118,10 @@ export function totalCopy(shown, librarySize) {
   return `${shown} of ${librarySize} relevant`;
 }
 
-/** Rank-mode group header, e.g. "Related to Habakkuk 2:2". */
-export function relatedCopy(label) {
+/** Rank-mode group header. Relevant: "Related to …"; Surprising: "Unexpected links to …". */
+export function relatedCopy(label, mode = "relevant") {
   const named = String(label ?? "").trim();
+  if (mode === "surprising") return named ? `Unexpected links to ${named}` : "Unexpected";
   return named ? `Related to ${named}` : "Related";
 }
 

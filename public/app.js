@@ -517,7 +517,7 @@ function render() {
         const heading =
           groupBy === TOPIC_MODE
             ? topicCopy(relevance?.topic)
-            : relatedCopy(relevance?.passage?.label);
+            : relatedCopy(relevance?.passage?.label, groupBy);
         $("#list-total").textContent = rankStatusCopy(ranked.length, shown.length, groupBy);
         // New final paint: expand the new top unless the person toggled a row this query.
         applyRankAutoExpand(ranked[0].ref);

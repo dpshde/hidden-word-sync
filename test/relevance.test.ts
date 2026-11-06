@@ -145,9 +145,13 @@ describe("UI copy and list toolbar toggle", () => {
 
   test("rank-mode header and loading copy; stale generations are ignored; identical list markup", () => {
     expect(relatedCopy("Habakkuk 2:2")).toBe("Related to Habakkuk 2:2");
+    expect(relatedCopy("Habakkuk 2:2", "relevant")).toBe("Related to Habakkuk 2:2");
     expect(relatedCopy("")).toBe("Related");
+    expect(relatedCopy("Habakkuk 2:2", "surprising")).toBe("Unexpected links to Habakkuk 2:2");
+    expect(relatedCopy("", "surprising")).toBe("Unexpected");
+    expect(relatedCopy("Habakkuk 2:2", "surprising")).not.toBe(relatedCopy("Habakkuk 2:2", "relevant"));
     expect(rankingCopy()).toBe("Ranking…");
-    expect(app).toContain("relatedCopy(relevance?.passage?.label)");
+    expect(app).toContain("relatedCopy(relevance?.passage?.label, groupBy)");
     expect(app).toContain("topicCopy(relevance?.topic)");
     expect(app).toContain("rankingCopy()");
     expect(app).toMatch(/if \(rankPending\) \{[\s\S]*?rankingCopy\(\)/);
