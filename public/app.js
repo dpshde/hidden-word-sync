@@ -1470,11 +1470,16 @@ function wireTextToggle(toggle, li, runRef) {
     // Manual open/close during this query — don't let the next mode-switch paint override it.
     if (JEV_MODES.includes(groupBy) || topicQuery()) rankUserTouched = true;
     const wasOpen = verseText.open === runRef;
-    for (const other of document.querySelectorAll("#list .verse-text")) other.remove();
+    clearOpenVerseText();
     for (const other of document.querySelectorAll("#list .row-link[aria-expanded]")) other.setAttribute("aria-expanded", "false");
     verseText.open = wasOpen ? null : runRef;
     if (!wasOpen) (showText(li, runRef), toggle.setAttribute("aria-expanded", "true"));
   });
+}
+
+/** Remove any open passage or its loading skeleton from the list. */
+function clearOpenVerseText() {
+  for (const other of document.querySelectorAll("#list .verse-text, #list .verse-text-skel")) other.remove();
 }
 
 /** The run's <si-passage>, made once and kept, so a re-render doesn't refetch. */
@@ -1555,7 +1560,31 @@ const SCRIPTURE_CSS = `
 .wj { color: var(--vault-wj, inherit) !important; }
 `;
 
-/** Puts the run's passage under its row, with a rule in the row's color. */
+/** Compact placeholder under a row while <si-passage> finishes loading — matches verse-text rhythm. */
+function verseTextSkeleton(dot) {
+  const skel = document.createElement("div");
+  skel.className = "verse-text-skel";
+  skel.setAttribute("aria-hidden", "true");
+  if (dot) skel.style.setProperty("--row-color", getComputedStyle(dot).backgroundColor);
+  for (let i = 0; i < 3; i++) {
+    const line = document.createElement("span");
+    line.className = "verse-text-skel-line";
+    line.style.width = `${72 - i * 14}%`;
+    skel.append(line);
+  }
+  return skel;
+}
+
+/** True when the passage has finished loading (or failed) and is safe to show without mid-layout jump. */
+function passageReady(el) {
+  return !!(el?.loaded || el?.dataset?.verseError);
+}
+
+/**
+ * Puts the run's passage under its row, with a rule in the row's color.
+ * If not yet loaded: show a skeleton and only reveal <si-passage> after scripture-load/error
+ * (opacity fade unless prefers-reduced-motion). Already-warm passages open immediately.
+ */
 function showText(li, runRef) {
   const el = passageFor(runRef);
   el.className = "verse-text";
@@ -1563,7 +1592,47 @@ function showText(li, runRef) {
   const dot = li.querySelector(".dot");
   if (dot) el.style.setProperty("--row-color", getComputedStyle(dot).backgroundColor);
   li.querySelector(".row-link")?.setAttribute("aria-controls", el.id);
-  li.append(el);
+
+  const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const reveal = () => {
+    if (verseText.open !== runRef) return;
+    li.querySelector(".verse-text-skel")?.remove();
+    el.classList.toggle("verse-text-enter", !reduceMotion);
+    if (el.parentElement !== li) li.append(el);
+  };
+
+  if (passageReady(el)) {
+    reveal();
+    return;
+  }
+
+  // Not ready: reserve height with a skeleton; keep <si-passage> off the open row until load settles.
+  li.querySelector(".verse-text-skel")?.remove();
+  li.append(verseTextSkeleton(dot));
+  prefetchText(runRef);
+  if (!el.isConnected) {
+    let holder = $("#text-prefetch");
+    if (!holder) {
+      holder = document.createElement("div");
+      holder.id = "text-prefetch";
+      holder.hidden = true;
+      document.body.append(holder);
+    }
+    holder.append(el);
+  }
+
+  let settled = false;
+  const onReady = () => {
+    if (settled || verseText.open !== runRef) return;
+    settled = true;
+    reveal();
+  };
+  el.addEventListener("scripture-load", onReady, { once: true });
+  el.addEventListener("scripture-error", () => {
+    el.dataset.verseError = "1";
+    onReady();
+  }, { once: true });
+  setTimeout(onReady, 8000);
 }
 
 /** Shows a popover under its anchor (above it when there's no room below), kept on screen. */

@@ -63,6 +63,24 @@ test("the app wires it up, and the spinner only appears after 300ms", () => {
   expect(css).toContain("si-passage::part(loader) { visibility: hidden; animation: si-loader-late 0s linear .3s forwards; }");
 });
 
+test("expand waits for scripture-load: skeleton then fade-in; reduced-motion skips fade", () => {
+  const read = (p: string) => readFileSync(new URL(`../public/${p}`, import.meta.url), "utf8");
+  const app = read("app.js"), css = read("style.css");
+  expect(app).toContain("function showText(li, runRef)");
+  expect(app).toContain("function verseTextSkeleton");
+  expect(app).toContain("function clearOpenVerseText");
+  expect(app).toContain("passageReady(el)");
+  expect(app).toContain("verse-text-skel");
+  expect(app).toContain("verse-text-enter");
+  expect(app).toContain('el.addEventListener("scripture-load", onReady, { once: true })');
+  expect(app).toContain('el.addEventListener("scripture-error"');
+  expect(app).toContain('matchMedia("(prefers-reduced-motion: reduce)")');
+  expect(css).toContain(".verse-text-skel");
+  expect(css).toContain(".verse-text.verse-text-enter");
+  expect(css).toContain("verse-text-in");
+  expect(css).toMatch(/prefers-reduced-motion: reduce[\s\S]*?\.verse-text\.verse-text-enter/);
+});
+
 test("the keep-loaded patch is applied before <si-passage> is defined (callbacks are read at define time)", () => {
   const defined: Array<[string, any]> = [];
   const registry = { define(name: string, cls: any) { defined.push([name, cls]); } };

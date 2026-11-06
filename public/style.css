@@ -696,10 +696,12 @@ button.dot[aria-pressed="true"] { border-color: var(--fg); }
 @media (prefers-reduced-motion: reduce) {
   .related-sort,
   #list .group.rank-enter,
-  #list .group.rank-enter .rows > li {
+  #list .group.rank-enter .rows > li,
+  .verse-text.verse-text-enter {
     animation: none;
   }
-  .rank-skeleton-line { animation: none; }
+  .rank-skeleton-line,
+  .verse-text-skel-line { animation: none; }
   .topic-search-wrap,
   .topic-search-toggle,
   .list-bar .topic-search {
@@ -988,12 +990,42 @@ input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 50%; }
   --vault-verse: color-mix(in oklab, var(--muted) 85%, transparent);
   --vault-wj: color-mix(in oklab, var(--danger) 78%, var(--fg-2));
 }
+/* Reveal only after scripture-load — short opacity fade so verse numbers/citation don't pop mid-layout. */
+@keyframes verse-text-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.verse-text.verse-text-enter {
+  animation: verse-text-in .18s ease both;
+}
+/* Skeleton under the row while waiting for <si-passage> — same margins/rule as .verse-text. */
+.verse-text-skel {
+  display: block;
+  margin: .125rem .75rem 1.125rem calc(var(--gutter) + .5rem);
+  padding: .35rem 0 .35rem 1rem;
+  border-left: 2px solid color-mix(in oklab, var(--row-color, var(--line)) 70%, transparent);
+  min-height: 3.25rem;
+}
+.verse-text-skel-line {
+  display: block;
+  height: .65rem;
+  max-width: 36rem;
+  margin: .4rem 0;
+  background: color-mix(in oklab, var(--muted) 22%, var(--raised));
+  animation: rank-skeleton-pulse 1.1s ease-in-out infinite;
+}
+.verse-text-skel-line:first-child { margin-top: .15rem; }
+.verse-text-skel-line:last-child { margin-bottom: .15rem; width: 42%; }
 /* No copyright line (the BSB is public domain); the citation after the text shows just the version,
    small and tracked at the bottom right. */
 .verse-text::part(attribution) { display: none; }
 .verse-text::part(citation) { display: block; max-width: var(--vault-measure); margin: .25rem 0 0; font-size: 0; line-height: 1; text-align: right; }
 .verse-text::part(version) { font: 600 .6875rem/1 var(--font-label, "Lexend", sans-serif); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
-@media (max-width: 40rem) { .verse-text { margin-left: var(--gutter); margin-right: .25rem; padding-left: .875rem; --scripture-font-size: .9375rem; --scripture-line-height: 1.7; } }
+@media (max-width: 40rem) {
+  .verse-text,
+  .verse-text-skel { margin-left: var(--gutter); margin-right: .25rem; padding-left: .875rem; }
+  .verse-text { --scripture-font-size: .9375rem; --scripture-line-height: 1.7; }
+}
 
 /* The start screen: passkey first when this browser has passkeys, then the key form, then a way to start. */
 button.wide { width: 100%; padding: .8125rem 1rem; }

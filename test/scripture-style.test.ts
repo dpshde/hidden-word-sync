@@ -19,6 +19,10 @@ test("the passage gets a rule in its row's color and themed verse numbers and wo
   expect(app).toMatch(/\.wj \{ color: var\(--vault-wj/);
   expect(css).toMatch(/\.verse-text \{[^}]*border-left: 2px solid color-mix\(in oklab, var\(--row-color/);
   expect(css).toMatch(/--vault-wj: color-mix\(in oklab, var\(--danger\)/);
+  // Expand skeleton matches the same left rule so layout doesn't jump when text lands.
+  expect(css).toContain(".verse-text-skel");
+  expect(css).toMatch(/\.verse-text-skel \{[^}]*border-left: 2px solid color-mix\(in oklab, var\(--row-color/);
+  expect(app).toContain("function verseTextSkeleton");
 });
 
 test("the expanded row's reference has no underline; the row keeps its focus ring", () => {
