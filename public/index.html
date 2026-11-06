@@ -95,7 +95,7 @@
 
     <form id="add" autocomplete="off" novalidate>
       <button type="button" id="add-dot" class="pick" aria-haspopup="true" aria-label="Highlight color: Yellow"><span class="dot" data-color="yellow"></span></button>
-      <!-- Relevant/Surprising hijack #ref as the ranking scope. Topic search lives in #list-bar beside Filter. -->
+      <!-- Relevant/Surprising hijack #ref as the ranking scope. Topic search is a list-bar icon that expands. -->
       <si-passage-input id="ref" placeholder="John 3:16" aria-label="Verse or passage"></si-passage-input>
       <input type="hidden" name="color" value="yellow">
       <button type="submit">Highlight</button>
@@ -109,7 +109,10 @@
           <summary id="filter-summary" aria-label="Filter by color" title="Filter by color"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg><span id="filter-badge" class="filter-badge" hidden></span></summary>
           <div id="filter-options" role="group" aria-label="Filter by color"></div>
         </details>
-        <input id="topic-search" class="topic-search" type="search" enterkeyhint="search" maxlength="200" placeholder="Search by topic…" aria-label="Search highlights by topic" autocomplete="off">
+        <div id="topic-search-wrap" class="topic-search-wrap">
+          <button type="button" id="topic-search-toggle" class="topic-search-toggle" aria-label="Search by topic" title="Search by topic" aria-expanded="false" aria-controls="topic-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3-3"/></svg></button>
+          <input id="topic-search" class="topic-search" type="search" enterkeyhint="search" maxlength="200" placeholder="Search by topic…" aria-label="Search highlights by topic" autocomplete="off" tabindex="-1">
+        </div>
         <div id="group-by" class="segmented" role="group" aria-label="Sort highlights" hidden>
           <button type="button" data-mode="date" aria-pressed="true">Date</button>
           <button type="button" data-mode="genre" aria-pressed="false">Genre</button>

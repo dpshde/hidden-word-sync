@@ -329,6 +329,33 @@ function topicQuery() {
   return sanitizeTopic($("#topic-search")?.value ?? "");
 }
 
+/** Expand the list-bar topic search from its resting icon into the text field. */
+function openTopicSearch({ focus = true } = {}) {
+  const wrap = $("#topic-search-wrap");
+  const toggle = $("#topic-search-toggle");
+  const field = $("#topic-search");
+  if (!wrap || !toggle || !field) return;
+  wrap.classList.add("is-open");
+  toggle.setAttribute("aria-expanded", "true");
+  field.tabIndex = 0;
+  if (focus) field.focus();
+}
+
+/**
+ * Collapse topic search back to the icon. Stays expanded while the query is non-empty;
+ * empty + blur/Escape (or an explicit clear) restores the icon.
+ */
+function closeTopicSearch({ force = false } = {}) {
+  if (!force && topicQuery()) return;
+  const wrap = $("#topic-search-wrap");
+  const toggle = $("#topic-search-toggle");
+  const field = $("#topic-search");
+  if (!wrap || !toggle || !field) return;
+  wrap.classList.remove("is-open");
+  toggle.setAttribute("aria-expanded", "false");
+  field.tabIndex = -1;
+}
+
 /** Swap #add between add-highlight and passage-ranking (#ref) chrome. Topic search is orthogonal in #list-bar. */
 function syncRefFieldMode() {
   const ranking = RANK_MODES.includes(groupBy);
@@ -642,6 +669,7 @@ function clearRelevanceInput({ keepRef = false, keepSearch = false } = {}) {
   if (!keepSearch) {
     const topicField = $("#topic-search");
     if (topicField) topicField.value = "";
+    closeTopicSearch({ force: true });
   }
   errorIn($("#add"), "");
   rankGeneration++; // drop any in-flight response
@@ -950,12 +978,16 @@ refField.addEventListener("input", () => {
 
 {
   const topicField = $("#topic-search");
+  const topicToggle = $("#topic-search-toggle");
   let topicTimer = 0;
+  topicToggle.addEventListener("click", () => openTopicSearch());
   topicField.addEventListener("input", () => {
     clearTimeout(topicTimer);
     const form = $("#add");
     const cleaned = sanitizeTopic(topicField.value);
     if (!cleaned) errorIn(form, "");
+    // Stay expanded while typing a query; empty alone does not collapse (blur/Escape does).
+    if (cleaned) openTopicSearch({ focus: false });
     // Search owns the list whenever the field has a query — independent of Date/Genre/Relevant/Surprising.
     rankGeneration++;
     rankOrder = [];
@@ -978,10 +1010,26 @@ refField.addEventListener("input", () => {
     }
   });
   topicField.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      if (topicQuery()) {
+        topicField.value = "";
+        topicField.dispatchEvent(new Event("input", { bubbles: true }));
+        // Cleared but still expanded until a second Escape or blur.
+        return;
+      }
+      closeTopicSearch({ force: true });
+      topicToggle.focus();
+      return;
+    }
     if (e.key !== "Enter" || e.isComposing) return;
     e.preventDefault();
     clearTimeout(topicTimer);
     void runTopic();
+  });
+  topicField.addEventListener("blur", () => {
+    // Collapse only when empty; an active query keeps the field expanded.
+    closeTopicSearch();
   });
 }
 

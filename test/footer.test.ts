@@ -80,11 +80,13 @@ test("desktop uses segmented mode buttons in #list-bar; mobile (≤600px) uses a
   }
   expect(html).not.toContain('data-mode="topic"');
   expect(html).not.toContain('<option value="topic">');
+  expect(html).toContain('id="topic-search-toggle"');
   expect(html).toContain('id="topic-search"');
   expect(html).toContain('id="group-by-select"');
   expect(html).toContain('aria-label="Sort highlights"');
   expect(html).not.toContain("mode-icon");
   expect(css).toContain(".list-bar .segmented");
+  expect(css).toContain(".topic-search-toggle");
   expect(css).toContain(".list-bar .topic-search");
   expect(css).toMatch(/\.list-bar \.segmented button\s*\{[^}]*flex:\s*1 0 auto/);
   expect(css).toContain(".mode-select");
@@ -92,6 +94,8 @@ test("desktop uses segmented mode buttons in #list-bar; mobile (≤600px) uses a
   expect(css).toMatch(/@media \(max-width: 600px\)[\s\S]*?\.mode-select:not\(\[hidden\]\) \{[\s\S]*?display: block;/);
   expect(app).toContain("function selectMode(next)");
   expect(app).toContain('$("#group-by-select").value = groupBy');
+  expect(app).toContain("function openTopicSearch");
+  expect(app).toContain("function closeTopicSearch");
 });
 
 test("phone Colors/Sync/Backup are top-aligned pages with header close and pinned Done", () => {

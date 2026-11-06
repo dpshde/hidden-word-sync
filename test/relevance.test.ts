@@ -45,39 +45,50 @@ describe("UI copy and list toolbar toggle", () => {
     ]);
     expect(html).not.toContain('data-mode="topic"');
     expect(html).not.toContain('<option value="topic">');
-    // Relevant/Surprising hijack #ref; topic search is orthogonal chrome in #list-bar, not a 5th mode.
+    // Relevant/Surprising hijack #ref; topic search is an expandable icon in #list-bar, not a 5th mode.
     expect(html).not.toContain('id="relevance-ref"');
     expect(html).not.toContain('id="relevance-bar"');
     expect(html).not.toContain('id="list-foot"');
     expect(html).not.toContain('id="topic-ref"');
     expect(html).toContain('id="ref"');
     expect(html).toContain("<si-passage-input id=\"ref\"");
+    expect(html).toContain('id="topic-search-wrap"');
+    expect(html).toContain('id="topic-search-toggle"');
     expect(html).toContain('id="topic-search"');
+    expect(html).toContain('aria-label="Search by topic"');
+    expect(html).toContain('aria-controls="topic-search"');
+    expect(html).toContain('aria-expanded="false"');
     expect(html).toContain('placeholder="Search by topic…"');
     expect(html).toContain('aria-label="Search highlights by topic"');
     expect(html).not.toContain('id="scope-prefix"');
     expect(app).toContain('placeholder: "Rom 8:18–25"');
     expect(app).toContain("topicQuery");
+    expect(app).toContain("openTopicSearch");
+    expect(app).toContain("closeTopicSearch");
     expect(app).toContain("LEGACY_TOPIC_MODE");
     expect(app).toContain("syncRefFieldMode");
     expect(app).toContain("rank-scope");
     expect(app).toContain("clearRankScopeFromRef");
     expect(css).toContain("#add.rank-scope { grid-template-columns: 1fr; }");
     expect(css).toContain(":focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }");
-    // #list-bar sits directly below #add and above #list; Filter + topic search + modes share the bar.
+    // #list-bar sits directly below #add and above #list; Filter + search icon + modes share the bar.
     const addStart = html.indexOf('id="add"');
     const barStart = html.indexOf('id="list-bar"');
     const filtersStart = html.indexOf('id="filters"');
+    const topicToggleStart = html.indexOf('id="topic-search-toggle"');
     const topicSearchStart = html.indexOf('id="topic-search"');
     const listStart = html.indexOf('id="list"');
     expect(addStart).toBeGreaterThan(html.indexOf("<header>"));
     expect(html.slice(addStart, barStart)).not.toContain('id="topic-search"');
     expect(barStart).toBeGreaterThan(addStart);
     expect(filtersStart).toBeGreaterThan(barStart);
-    expect(topicSearchStart).toBeGreaterThan(filtersStart);
+    expect(topicToggleStart).toBeGreaterThan(filtersStart);
+    expect(topicSearchStart).toBeGreaterThan(topicToggleStart);
     expect(listStart).toBeGreaterThan(topicSearchStart);
     const listBar = html.slice(barStart, listStart);
     expect(listBar).toContain('id="filters"');
+    expect(listBar).toContain('id="topic-search-wrap"');
+    expect(listBar).toContain('id="topic-search-toggle"');
     expect(listBar).toContain('id="topic-search"');
     expect(listBar).toContain('id="filter-summary"');
     expect(listBar).toContain('id="filter-badge"');
@@ -102,11 +113,23 @@ describe("UI copy and list toolbar toggle", () => {
     expect(app).toContain("SHORT_PREVIEW_MAX_VERSES");
     expect(app).toContain("SHORT_PREVIEW_MAX_CHARS");
     expect(css).toContain(".list-bar");
+    expect(css).toContain(".topic-search-wrap");
+    expect(css).toContain(".topic-search-toggle");
+    expect(css).toContain(".topic-search-wrap.is-open");
+    expect(css).toContain(".topic-search-wrap:not(.is-open) .topic-search { display: none; }");
+    expect(css).toContain(".topic-search-wrap.is-open .topic-search-toggle { display: none; }");
     expect(css).toContain(".list-bar .topic-search");
     expect(css).toContain(".filter-menu");
     expect(css).toContain(".rank-epigraph");
     expect(css).toContain(".rank-preview");
     expect(css).toContain("-webkit-line-clamp");
+    // Expand/collapse: icon → field; empty blur/Escape collapses; active query stays expanded.
+    expect(app).toContain('topicToggle.addEventListener("click", () => openTopicSearch())');
+    expect(app).toContain('if (e.key === "Escape")');
+    expect(app).toContain("closeTopicSearch({ force: true })");
+    expect(app).toContain('topicField.addEventListener("blur"');
+    expect(app).toContain("if (!force && topicQuery()) return");
+    expect(app).toContain("closeTopicSearch({ force: true });");
   });
 
   test("count and empty-state copy", () => {
