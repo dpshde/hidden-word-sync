@@ -98,6 +98,8 @@ test("desktop uses segmented mode buttons in #list-bar; mobile (≤600px) uses a
   expect(html).toContain('id="topic-search-toggle"');
   expect(html).toContain('id="topic-search"');
   expect(html).toContain('id="topic-search-close"');
+  expect(html).toContain('id="select-toggle"');
+  expect(html).toContain('id="selection-bar"');
   expect(html).toContain('id="group-by-select"');
   expect(html).toContain('id="related-sort"');
   expect(html).toContain('aria-label="Sort highlights"');
@@ -105,6 +107,8 @@ test("desktop uses segmented mode buttons in #list-bar; mobile (≤600px) uses a
   expect(html).not.toContain("mode-icon");
   expect(css).toContain(".list-bar .segmented");
   expect(css).toContain(".topic-search-toggle");
+  expect(css).toContain(".select-toggle");
+  expect(css).toContain(".selection-bar");
   expect(css).toContain(".list-bar .topic-search");
   expect(css).toContain(".related-sort");
   expect(css).toMatch(/\.list-bar \.segmented button\s*\{[^}]*flex:\s*1 0 auto/);

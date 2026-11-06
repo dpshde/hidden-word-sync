@@ -114,6 +114,7 @@
           <input id="topic-search" class="topic-search" type="search" enterkeyhint="search" maxlength="200" placeholder="Search by topic…" aria-label="Search highlights by topic" autocomplete="off" tabindex="-1">
           <button type="button" id="topic-search-close" class="topic-search-close" aria-label="Close topic search" title="Close search" tabindex="-1"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
         </div>
+        <button type="button" id="select-toggle" class="select-toggle" aria-label="Select highlights" title="Select" aria-pressed="false" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="m14 17.5 2 2 4-4"/></svg></button>
         <div id="group-by" class="segmented" role="group" aria-label="Sort highlights" hidden>
           <button type="button" data-mode="date" aria-pressed="true">Date</button>
           <button type="button" data-mode="genre" aria-pressed="false">Genre</button>
@@ -124,6 +125,16 @@
           <option value="genre">Genre</option>
           <option value="related">Related</option>
         </select>
+      </div>
+      <!-- Multi-select: batch color + delete only. Shown while selecting; Done clears the set. -->
+      <div id="selection-bar" class="selection-bar" hidden>
+        <button type="button" id="selection-done" class="selection-done">Done</button>
+        <span id="selection-count" class="selection-count" aria-live="polite">0 selected</span>
+        <button type="button" id="selection-all" class="selection-all">Select all</button>
+        <div class="selection-actions">
+          <button type="button" id="selection-color" class="pick" aria-haspopup="true" aria-label="Change color of selected" disabled><span class="dot" data-color="yellow"></span></button>
+          <button type="button" id="selection-delete" class="icon trash" aria-label="Delete selected" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+        </div>
       </div>
     </div>
     <div id="relevance-none" class="offer relevance-none" hidden role="status">
