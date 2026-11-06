@@ -143,15 +143,22 @@ describe("UI copy and list toolbar toggle", () => {
     expect(css).toContain(".rank-epigraph");
     expect(css).toContain(".rank-preview");
     expect(css).toContain("-webkit-line-clamp");
-    // Expand/collapse: icon → field; hide #add while open; empty blur/Escape collapses; query stays expanded.
+    // Expand/collapse: icon → field; hide #add while open; × / one Escape / empty outside fully exits.
+    expect(html).toContain('id="topic-search-close"');
+    expect(html).toContain('aria-label="Close topic search"');
+    expect(css).toContain(".topic-search-close");
+    expect(css).toContain(".topic-search-wrap.is-open .topic-search-close");
     expect(app).toContain('topicToggle.addEventListener("click", () => openTopicSearch())');
+    expect(app).toContain("function exitTopicSearch");
     expect(app).toContain("syncAddHiddenForTopicSearch(true)");
     expect(app).toContain("syncAddHiddenForTopicSearch(false)");
     expect(app).toContain('if (e.key === "Escape")');
-    expect(app).toContain("closeTopicSearch({ force: true })");
+    expect(app).toContain("exitTopicSearch()");
     expect(app).toContain('topicField.addEventListener("blur"');
     expect(app).toContain("if (!force && topicQuery()) return");
-    expect(app).toContain("closeTopicSearch({ force: true });");
+    expect(app).toContain("closeTopicSearch({ force: true })");
+    // Empty open search: outside tap collapses; non-empty keeps results (× / Escape clears).
+    expect(app).toMatch(/document\.addEventListener\("pointerdown"[\s\S]*?topicQuery\(\)\) return[\s\S]*?closeTopicSearch\(\{ force: true \}\)/);
   });
 
   test("count and empty-state copy", () => {

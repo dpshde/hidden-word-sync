@@ -353,28 +353,47 @@ function openTopicSearch({ focus = true } = {}) {
   const wrap = $("#topic-search-wrap");
   const toggle = $("#topic-search-toggle");
   const field = $("#topic-search");
+  const close = $("#topic-search-close");
   if (!wrap || !toggle || !field) return;
   wrap.classList.add("is-open");
   toggle.setAttribute("aria-expanded", "true");
   field.tabIndex = 0;
+  if (close) close.tabIndex = 0;
   syncAddHiddenForTopicSearch(true);
   if (focus) field.focus();
 }
 
 /**
- * Collapse topic search back to the icon. Stays expanded while the query is non-empty;
- * empty + blur/Escape (or an explicit clear) restores the icon and #add.
+ * Collapse topic search back to the icon. Stays expanded while the query is non-empty
+ * unless `force` (close ×, Escape, or empty outside tap). Restores #add.
  */
 function closeTopicSearch({ force = false } = {}) {
   if (!force && topicQuery()) return;
   const wrap = $("#topic-search-wrap");
   const toggle = $("#topic-search-toggle");
   const field = $("#topic-search");
+  const close = $("#topic-search-close");
   if (!wrap || !toggle || !field) return;
   wrap.classList.remove("is-open");
   toggle.setAttribute("aria-expanded", "false");
   field.tabIndex = -1;
+  if (close) close.tabIndex = -1;
   syncAddHiddenForTopicSearch(false);
+}
+
+/**
+ * Fully exit topic search: clear any query (same path as typing empty), collapse chrome, restore #add.
+ * One Escape / close × always lands back on highlight chrome — never stuck with #add hidden.
+ */
+function exitTopicSearch({ focusToggle = true } = {}) {
+  const field = $("#topic-search");
+  const toggle = $("#topic-search-toggle");
+  if (field && topicQuery()) {
+    field.value = "";
+    field.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+  closeTopicSearch({ force: true });
+  if (focusToggle) toggle?.focus();
 }
 
 /** Map Closest|Surprising chrome to the rankVerdicts mode key (relevant = closest-first). */
@@ -1097,15 +1116,26 @@ refField.addEventListener("focusout", () => {
 {
   const topicField = $("#topic-search");
   const topicToggle = $("#topic-search-toggle");
+  const topicClose = $("#topic-search-close");
   /** Last topic string that started a commit (dedupes Enter+blur). Cleared while typing. */
   let lastTopicCommitKey = "";
   topicToggle.addEventListener("click", () => openTopicSearch());
+  // Close ×: clear + collapse in one step (mousedown so the field doesn't blur first).
+  topicClose?.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    exitTopicSearch();
+  });
+  topicClose?.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    e.preventDefault();
+    exitTopicSearch();
+  });
   topicField.addEventListener("input", () => {
     lastTopicCommitKey = "";
     const form = $("#add");
     const cleaned = sanitizeTopic(topicField.value);
     if (!cleaned) errorIn(form, "");
-    // Stay expanded while typing a query; empty alone does not collapse (blur/Escape does).
+    // Stay expanded while typing a query; empty alone does not collapse (blur/Escape/× does).
     if (cleaned) openTopicSearch({ focus: false });
     // Search owns the list whenever the field has a query — independent of Date/Genre/Related.
     // Clear stale results while typing; Jev runs on Enter/blur only (same commit rule as Related).
@@ -1140,14 +1170,8 @@ refField.addEventListener("focusout", () => {
   topicField.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
       e.preventDefault();
-      if (topicQuery()) {
-        topicField.value = "";
-        topicField.dispatchEvent(new Event("input", { bubbles: true }));
-        // Cleared but still expanded until a second Escape or blur.
-        return;
-      }
-      closeTopicSearch({ force: true });
-      topicToggle.focus();
+      // One Escape fully exits — clear query if any, collapse, restore #add.
+      exitTopicSearch();
       return;
     }
     if (e.key !== "Enter" || e.isComposing) return;
@@ -1159,6 +1183,14 @@ refField.addEventListener("focusout", () => {
     if (topicQuery()) commitTopicSearch();
     closeTopicSearch();
   });
+  // Empty open search: tap outside collapses and restores #add. Non-empty keeps results (use × / Escape).
+  document.addEventListener("pointerdown", (e) => {
+    const wrap = $("#topic-search-wrap");
+    if (!wrap?.classList.contains("is-open")) return;
+    if (e.target instanceof Node && wrap.contains(e.target)) return;
+    if (topicQuery()) return;
+    closeTopicSearch({ force: true });
+  }, true);
 }
 
 /** Skeleton rows while Related/topic waits on Jev after commit — matches list row rhythm. */

@@ -86,6 +86,7 @@ test("desktop uses segmented mode buttons in #list-bar; mobile (≤600px) uses a
   expect(html).not.toContain('<option value="surprising">');
   expect(html).toContain('id="topic-search-toggle"');
   expect(html).toContain('id="topic-search"');
+  expect(html).toContain('id="topic-search-close"');
   expect(html).toContain('id="group-by-select"');
   expect(html).toContain('id="related-sort"');
   expect(html).toContain('aria-label="Sort highlights"');
@@ -106,9 +107,11 @@ test("desktop uses segmented mode buttons in #list-bar; mobile (≤600px) uses a
   expect(app).toContain('$("#group-by-select").value = groupBy');
   expect(app).toContain("function openTopicSearch");
   expect(app).toContain("function closeTopicSearch");
+  expect(app).toContain("function exitTopicSearch");
   expect(app).toContain("function syncAddHiddenForTopicSearch");
   expect(css).toContain(".list-bar-top:has(.topic-search-wrap.is-open) .segmented");
   expect(css).toContain(".list-bar-top:has(.topic-search-wrap.is-open) .filter-menu");
+  expect(css).toContain(".topic-search-close");
   expect(css).toContain(".rank-skeleton");
   expect(css).toContain("prefers-reduced-motion: reduce");
   // Phone resting: icon + mode select share a row; open search keeps Filter beside the field.
@@ -118,6 +121,7 @@ test("desktop uses segmented mode buttons in #list-bar; mobile (≤600px) uses a
   expect(css).not.toMatch(/\.topic-search-wrap\.is-open\s*\{[^}]*order:\s*-1/);
   expect(css).toMatch(/\.topic-search-wrap:not\(\.is-open\) \.topic-search\s*\{[^}]*max-width:\s*0/);
   expect(css).toContain("transition: opacity .2s ease, max-width .2s ease");
+  expect(css).toContain(".topic-search-wrap.is-open .topic-search-close");
 });
 
 test("phone Colors/Sync/Backup are top-aligned pages with header close and pinned Done", () => {

@@ -392,6 +392,52 @@ button.dot[aria-pressed="true"] { border-color: var(--fg); }
 .list-bar .topic-search:hover { border-color: var(--hover-line); }
 .list-bar .topic-search:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
 .list-bar .topic-search::-webkit-search-cancel-button { cursor: pointer; }
+/* Close × only while open — clear exit back to #add (search toggle is hidden when open). */
+.topic-search-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  height: 100%;
+  min-width: 0;
+  max-width: 0;
+  padding: 0;
+  background: var(--raised);
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-left: 0;
+  border-radius: 0;
+  cursor: pointer;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .2s ease, max-width .2s ease, min-width .2s ease, padding .2s ease, color var(--ease), background-color var(--ease), border-color var(--ease);
+}
+.topic-search-close svg {
+  width: .875rem;
+  height: .875rem;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+}
+.topic-search-wrap.is-open .topic-search-close {
+  max-width: 2.5rem;
+  min-width: 2.25rem;
+  padding: 0 .5rem;
+  opacity: 1;
+  pointer-events: auto;
+}
+.topic-search-close:hover {
+  background: var(--hover);
+  color: var(--fg);
+  border-color: var(--hover-line);
+}
+.topic-search-close:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.topic-search-wrap:not(.is-open) .topic-search-close {
+  border-width: 0;
+}
 .list-bar .segmented {
   display: flex;
   flex: 1 1 12rem;
@@ -480,6 +526,12 @@ button.dot[aria-pressed="true"] { border-color: var(--fg); }
   .topic-search-toggle {
     min-height: 40px;
     min-width: 40px;
+    height: 40px;
+  }
+  .topic-search-wrap.is-open .topic-search-close {
+    min-height: 40px;
+    min-width: 40px;
+    max-width: 40px;
     height: 40px;
   }
 }
@@ -704,6 +756,7 @@ button.dot[aria-pressed="true"] { border-color: var(--fg); }
   .verse-text-skel-line { animation: none; }
   .topic-search-wrap,
   .topic-search-toggle,
+  .topic-search-close,
   .list-bar .topic-search {
     transition: none;
   }
