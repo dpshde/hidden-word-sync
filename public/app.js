@@ -5,7 +5,7 @@ import {
 import { labelRef, compareRefs } from "./refs.js";
 import { editRun, highlightRecord, tombstone, groupRuns } from "./ranges.js";
 import { readPassage } from "./passage.js";
-import { MODES, RANK_MODES, LEGACY_TOPIC_MODE, JEV_MODES, groupList, startsOpen } from "./groups.js";
+import { MODES, RANK_MODES, LEGACY_TOPIC_MODE, LEGACY_RELATED_MODES, JEV_MODES, groupList, startsOpen } from "./groups.js";
 import { definePassageInput, defineScripturePassage } from "./vendor/scripture-inline.js";
 import { createPasskeyPrf, getPasskeyPrf, passkeysAvailable, cancelled } from "./passkey.js";
 import { setupThemeToggle } from "./theme-toggle.js";
@@ -32,9 +32,10 @@ const $ = (sel) => document.querySelector(sel);
 const SESSION = "hidden-word:session";
 const CREATED = "hidden-word:created";
 const SAVE_LINK = "hidden-word:save-link";
-// How this device sorts the list (date / genre / relevant / surprising): a display choice, not synced.
-// The Relevant/Surprising passage and topic-search phrase are never stored — only the mode button is.
+// How this device sorts the list (date / genre / related): a display choice, not synced.
+// The Related passage, Closest|Surprising order, and topic-search phrase are never synced — only the mode button is.
 const GROUP_BY = "hidden-word:group-by";
+const RELATED_SORT = "hidden-word:related-sort";
 // A library's name as this device last saw it, for the unlock form and before the library has synced.
 // The name itself syncs as a `library` record (SPEC.md 1.5): library.name is the one to show.
 const nameKey = (lib) => `hidden-word:name:${lib}`;
@@ -376,6 +377,21 @@ function closeTopicSearch({ force = false } = {}) {
   syncAddHiddenForTopicSearch(false);
 }
 
+/** Map Closest|Surprising chrome to the rankVerdicts mode key (relevant = closest-first). */
+function relatedRankMode() {
+  return relatedSort === "surprising" ? "surprising" : "relevant";
+}
+
+/** Show Closest|Surprising only once Related has a non-empty ranked list (hide while empty/loading/search). */
+function syncRelatedSortChrome(show) {
+  const bar = $("#related-sort");
+  if (!bar) return;
+  bar.hidden = !show;
+  for (const b of bar.querySelectorAll("[data-related-sort]")) {
+    b.setAttribute("aria-pressed", String(b.dataset.relatedSort === relatedSort));
+  }
+}
+
 /** Swap #add between add-highlight and passage-ranking (#ref) chrome. Topic search is orthogonal in #list-bar. */
 function syncRefFieldMode() {
   const ranking = RANK_MODES.includes(groupBy);
@@ -520,7 +536,8 @@ function render() {
     : RANK_MODES.includes(groupBy)
       ? relevance?.passage?.ref || ""
       : "";
-  const sig = JSON.stringify([shown, colors, groupBy, [...filter], verseText.key, editing, ranking && scopeKey, rankOrder, rankFailed, noneRelevant, !!rankPending, jevWaiting, searching, verseText.open, rankPaint]);
+  const sig = JSON.stringify([shown, colors, groupBy, relatedSort, [...filter], verseText.key, editing, ranking && scopeKey, rankOrder, rankFailed, noneRelevant, !!rankPending, jevWaiting, searching, verseText.open, rankPaint]);
+  let showRelatedSort = false;
   if (!editing && sig !== listSig) {
     if (jevWaiting) {
       // Actionable empty scope CTA in the list area; foot status stays empty.
@@ -556,12 +573,18 @@ function render() {
       } else if (ranked.length) {
         const heading = searching
           ? topicCopy(relevance?.topic)
-          : relatedCopy(relevance?.passage?.label, groupBy);
-        $("#list-total").textContent = rankStatusCopy(ranked.length, shown.length, searching ? "topic" : groupBy);
+          : relatedCopy(relevance?.passage?.label);
+        $("#list-total").textContent = rankStatusCopy(
+          ranked.length,
+          shown.length,
+          searching ? "topic" : relatedRankMode(),
+        );
         // New final paint: expand the new top unless the person toggled a row this query.
         applyRankAutoExpand(ranked[0].ref);
         // Same group()/row() markup as Date and Genre — only the heading text differs.
         $("#list").replaceChildren(group({ id: "ranked", name: heading, runs: ranked }));
+        // Closest|Surprising is results chrome for Related — not for topic search.
+        showRelatedSort = !searching && RANK_MODES.includes(groupBy);
       } else {
         // Zero survivors (passage modes). Topic search keeps every highlight, so this is rare.
         // Never put topicCopy in the foot with an empty list.
@@ -578,12 +601,17 @@ function render() {
       $("#list").replaceChildren(...groups.map(group));
       showRankPreview(null);
     }
+    syncRelatedSortChrome(showRelatedSort);
+  } else if (!editing) {
+    // Sig unchanged: still refresh Closest|Surprising pressed state if results are showing.
+    const rankedVisible = ranking && !rankPending && rankOrder.length > 0 && !searching && RANK_MODES.includes(groupBy);
+    syncRelatedSortChrome(!!rankedVisible);
   }
   listSig = editing ? null : sig;
   if (!$("#colors").hidden) renderColors();
 }
 
-/** Start a new auto-expand paint (new query results, or Relevant ↔ Surprising reorder). */
+/** Start a new auto-expand paint (new query results, or Closest ↔ Surprising reorder). */
 function beginRankPaint({ resetUser = false } = {}) {
   rankPaint++;
   rankExpandPaint = -1;
@@ -602,20 +630,32 @@ function applyRankAutoExpand(topRef) {
   verseText.open = topRef;
 }
 
-// ---- grouping / ranking: Date and Genre group; Relevant and Surprising rank against a passage.
+// ---- grouping / ranking: Date and Genre group; Related ranks against a passage (Closest|Surprising order).
 // Topic search is orthogonal chrome in #list-bar (not a mode).
 
-/** Load persisted mode; migrate legacy Topic mode → Date. */
+/** Load persisted mode; migrate legacy Topic → Date and Relevant/Surprising → Related. */
 function readGroupBy() {
   const stored = localStorage.getItem(GROUP_BY) ?? "";
   if (stored === LEGACY_TOPIC_MODE) {
     localStorage.setItem(GROUP_BY, "date");
     return "date";
   }
+  if (LEGACY_RELATED_MODES.includes(stored)) {
+    // Keep Surprising preference as the Closest|Surprising order after the mode merge.
+    if (stored === "surprising") localStorage.setItem(RELATED_SORT, "surprising");
+    localStorage.setItem(GROUP_BY, "related");
+    return "related";
+  }
   return MODES.includes(stored) ? stored : "date";
 }
 
+function readRelatedSort() {
+  return localStorage.getItem(RELATED_SORT) === "surprising" ? "surprising" : "closest";
+}
+
 let groupBy = readGroupBy();
+/** Related results order: closest (default) or surprising — not a list mode. */
+let relatedSort = readRelatedSort();
 const groupOpen = new Map();
 let relevance = null;
 const bsbText = createBsbText();
@@ -632,7 +672,7 @@ function renderGroupBy(any) {
 }
 
 function selectMode(next) {
-  if (!MODES.includes(next)) return;
+  if (!MODES.includes(next) || next === groupBy) return;
   const wasJev = JEV_MODES.includes(groupBy);
   const willJev = JEV_MODES.includes(next);
   const wasPassage = RANK_MODES.includes(groupBy);
@@ -640,11 +680,11 @@ function selectMode(next) {
   const searching = !!topicQuery();
   groupBy = next;
   localStorage.setItem(GROUP_BY, groupBy);
-  // Leaving Relevant/Surprising: clear ranking scope from #ref so Date/Genre don't inherit it as an add.
+  // Leaving Related: clear ranking scope from #ref so Date/Genre don't inherit it as an add.
   // Topic search stays — it is orthogonal chrome, not a mode.
   if (wasPassage && !willPassage) clearRankScopeFromRef();
   if (wasJev && !willJev && !searching) clearRelevanceInput({ keepRef: wasPassage, keepSearch: true });
-  // Entering Relevant/Surprising from Date/Genre: start with an empty rank field (don't rank a half-typed add).
+  // Entering Related from Date/Genre: start with an empty rank field (don't rank a half-typed add).
   if (willPassage && !wasPassage) {
     refField.value = "";
     errorIn($("#add"), "");
@@ -655,12 +695,7 @@ function selectMode(next) {
     render();
     return;
   }
-  if (willPassage && wasPassage && relevance?.passage && !rankFailed) {
-    // Relevant ↔ Surprising: reorder cached verdicts, no network call.
-    // New final paint so auto-expand follows the new top (unless the person toggled a row).
-    beginRankPaint();
-    void reorderRelevance();
-  } else if (willPassage && refText(refField).trim()) {
+  if (willPassage && refText(refField).trim()) {
     void runRelevance();
   } else {
     if (willPassage) relevance?.clearPassage();
@@ -672,10 +707,28 @@ function selectMode(next) {
   }
 }
 
+/** Closest | Surprising results order for Related (reorders cached verdicts; no new network call). */
+function selectRelatedSort(next) {
+  if (next !== "closest" && next !== "surprising") return;
+  if (relatedSort === next) return;
+  relatedSort = next;
+  localStorage.setItem(RELATED_SORT, relatedSort);
+  syncRelatedSortChrome(true);
+  if (!RANK_MODES.includes(groupBy) || topicQuery() || !relevance?.passage || rankFailed) {
+    render();
+    return;
+  }
+  beginRankPaint();
+  void reorderRelevance();
+}
+
 for (const b of document.querySelectorAll("#group-by button")) {
   b.addEventListener("click", () => selectMode(b.dataset.mode));
 }
 $("#group-by-select").addEventListener("change", (e) => selectMode(e.target.value));
+for (const b of document.querySelectorAll("#related-sort [data-related-sort]")) {
+  b.addEventListener("click", () => selectRelatedSort(b.dataset.relatedSort));
+}
 
 /** Clear #ref ranking text and restore add-mode placeholder/aria (Highlight stays until renderGroupBy). */
 function clearRankScopeFromRef() {
@@ -899,7 +952,7 @@ async function runRelevance() {
   const runs = currentRuns();
   const items = runs.map((r) => ({ id: r.ref, ref: r.ref }));
   try {
-    const { ranked } = await session.judge(items, groupBy);
+    const { ranked } = await session.judge(items, relatedRankMode());
     if (gen !== rankGeneration) return; // newer input or a later run owns the UI
     rankOrder = ranked.map((v) => v.id);
     rankFailed = false;
@@ -934,7 +987,7 @@ async function runTopic() {
     session.clearPassage();
     rankPending = null;
     if (gen !== rankGeneration) return;
-    // Restore the selected mode's list (Relevant/Surprising re-rank from #ref when present).
+    // Restore the selected mode's list (Related re-ranks from #ref when present).
     if (RANK_MODES.includes(groupBy) && refText(refField).trim()) void runRelevance();
     else render();
     return;
@@ -968,12 +1021,12 @@ async function reorderRelevance() {
   const session = await ensureRelevance();
   if (!session?.passage || rankFailed) return render();
   const runs = currentRuns();
-  const { ranked } = session.reorder(runs.map((r) => ({ id: r.ref, ref: r.ref })), groupBy);
+  const { ranked } = session.reorder(runs.map((r) => ({ id: r.ref, ref: r.ref })), relatedRankMode());
   rankOrder = ranked.map((v) => v.id);
   render();
 }
 
-// Ranking input is #ref (hijacked in Relevant/Surprising). Autocomplete stays on that one field.
+// Ranking input is #ref (hijacked in Related). Autocomplete stays on that one field.
 refField.addEventListener("input", () => {
   if (!RANK_MODES.includes(groupBy) || topicQuery()) return;
   clearTimeout(refRankTimer);

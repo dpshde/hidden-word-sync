@@ -100,7 +100,12 @@ export function parseVerdicts(answers = {}) {
   return byId;
 }
 
-/** Relevant: strongest link first. Surprising: least obvious among the relevant first. Topic: closest first. */
+/**
+ * Rank order for Related results and topic search.
+ * - `closest` / `relevant` / `related`: strongest link first (default Related).
+ * - `surprising`: least obvious among the relevant first.
+ * - `topic`: closeness sort (every highlight kept).
+ */
 export function rankVerdicts(verdicts, mode) {
   if (mode === "topic") {
     return [...verdicts].sort(
@@ -118,10 +123,9 @@ export function totalCopy(shown, librarySize) {
   return `${shown} of ${librarySize} relevant`;
 }
 
-/** Rank-mode group header. Relevant: "Related to …"; Surprising: "Unexpected links to …". */
-export function relatedCopy(label, mode = "relevant") {
+/** Related group header, e.g. "Related to Habakkuk 2:2". Sort order is Closest|Surprising chrome, not the title. */
+export function relatedCopy(label) {
   const named = String(label ?? "").trim();
-  if (mode === "surprising") return named ? `Unexpected links to ${named}` : "Unexpected";
   return named ? `Related to ${named}` : "Related";
 }
 
@@ -138,14 +142,13 @@ export function rankStatusCopy(shown, total, mode) {
   return `${shown} of ${total} · ${order}`;
 }
 
-/** Hint when Relevant/Surprising is on but the person hasn't typed a passage yet. */
-export function jevHintCopy(mode) {
-  if (mode === "surprising") return "Find highlights in your library that connect to a passage in unexpected ways.";
+/** Hint when Related is on but the person hasn't typed a passage yet. */
+export function jevHintCopy(_mode) {
   return "Find the highlights in your library most closely connected to a passage.";
 }
 
 /** Primary CTA button label in the empty passage-scope state. */
-export function jevCtaCopy(mode) {
+export function jevCtaCopy(_mode) {
   return "Choose a passage";
 }
 
@@ -265,7 +268,7 @@ export function createRelevance({
   }
 
   /**
-   * Judge `items` against the current passage (Relevant/Surprising).
+   * Judge `items` against the current passage (Related: closest or surprising order).
    * Call 1 filters; call 2 sorts survivors (skipped when fewer than 2).
    */
   async function judge(items, mode = "relevant") {

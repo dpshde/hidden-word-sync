@@ -95,7 +95,7 @@
 
     <form id="add" autocomplete="off" novalidate>
       <button type="button" id="add-dot" class="pick" aria-haspopup="true" aria-label="Highlight color: Yellow"><span class="dot" data-color="yellow"></span></button>
-      <!-- Relevant/Surprising hijack #ref as the ranking scope. Topic search is a list-bar icon that expands. -->
+      <!-- Related hijacks #ref as the ranking scope. Topic search is a list-bar icon that expands. -->
       <si-passage-input id="ref" placeholder="John 3:16" aria-label="Verse or passage"></si-passage-input>
       <input type="hidden" name="color" value="yellow">
       <button type="submit">Highlight</button>
@@ -116,14 +116,12 @@
         <div id="group-by" class="segmented" role="group" aria-label="Sort highlights" hidden>
           <button type="button" data-mode="date" aria-pressed="true">Date</button>
           <button type="button" data-mode="genre" aria-pressed="false">Genre</button>
-          <button type="button" data-mode="relevant" aria-pressed="false">Relevant</button>
-          <button type="button" data-mode="surprising" aria-pressed="false">Surprising</button>
+          <button type="button" data-mode="related" aria-pressed="false">Related</button>
         </div>
         <select id="group-by-select" class="mode-select" aria-label="Sort highlights" hidden>
           <option value="date">Date</option>
           <option value="genre">Genre</option>
-          <option value="relevant">Relevant</option>
-          <option value="surprising">Surprising</option>
+          <option value="related">Related</option>
         </select>
       </div>
     </div>
@@ -142,6 +140,11 @@
       </summary>
       <div id="rank-preview-body" class="rank-preview-body"></div>
     </details>
+    <!-- Closest | Surprising: Related results order only (not a 4th mode). Hidden until ranked results exist. -->
+    <div id="related-sort" class="related-sort segmented" hidden role="group" aria-label="Order related highlights">
+      <button type="button" data-related-sort="closest" aria-pressed="true">Closest</button>
+      <button type="button" data-related-sort="surprising" aria-pressed="false">Surprising</button>
+    </div>
     <div id="list"></div>
     <p id="list-total" class="list-total" role="status"></p>
     <div id="color-pop" popover role="group" aria-label="Highlight color"></div>

@@ -594,12 +594,25 @@ button.dot[aria-pressed="true"] { border-color: var(--fg); }
 .relevance-none { margin: 0 0 .75rem; }
 .relevance-none[hidden] { display: none; }
 .relevance-none p { margin: 0 0 .625rem; color: var(--fg-2); }
-/* Date | Genre | Relevant | Surprising | Topic: a compact segmented control, in route.bible's small uppercase label type. */
+/* Date | Genre | Related: a compact segmented control, in route.bible's small uppercase label type. */
 .segmented { display: inline-flex; margin: 0 0 .75rem; padding: 0; border: 1px solid var(--line); border-radius: 0; }
 .segmented[hidden] { display: none; }
 .segmented button { padding: .3125rem .75rem; font-family: var(--font-label); font-size: .75rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; background: transparent; border: 0; color: var(--muted); border-radius: 0; }
 .segmented button:hover { background: var(--hover); color: var(--fg); }
 .segmented button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
+/* Closest | Surprising: Related results order (shown only when a ranked list exists). */
+.related-sort {
+  display: inline-flex;
+  width: auto;
+  max-width: 100%;
+  margin: 0 0 .5rem;
+  align-self: flex-start;
+}
+.related-sort[hidden] { display: none; }
+.related-sort button {
+  padding: .3125rem .625rem;
+  font-size: .6875rem;
+}
 .row { display: flex; align-items: center; gap: .625rem; padding: .375rem 0 .375rem var(--gutter); }
 .row > .dot { width: .875rem; height: .875rem; border: 0; position: relative; }
 .row > .dot::after { content: ""; position: absolute; inset: -.75rem; }
