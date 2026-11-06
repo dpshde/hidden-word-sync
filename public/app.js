@@ -309,13 +309,13 @@ async function highlight(verses, color) {
 
 // The reference field is scripture-inline's <si-passage-input>: book, chapter and verse suggestions
 // as people type. Its value is a USFM id like ROM.5.3-5 once it reads a passage.
-// Relevant/Surprising hijack the same field as the ranking scope (no second passage box).
+// Related hijacks the same field as the ranking scope (no second passage box).
 definePassageInput();
 const refField = $("#ref");
 const REF_ADD = { placeholder: "John 3:16", aria: "Verse or passage" };
 const REF_RANK = { placeholder: "Rom 8:18–25", aria: "Passage to rank highlights against" };
-/** Debounce timer for ranking-from-#ref (Relevant/Surprising). */
-let refRankTimer = 0;
+/** Last #ref string that started a Related commit (dedupes change+blur). Cleared while typing. */
+let lastRelatedCommitKey = "";
 /** What's in a passage field: its passage id when it read one, else the typed text, which readPassage reads
  * more loosely (the field won't take passages across chapters, like Genesis 1–2, but Selah Vault does). */
 function refText(field = refField) {
@@ -407,14 +407,26 @@ function syncRefFieldMode() {
   form.querySelector('button[type="submit"]').hidden = ranking;
 }
 
-// Enter: settle suggestions first; else rank (Relevant/Surprising) or add a highlight (Date/Genre).
+/**
+ * Related ranks on commit only (Enter / autocomplete change / blur with a passage) — never while typing.
+ * Dedupes change+blur for the same ref so one pick does not double-fetch.
+ */
+function commitRelatedRank() {
+  if (!RANK_MODES.includes(groupBy) || topicQuery()) return;
+  const key = String(refText(refField)).trim();
+  // Dedupe change+blur; allow retry after a failed commit for the same ref.
+  if (key && key === lastRelatedCommitKey && !rankFailed) return;
+  lastRelatedCommitKey = key;
+  void runRelevance();
+}
+
+// Enter: settle suggestions first; else rank (Related) or add a highlight (Date/Genre).
 refField.addEventListener("keydown", (e) => {
   if (e.key !== "Enter" || e.isComposing) return;
   if (suggesting(refField)) return;
   if (RANK_MODES.includes(groupBy)) {
     e.preventDefault();
-    clearTimeout(refRankTimer);
-    void runRelevance();
+    commitRelatedRank();
     return;
   }
   $("#add").requestSubmit();
@@ -424,7 +436,7 @@ $("#add").addEventListener("submit", async (e) => {
   e.preventDefault();
   // Ranking modes never add from this form — #ref is the scope field (Highlight is hidden).
   if (RANK_MODES.includes(groupBy)) {
-    void runRelevance();
+    commitRelatedRank();
     return;
   }
   const form = e.target;
@@ -512,13 +524,16 @@ function render() {
   // Topic search in #list-bar owns the list while it has a query; modes stay visible underneath.
   const searching = !!topicQuery();
   const jevActive = RANK_MODES.includes(groupBy) && !searching;
-  // Scope is path-specific: a leftover Relevant passage must not count as topic search scope (and vice versa).
+  // Scope is path-specific: a leftover Related passage must not count as topic search scope (and vice versa).
   const hasScope = searching ? !!relevance?.topic : jevActive ? !!relevance?.passage : false;
-  // A failed call keeps Date order. Pending keeps Jev chrome (loading line) before the scope lands.
+  // A failed call keeps Date order. Pending keeps Jev chrome (skeleton) after commit before results land.
   const ranking = (searching || jevActive) && !rankFailed && (hasScope || rankPending);
-  // Relevant/Surprising with nothing typed yet: empty list + hint (never a stale Date "Today" header).
+  // Mid-type (commit-only ranking): typed text, no committed scope yet — clear list without the empty CTA.
+  const relatedDrafting = jevActive && !hasScope && !rankPending && !!String(refText(refField)).trim();
+  const topicDrafting = searching && !rankPending && !hasScope;
+  // Related with nothing committed yet: empty list + hint (never a stale Date "Today" header).
   // Empty topic search shows no CTA panel — only the quiet field placeholder.
-  const jevWaiting = jevActive && !rankFailed && !hasScope && !rankPending;
+  const jevWaiting = jevActive && !rankFailed && !hasScope && !rankPending && !relatedDrafting;
   const noneRelevant =
     ranking && !rankPending && !searching && !!relevance?.passage && RANK_MODES.includes(groupBy) && rankOrder.length === 0 && shown.length > 0;
   $("#empty").hidden = rows.length > 0;
@@ -536,7 +551,7 @@ function render() {
     : RANK_MODES.includes(groupBy)
       ? relevance?.passage?.ref || ""
       : "";
-  const sig = JSON.stringify([shown, colors, groupBy, relatedSort, [...filter], verseText.key, editing, ranking && scopeKey, rankOrder, rankFailed, noneRelevant, !!rankPending, jevWaiting, searching, verseText.open, rankPaint]);
+  const sig = JSON.stringify([shown, colors, groupBy, relatedSort, [...filter], verseText.key, editing, ranking && scopeKey, rankOrder, rankFailed, noneRelevant, !!rankPending, jevWaiting, relatedDrafting, topicDrafting, searching, verseText.open, rankPaint]);
   let showRelatedSort = false;
   if (!editing && sig !== listSig) {
     if (jevWaiting) {
@@ -563,13 +578,19 @@ function render() {
       $("#list").replaceChildren(box);
       showRankPreview(null);
       $("#empty").hidden = true;
+    } else if (relatedDrafting || topicDrafting) {
+      // Typing before commit: clear stale ranked UI without Ranking… or the empty CTA.
+      $("#list-total").textContent = "";
+      $("#list").replaceChildren();
+      showRankPreview(null);
+      $("#empty").hidden = true;
     } else if (ranking) {
       const runs = groupRuns(shown, (r) => topColor(r, ids));
       const byRef = new Map(runs.map((run) => [run.ref, run]));
       const ranked = rankOrder.map((id) => byRef.get(id)).filter(Boolean);
       if (rankPending) {
         $("#list-total").textContent = rankingCopy();
-        $("#list").replaceChildren();
+        $("#list").replaceChildren(rankSkeleton(Math.min(Math.max(shown.length, 3), 5)));
       } else if (ranked.length) {
         const heading = searching
           ? topicCopy(relevance?.topic)
@@ -582,7 +603,9 @@ function render() {
         // New final paint: expand the new top unless the person toggled a row this query.
         applyRankAutoExpand(ranked[0].ref);
         // Same group()/row() markup as Date and Genre — only the heading text differs.
-        $("#list").replaceChildren(group({ id: "ranked", name: heading, runs: ranked }));
+        const rankedGroup = group({ id: "ranked", name: heading, runs: ranked });
+        rankedGroup.classList.add("rank-enter");
+        $("#list").replaceChildren(rankedGroup);
         // Closest|Surprising is results chrome for Related — not for topic search.
         showRelatedSort = !searching && RANK_MODES.includes(groupBy);
       } else {
@@ -732,7 +755,7 @@ for (const b of document.querySelectorAll("#related-sort [data-related-sort]")) 
 
 /** Clear #ref ranking text and restore add-mode placeholder/aria (Highlight stays until renderGroupBy). */
 function clearRankScopeFromRef() {
-  clearTimeout(refRankTimer);
+  lastRelatedCommitKey = "";
   refField.value = "";
   errorIn($("#add"), "");
 }
@@ -1027,13 +1050,14 @@ async function reorderRelevance() {
 }
 
 // Ranking input is #ref (hijacked in Related). Autocomplete stays on that one field.
+// Typing clears stale results only — Jev runs on commit (Enter / change / blur), not on a debounce.
 refField.addEventListener("input", () => {
   if (!RANK_MODES.includes(groupBy) || topicQuery()) return;
-  clearTimeout(refRankTimer);
+  lastRelatedCommitKey = "";
   const form = $("#add");
   const raw = refText(refField);
   if (!String(raw).trim()) errorIn(form, "");
-  // Leave the old ranked list immediately when the passage changes; debounce the network call.
+  // Leave the old ranked list immediately when the passage changes; no network until commit.
   rankGeneration++;
   rankOrder = [];
   rankFailed = false;
@@ -1042,29 +1066,47 @@ refField.addEventListener("input", () => {
   showRelevanceNone(null);
   showRankPreview(null);
   if (String(raw).trim()) {
-    rankPending = true;
+    // Keep list chrome in the ranking path without implying a fetch yet (no Ranking… copy).
+    rankPending = null;
+    relevance?.clearPassage();
   } else {
     relevance?.clearPassage();
     rankPending = null;
   }
   render();
-  // Invalid refs show inline and make no call; wait for a pause so typing doesn't flash errors.
-  refRankTimer = setTimeout(() => void runRelevance(), 400);
+});
+
+// Autocomplete / passage pick that finalizes a ref (si-passage-input bubbles change).
+refField.addEventListener("change", () => {
+  commitRelatedRank();
+});
+
+// Blur commit when the field holds a passage (invalid → inline error, no Jev). Deferred so an
+// accept's change event wins and lastRelatedCommitKey dedupes the pair.
+refField.addEventListener("focusout", () => {
+  setTimeout(() => {
+    if (!RANK_MODES.includes(groupBy) || topicQuery()) return;
+    if (refField.contains(document.activeElement) || refField.shadowRoot?.activeElement) return;
+    if (!String(refText(refField)).trim()) return;
+    commitRelatedRank();
+  }, 0);
 });
 
 {
   const topicField = $("#topic-search");
   const topicToggle = $("#topic-search-toggle");
-  let topicTimer = 0;
+  /** Last topic string that started a commit (dedupes Enter+blur). Cleared while typing. */
+  let lastTopicCommitKey = "";
   topicToggle.addEventListener("click", () => openTopicSearch());
   topicField.addEventListener("input", () => {
-    clearTimeout(topicTimer);
+    lastTopicCommitKey = "";
     const form = $("#add");
     const cleaned = sanitizeTopic(topicField.value);
     if (!cleaned) errorIn(form, "");
     // Stay expanded while typing a query; empty alone does not collapse (blur/Escape does).
     if (cleaned) openTopicSearch({ focus: false });
-    // Search owns the list whenever the field has a query — independent of Date/Genre/Relevant/Surprising.
+    // Search owns the list whenever the field has a query — independent of Date/Genre/Related.
+    // Clear stale results while typing; Jev runs on Enter/blur only (same commit rule as Related).
     rankGeneration++;
     rankOrder = [];
     rankFailed = false;
@@ -1073,18 +1115,26 @@ refField.addEventListener("input", () => {
     showRelevanceNone(null);
     showRankPreview(null);
     if (cleaned) {
-      rankPending = true;
+      rankPending = null;
       relevance?.setTopicInput(cleaned);
       render();
-      topicTimer = setTimeout(() => void runTopic(), 400);
     } else {
       relevance?.clearPassage();
       rankPending = null;
-      // Restore the selected mode immediately; debounce is unnecessary for clear.
-      if (RANK_MODES.includes(groupBy) && refText(refField).trim()) void runRelevance();
-      else render();
+      // Restore Related from #ref on clear (commit-style restore, not a mid-type fire).
+      if (RANK_MODES.includes(groupBy) && refText(refField).trim()) {
+        lastRelatedCommitKey = "";
+        commitRelatedRank();
+      } else render();
     }
   });
+  function commitTopicSearch() {
+    const cleaned = topicQuery();
+    if (!cleaned) return;
+    if (cleaned === lastTopicCommitKey) return;
+    lastTopicCommitKey = cleaned;
+    void runTopic();
+  }
   topicField.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
       e.preventDefault();
@@ -1100,13 +1150,34 @@ refField.addEventListener("input", () => {
     }
     if (e.key !== "Enter" || e.isComposing) return;
     e.preventDefault();
-    clearTimeout(topicTimer);
-    void runTopic();
+    commitTopicSearch();
   });
   topicField.addEventListener("blur", () => {
-    // Collapse only when empty; an active query keeps the field expanded.
+    // Commit a non-empty query on blur; collapse only when empty.
+    if (topicQuery()) commitTopicSearch();
     closeTopicSearch();
   });
+}
+
+/** Skeleton rows while Related/topic waits on Jev after commit — matches list row rhythm. */
+function rankSkeleton(count = 4) {
+  const wrap = document.createElement("div");
+  wrap.className = "rank-skeleton";
+  wrap.setAttribute("role", "status");
+  wrap.setAttribute("aria-busy", "true");
+  wrap.setAttribute("aria-label", rankingCopy());
+  for (let i = 0; i < count; i++) {
+    const row = document.createElement("div");
+    row.className = "rank-skeleton-row";
+    const dot = document.createElement("span");
+    dot.className = "rank-skeleton-dot";
+    const line = document.createElement("span");
+    line.className = "rank-skeleton-line";
+    line.style.width = `${58 + ((i * 13) % 28)}%`;
+    row.append(dot, line);
+    wrap.append(row);
+  }
+  return wrap;
 }
 
 /** One group: its name as the summary (the whole header toggles it), then its rows. */

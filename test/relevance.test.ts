@@ -196,7 +196,13 @@ describe("UI copy and list toolbar toggle", () => {
     expect(app).toContain("relatedCopy(relevance?.passage?.label)");
     expect(app).toContain("topicCopy(relevance?.topic)");
     expect(app).toContain("rankingCopy()");
-    expect(app).toMatch(/if \(rankPending\) \{[\s\S]*?rankingCopy\(\)/);
+    expect(app).toMatch(/if \(rankPending\) \{[\s\S]*?rankSkeleton\(/);
+    expect(app).toContain("function rankSkeleton");
+    expect(app).toContain('rankedGroup.classList.add("rank-enter")');
+    expect(css).toContain(".rank-skeleton");
+    expect(css).toContain(".rank-skeleton-row");
+    expect(css).toContain("rank-chrome-in");
+    expect(css).toContain("prefers-reduced-motion: reduce");
     // Same group()/row() path as Date and Genre — no dedicated rankGroup or reason lines.
     expect(app).toContain('group({ id: "ranked"');
     expect(app).not.toContain("function rankGroup");
@@ -225,6 +231,7 @@ describe("UI copy and list toolbar toggle", () => {
     // Empty Related scope: hint in the list area (not foot status), no stale Date groups.
     // Topic search must not treat a leftover Related passage as scope (path-specific hasScope).
     expect(app).toContain("jevWaiting");
+    expect(app).toContain("relatedDrafting");
     expect(app).toContain("jevHintCopy(groupBy)");
     expect(app).toContain("jevCtaCopy(groupBy)");
     expect(app).toContain('box.className = "offer rank-empty"');
@@ -245,8 +252,15 @@ describe("UI copy and list toolbar toggle", () => {
     // Expanded reader forces Lexend inside the shadow (si-passage .root uses all:initial).
     expect(app).toContain('font-family: "Lexend"');
     expect(app).toContain("styleScripture(el); // re-apply after reconnect");
-    // Typing a new ref clears the old list and shows loading before the debounced request.
-    expect(app).toMatch(/addEventListener\("input"[\s\S]*?rankGeneration\+\+[\s\S]*?rankPending = true/);
+    // Related ranks on commit only — typing clears stale UI, no debounced Jev.
+    expect(app).toContain("function commitRelatedRank");
+    expect(app).toContain('refField.addEventListener("change"');
+    expect(app).toContain('refField.addEventListener("focusout"');
+    expect(app).toContain("commitTopicSearch");
+    expect(app).not.toContain("refRankTimer");
+    expect(app).not.toContain("setTimeout(() => void runRelevance(), 400)");
+    expect(app).not.toContain("setTimeout(() => void runTopic(), 400)");
+    expect(app).toMatch(/addEventListener\("input"[\s\S]*?rankGeneration\+\+[\s\S]*?no network until commit/);
     expect(app).toContain('rankPending = true;\n  render(); // loading before any network / verse fetch');
     // List bar stretches full-width across the column with integrated status cell.
     expect(css).toContain("white-space: nowrap");

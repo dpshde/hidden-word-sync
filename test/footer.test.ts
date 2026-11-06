@@ -101,12 +101,16 @@ test("desktop uses segmented mode buttons in #list-bar; mobile (≤600px) uses a
   expect(css).toMatch(/@media \(max-width: 600px\)[\s\S]*?\.mode-select:not\(\[hidden\]\) \{[\s\S]*?display: block;/);
   expect(app).toContain("function selectMode(next)");
   expect(app).toContain("function selectRelatedSort");
+  expect(app).toContain("function commitRelatedRank");
+  expect(app).toContain("function rankSkeleton");
   expect(app).toContain('$("#group-by-select").value = groupBy');
   expect(app).toContain("function openTopicSearch");
   expect(app).toContain("function closeTopicSearch");
   expect(app).toContain("function syncAddHiddenForTopicSearch");
   expect(css).toContain("order: -1");
   expect(css).toContain(".list-bar-top:has(.topic-search-wrap.is-open) .segmented");
+  expect(css).toContain(".rank-skeleton");
+  expect(css).toContain("prefers-reduced-motion: reduce");
   // Phone resting: icon + mode select share a row; full-width select only while search is open.
   expect(css).toMatch(/@media \(max-width: 600px\)[\s\S]*?\.mode-select:not\(\[hidden\]\) \{[\s\S]*?flex:\s*1 1 0/);
   expect(css).toContain(".list-bar-top:has(.topic-search-wrap.is-open) .mode-select:not([hidden])");
