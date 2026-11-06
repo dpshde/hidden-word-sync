@@ -272,9 +272,9 @@ button.dot[aria-pressed="true"] { border-color: var(--fg); }
 #list .group > summary:hover { background: color-mix(in oklab, var(--accent) 86%, var(--bg)); }
 #list .group > summary:focus-visible { outline-offset: -2px; }
 /* Top list toolbar: Filter + expandable topic-search icon beside Date/Genre/Relevant/Surprising.
-   Search is orthogonal chrome (not a 5th mode). Resting state shows the icon only so #ref is the
-   sole text field; expand reveals the search input on its own full-width row so modes are never
-   crushed beside it. Total/status sits quietly below. */
+   Search is orthogonal chrome (not a 5th mode). Resting: icon shares the row with Filter (if any)
+   and modes — never a lone full-width icon row. Expand: search takes its own full-width row so
+   modes stay uncrushed below; #add is hidden in JS. Total/status sits quietly below. */
 .list-bar {
   display: flex;
   flex-direction: column;
@@ -1005,8 +1005,10 @@ body:has(#main:not([hidden])) .shell-meta { flex-shrink: 0; }
     min-height: 40px;
     height: 40px;
   }
+  /* Resting: icon + DATE select share one row. Full-width select only while search is open. */
   .mode-select:not([hidden]) {
-    flex: 1 1 100%;
+    flex: 1 1 0;
+    min-width: 0;
   }
   #menu > summary {
     display: inline-flex;

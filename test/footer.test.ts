@@ -99,6 +99,9 @@ test("desktop uses segmented mode buttons in #list-bar; mobile (≤600px) uses a
   expect(app).toContain("function syncAddHiddenForTopicSearch");
   expect(css).toContain("order: -1");
   expect(css).toContain(".list-bar-top:has(.topic-search-wrap.is-open) .segmented");
+  // Phone resting: icon + mode select share a row; full-width select only while search is open.
+  expect(css).toMatch(/@media \(max-width: 600px\)[\s\S]*?\.mode-select:not\(\[hidden\]\) \{[\s\S]*?flex:\s*1 1 0/);
+  expect(css).toContain(".list-bar-top:has(.topic-search-wrap.is-open) .mode-select:not([hidden])");
 });
 
 test("phone Colors/Sync/Backup are top-aligned pages with header close and pinned Done", () => {
