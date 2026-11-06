@@ -1,8 +1,11 @@
+diff --git a/node_modules/@faith-tools/scripture-inline/.bun-tag-6fe1738e50260aa b/.bun-tag-6fe1738e50260aa
+new file mode 100644
+index 0000000000000000000000000000000000000000..e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
 diff --git a/node_modules/@faith-tools/scripture-inline/.bun-tag-c5276cdf6b0c09c4 b/.bun-tag-c5276cdf6b0c09c4
 new file mode 100644
 index 0000000000000000000000000000000000000000..e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
 diff --git a/dist/index.js b/dist/index.js
-index 6780b42e10f3a5415c64a25c435f5556f478ada2..fc52802cd98c4e61ff2aa5d4a7f4c5499903daca 100644
+index 6780b42e10f3a5415c64a25c435f5556f478ada2..beb29745b8269262dc211b3129111ab02489f7c2 100644
 --- a/dist/index.js
 +++ b/dist/index.js
 @@ -404,7 +404,7 @@ function N(e) {
@@ -14,16 +17,17 @@ index 6780b42e10f3a5415c64a25c435f5556f478ada2..fc52802cd98c4e61ff2aa5d4a7f4c549
  function z(n) {
  	return (n === "alphabetical" ? R : e).map((e) => ({
  		kind: "book",
-@@ -473,6 +473,8 @@ var K = class extends HTMLElement {
+@@ -473,6 +473,9 @@ var K = class extends HTMLElement {
  	list = document.createElement("ul");
  	suggestions = [];
  	active = -1;
 +	rangeAnchor = -1;
 +	draggingRange = !1;
++	pendingChapter = null;
  	committed = "";
  	constructor() {
  		super();
-@@ -489,14 +491,57 @@ var K = class extends HTMLElement {
+@@ -489,14 +492,57 @@ var K = class extends HTMLElement {
  			this.input.removeAttribute("aria-invalid"), this.internals.setValidity({}), this.suggest();
  		}), this.input.addEventListener("keydown", (e) => this.onKeydown(e)), this.input.addEventListener("focus", () => this.suggest()), this.input.addEventListener("click", () => this.list.hidden && this.suggest()), this.input.addEventListener("change", (e) => e.stopPropagation()), this.input.addEventListener("blur", () => {
  			this.close(), this.commit(this.input.value);
@@ -83,7 +87,7 @@ index 6780b42e10f3a5415c64a25c435f5556f478ada2..fc52802cd98c4e61ff2aa5d4a7f4c549
  			let t = e.changedTouches[0];
  			!i || !t || Math.hypot(t.clientX - i.clientX, t.clientY - i.clientY) > 10 || (e.preventDefault(), r(e));
  		}), this.addEventListener("click", (e) => e.composedPath()[0] === this && this.input.focus());
-@@ -587,48 +632,114 @@ var K = class extends HTMLElement {
+@@ -587,48 +633,123 @@ var K = class extends HTMLElement {
  		}];
  	}
  	suggest() {
@@ -92,7 +96,12 @@ index 6780b42e10f3a5415c64a25c435f5556f478ada2..fc52802cd98c4e61ff2aa5d4a7f4c549
 -			n.id = `${this.list.id}-${t}`, n.dataset.index = String(t), n.setAttribute("role", "option"), n.setAttribute("part", "option"), n.setAttribute("aria-selected", "false"), n.textContent = H(e.label);
 -			let r = G(e);
 -			if (r) {
-+		this.suggestions = this.options(this.input.value.trim()), this.active = -1, this.rangeAnchor = -1, this.draggingRange = !1;
++		let q = this.input.value.trim();
++		if (this.pendingChapter && q !== this.pendingChapter.insertText) this.pendingChapter = null;
++		this.suggestions = this.pendingChapter ? (() => {
++			let [n, r] = this.pendingChapter.canonical.split(".");
++			return U(n, Number(r));
++		})() : this.options(q), this.active = -1, this.rangeAnchor = -1, this.draggingRange = !1;
 +		let e = this.suggestions[0]?.kind ?? "", n = e === "chapter" || e === "verse" || e === "range";
 +		this.list.dataset.kind = e;
 +		let r = [];
@@ -147,7 +156,7 @@ index 6780b42e10f3a5415c64a25c435f5556f478ada2..fc52802cd98c4e61ff2aa5d4a7f4c549
  	}
  	close() {
 -		this.list.hidden = !0, this.input.setAttribute("aria-expanded", "false"), this.input.removeAttribute("aria-activedescendant"), this.active = -1;
-+		this.list.hidden = !0, this.input.setAttribute("aria-expanded", "false"), this.input.removeAttribute("aria-activedescendant"), this.active = -1, this.rangeAnchor = -1, this.draggingRange = !1;
++		this.list.hidden = !0, this.input.setAttribute("aria-expanded", "false"), this.input.removeAttribute("aria-activedescendant"), this.active = -1, this.rangeAnchor = -1, this.draggingRange = !1, this.pendingChapter = null;
 +	}
 +	acceptVerseRange(e, t) {
 +		let n = this.suggestions[Math.min(e, t)], r = this.suggestions[Math.max(e, t)];
@@ -158,7 +167,7 @@ index 6780b42e10f3a5415c64a25c435f5556f478ada2..fc52802cd98c4e61ff2aa5d4a7f4c549
  	}
  	accept(e) {
 -		e.kind === "book" ? (this.input.value = `${e.insertText} `, this.suggest()) : (this.close(), this.commit(e.insertText));
-+		e.kind === "book" ? (this.input.value = `${e.insertText} `, this.suggest()) : e.kind === "chapter" ? (this.input.value = `${e.insertText}:`, this.suggest()) : (this.close(), this.commit(e.insertText));
++		e.kind === "book" ? (this.pendingChapter = null, this.input.value = `${e.insertText} `, this.suggest()) : e.kind === "chapter" ? (this.pendingChapter = e, this.input.value = e.insertText, this.suggest()) : (this.pendingChapter = null, this.close(), this.commit(e.insertText));
 +	}
 +	gridCols() {
 +		let e = [...this.list.children].filter((e) => e.dataset?.index !== void 0);
@@ -206,6 +215,10 @@ index 6780b42e10f3a5415c64a25c435f5556f478ada2..fc52802cd98c4e61ff2aa5d4a7f4c549
 +					return;
 +				}
 +				let i = l(this.input.value.trim());
++				if (t && this.pendingChapter && this.active < 0) {
++					e.preventDefault(), this.close(), this.commit(this.input.value);
++					return;
++				}
 +				return t && e.preventDefault(), !this.input.value.trim() && this.active < 0 ? (this.close(), this.commit("")) : this.active >= 0 ? this.accept(this.suggestions[this.active]) : i.ok || !n ? (this.close(), this.commit(this.input.value)) : this.accept(this.suggestions[0]);
 +			}
 +			case "Tab": {

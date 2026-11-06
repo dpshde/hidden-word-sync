@@ -132,7 +132,7 @@ test("chapter, verse, and range suggestions render a sticky header and pure-numb
   }
 });
 
-test("accepting a chapter advances to the verse number grid instead of committing the chapter", () => {
+test("accepting a chapter opens the verse grid without a colon so chapter-only submit still works", () => {
   const makeNode = (tag: string): any => ({
     tag,
     id: "",
@@ -157,9 +157,16 @@ test("accepting a chapter advances to the verse number grid instead of committin
     Object.assign(f, {
       list,
       getAttribute: () => null,
+      pendingChapter: null,
       input: { value: "John ", setAttribute() {}, removeAttribute() {} },
       commit: (val: string) => committed.push(val),
-      close() { this.list.hidden = true; },
+      close() {
+        this.list.hidden = true;
+        this.pendingChapter = null;
+        this.active = -1;
+        this.rangeAnchor = -1;
+        this.draggingRange = false;
+      },
     });
     f.suggest();
     expect(list.dataset.kind).toBe("chapter");
@@ -167,13 +174,108 @@ test("accepting a chapter advances to the verse number grid instead of committin
     expect(chapter?.kind).toBe("chapter");
     f.accept(chapter);
     expect(committed).toEqual([]);
-    expect(f.input.value).toBe("John 3:");
+    expect(f.input.value).toBe("John 3");
+    expect(f.pendingChapter).toEqual(chapter);
     expect(list.dataset.kind).toBe("verse");
     expect(list.hidden).toBe(false);
     expect(list.children[0].className).toBe("si-grid-head");
     expect(list.children[0].children[0].textContent).toBe("John 3");
     expect(list.children[1].textContent).toBe("1");
     expect(list.children[16].textContent).toBe("16");
+
+    // Enter with no verse highlighted commits the chapter-only passage.
+    f.onKeydown({ key: "Enter", preventDefault() {} });
+    expect(committed).toEqual(["John 3"]);
+    expect(f.pendingChapter).toBeNull();
+  } finally {
+    document.createElement = prevCreate;
+  }
+});
+
+test("after a chapter accept, picking a verse commits Book N:verse", () => {
+  const makeNode = (tag: string): any => ({
+    tag,
+    id: "",
+    className: "",
+    textContent: "",
+    dataset: {} as Record<string, string>,
+    attrs: {} as Record<string, string>,
+    children: [] as any[],
+    get childElementCount() { return this.children.length; },
+    setAttribute(k: string, v: string) { this.attrs[k] = v; },
+    removeAttribute(k: string) { delete this.attrs[k]; },
+    append(...nodes: any[]) { this.children.push(...nodes); },
+    replaceChildren(...nodes: any[]) { this.children = nodes; },
+  });
+  const prevCreate = document.createElement;
+  document.createElement = makeNode;
+  const committed: string[] = [];
+  try {
+    const f = Object.create(Field.prototype);
+    const list = makeNode("ul");
+    list.id = "l";
+    Object.assign(f, {
+      list,
+      getAttribute: () => null,
+      pendingChapter: null,
+      input: { value: "John ", setAttribute() {}, removeAttribute() {} },
+      commit: (val: string) => committed.push(val),
+      close() {
+        this.list.hidden = true;
+        this.pendingChapter = null;
+        this.active = -1;
+        this.rangeAnchor = -1;
+        this.draggingRange = false;
+      },
+    });
+    f.suggest();
+    const chapter = f.suggestions.find((s: { canonical: string }) => s.canonical === "JHN.3");
+    f.accept(chapter);
+    expect(f.input.value).toBe("John 3");
+    expect(list.dataset.kind).toBe("verse");
+    const verse = f.suggestions.find((s: { canonical: string }) => s.canonical === "JHN.3.16");
+    expect(verse?.insertText).toBe("John 3:16");
+    f.accept(verse);
+    expect(committed).toEqual(["John 3:16"]);
+    expect(f.pendingChapter).toBeNull();
+  } finally {
+    document.createElement = prevCreate;
+  }
+});
+
+test("typed John 3 stays a chapter grid until the user accepts or types a colon", () => {
+  const makeNode = (tag: string): any => ({
+    tag,
+    id: "",
+    className: "",
+    textContent: "",
+    dataset: {} as Record<string, string>,
+    attrs: {} as Record<string, string>,
+    children: [] as any[],
+    get childElementCount() { return this.children.length; },
+    setAttribute(k: string, v: string) { this.attrs[k] = v; },
+    removeAttribute(k: string) { delete this.attrs[k]; },
+    append(...nodes: any[]) { this.children.push(...nodes); },
+    replaceChildren(...nodes: any[]) { this.children = nodes; },
+  });
+  const prevCreate = document.createElement;
+  document.createElement = makeNode;
+  try {
+    const f = Object.create(Field.prototype);
+    const list = makeNode("ul");
+    list.id = "l";
+    Object.assign(f, {
+      list,
+      getAttribute: () => null,
+      pendingChapter: null,
+      input: { value: "John 3", setAttribute() {}, removeAttribute() {} },
+    });
+    f.suggest();
+    expect(f.pendingChapter).toBeNull();
+    expect(list.dataset.kind).toBe("chapter");
+    f.input.value = "John 3:";
+    f.suggest();
+    expect(list.dataset.kind).toBe("verse");
   } finally {
     document.createElement = prevCreate;
   }
