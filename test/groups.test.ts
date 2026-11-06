@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { BOOKS } from "../public/refs.js";
-import { GENRES, dateGroup, genreOf, groupList, recordTime, runTime, startsOpen } from "../public/groups.js";
+import { GENRES, LEGACY_TOPIC_MODE, MODES, JEV_MODES, dateGroup, genreOf, groupList, recordTime, runTime, startsOpen } from "../public/groups.js";
 
 // Local midnight is what matters, so pin a zone with daylight saving time.
 process.env.TZ = "America/New_York";
@@ -87,11 +87,20 @@ test("by genre: canonical order inside each genre, runs within it, empty genres 
   ]);
 });
 
+test("modes are Date · Genre · Relevant · Surprising; legacy topic migrates away from the strip", () => {
+  expect(MODES).toEqual(["date", "genre", "relevant", "surprising"]);
+  expect(MODES).not.toContain("topic");
+  expect(JEV_MODES).toEqual(["relevant", "surprising"]);
+  expect(LEGACY_TOPIC_MODE).toBe("topic");
+});
+
 test("Today and Last 7 days start open; Older and every genre start closed; Jev ranked group starts open", () => {
   expect(startsOpen("date", "today")).toBe(true);
   expect(startsOpen("date", "week")).toBe(true);
   expect(startsOpen("date", "older")).toBe(false);
   for (const g of GENRES) expect(startsOpen("genre", g.id)).toBe(false);
   expect(startsOpen("relevant", "ranked")).toBe(true);
-  expect(startsOpen("topic", "ranked")).toBe(true);
+  expect(startsOpen("surprising", "ranked")).toBe(true);
+  // Topic search reuses the same ranked group id while modes stay Date/Genre/Relevant/Surprising.
+  expect(startsOpen("date", "ranked")).toBe(true);
 });

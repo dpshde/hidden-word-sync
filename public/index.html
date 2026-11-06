@@ -95,9 +95,8 @@
 
     <form id="add" autocomplete="off" novalidate>
       <button type="button" id="add-dot" class="pick" aria-haspopup="true" aria-label="Highlight color: Yellow"><span class="dot" data-color="yellow"></span></button>
-      <!-- Relevant/Surprising hijack #ref as the ranking scope; Topic swaps in #topic-ref in this same top slot. -->
+      <!-- Relevant/Surprising hijack #ref as the ranking scope. Topic search lives in #list-bar beside Filter. -->
       <si-passage-input id="ref" placeholder="John 3:16" aria-label="Verse or passage"></si-passage-input>
-      <input id="topic-ref" class="topic-input" type="text" enterkeyhint="search" maxlength="200" placeholder="Search by topic — grace, prayer…" aria-label="Search highlights by topic" autocomplete="off" hidden>
       <input type="hidden" name="color" value="yellow">
       <button type="submit">Highlight</button>
       <p class="error" role="alert"></p>
@@ -110,19 +109,18 @@
           <summary id="filter-summary" aria-label="Filter by color" title="Filter by color"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg><span id="filter-badge" class="filter-badge" hidden></span></summary>
           <div id="filter-options" role="group" aria-label="Filter by color"></div>
         </details>
+        <input id="topic-search" class="topic-search" type="search" enterkeyhint="search" maxlength="200" placeholder="Search by topic…" aria-label="Search highlights by topic" autocomplete="off">
         <div id="group-by" class="segmented" role="group" aria-label="Sort highlights" hidden>
           <button type="button" data-mode="date" aria-pressed="true">Date</button>
           <button type="button" data-mode="genre" aria-pressed="false">Genre</button>
           <button type="button" data-mode="relevant" aria-pressed="false">Relevant</button>
           <button type="button" data-mode="surprising" aria-pressed="false">Surprising</button>
-          <button type="button" data-mode="topic" aria-pressed="false">Topic</button>
         </div>
         <select id="group-by-select" class="mode-select" aria-label="Sort highlights" hidden>
           <option value="date">Date</option>
           <option value="genre">Genre</option>
           <option value="relevant">Relevant</option>
           <option value="surprising">Surprising</option>
-          <option value="topic">Topic</option>
         </select>
       </div>
     </div>

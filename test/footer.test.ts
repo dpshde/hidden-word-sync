@@ -74,14 +74,18 @@ test("phone ••• stays in <header> (reachable even when library is empty); 
 });
 
 test("desktop uses segmented mode buttons in #list-bar; mobile (≤600px) uses a <select>", () => {
-  for (const mode of ["date", "genre", "relevant", "surprising", "topic"]) {
+  for (const mode of ["date", "genre", "relevant", "surprising"]) {
     expect(html).toContain(`data-mode="${mode}"`);
     expect(html).toContain(`<option value="${mode}">`);
   }
+  expect(html).not.toContain('data-mode="topic"');
+  expect(html).not.toContain('<option value="topic">');
+  expect(html).toContain('id="topic-search"');
   expect(html).toContain('id="group-by-select"');
   expect(html).toContain('aria-label="Sort highlights"');
   expect(html).not.toContain("mode-icon");
   expect(css).toContain(".list-bar .segmented");
+  expect(css).toContain(".list-bar .topic-search");
   expect(css).toMatch(/\.list-bar \.segmented button\s*\{[^}]*flex:\s*1 0 auto/);
   expect(css).toContain(".mode-select");
   expect(css).toMatch(/@media \(max-width: 600px\)[\s\S]*?\.list-bar \.segmented \{ display: none; \}/);

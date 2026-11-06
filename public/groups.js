@@ -6,13 +6,14 @@ import { groupRuns, recordTime, runTime } from "./ranges.js";
 
 export { recordTime, runTime };
 
-export const MODES = ["date", "genre", "relevant", "surprising", "topic"];
+export const MODES = ["date", "genre", "relevant", "surprising"];
 export const GROUP_MODES = ["date", "genre"];
-/** Passage-ranked modes (filter then sort). Topic is free-text sort-all — see TOPIC_MODE. */
+/** Passage-ranked modes (filter then sort). Topic search is orthogonal chrome in #list-bar, not a mode. */
 export const RANK_MODES = ["relevant", "surprising"];
-export const TOPIC_MODE = "topic";
-/** Any mode that uses Jev (passage rank or topic sort). */
-export const JEV_MODES = ["relevant", "surprising", "topic"];
+/** Persisted `groupBy` from when Topic was a 5th mode; migrate to `date`. */
+export const LEGACY_TOPIC_MODE = "topic";
+/** Any list mode that uses Jev passage ranking. Topic search uses Jev too, but is not a mode. */
+export const JEV_MODES = ["relevant", "surprising"];
 
 /** The Protestant canon's genres, each a span of books in canonical order (BOOKS indexes). */
 export const GENRES = [

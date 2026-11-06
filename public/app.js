@@ -5,7 +5,7 @@ import {
 import { labelRef, compareRefs } from "./refs.js";
 import { editRun, highlightRecord, tombstone, groupRuns } from "./ranges.js";
 import { readPassage } from "./passage.js";
-import { MODES, RANK_MODES, TOPIC_MODE, JEV_MODES, groupList, startsOpen } from "./groups.js";
+import { MODES, RANK_MODES, LEGACY_TOPIC_MODE, JEV_MODES, groupList, startsOpen } from "./groups.js";
 import { definePassageInput, defineScripturePassage } from "./vendor/scripture-inline.js";
 import { createPasskeyPrf, getPasskeyPrf, passkeysAvailable, cancelled } from "./passkey.js";
 import { setupThemeToggle } from "./theme-toggle.js";
@@ -32,8 +32,8 @@ const $ = (sel) => document.querySelector(sel);
 const SESSION = "hidden-word:session";
 const CREATED = "hidden-word:created";
 const SAVE_LINK = "hidden-word:save-link";
-// How this device sorts the list (date / genre / relevant / surprising / topic): a display choice, not synced.
-// The Relevant/Surprising passage and Topic phrase are never stored — only the mode button is.
+// How this device sorts the list (date / genre / relevant / surprising): a display choice, not synced.
+// The Relevant/Surprising passage and topic-search phrase are never stored — only the mode button is.
 const GROUP_BY = "hidden-word:group-by";
 // A library's name as this device last saw it, for the unlock form and before the library has synced.
 // The name itself syncs as a `library` record (SPEC.md 1.5): library.name is the one to show.
@@ -313,7 +313,6 @@ definePassageInput();
 const refField = $("#ref");
 const REF_ADD = { placeholder: "John 3:16", aria: "Verse or passage" };
 const REF_RANK = { placeholder: "Rom 8:18–25", aria: "Passage to rank highlights against" };
-const REF_TOPIC = { placeholder: "Search by topic — grace, prayer…", aria: "Search highlights by topic" };
 /** Debounce timer for ranking-from-#ref (Relevant/Surprising). */
 let refRankTimer = 0;
 /** What's in a passage field: its passage id when it read one, else the typed text, which readPassage reads
@@ -325,25 +324,24 @@ function refText(field = refField) {
 /** Whether the field's suggestion list is showing (Enter and Escape act on it first). */
 const suggesting = (field) => field.shadowRoot?.querySelector("[role=listbox]")?.hidden === false;
 
-/** Swap #add between add-highlight, passage-ranking (#ref), and topic-search (#topic-ref) chrome. */
+/** Sanitized text in the list-bar topic search, or "" when empty. */
+function topicQuery() {
+  return sanitizeTopic($("#topic-search")?.value ?? "");
+}
+
+/** Swap #add between add-highlight and passage-ranking (#ref) chrome. Topic search is orthogonal in #list-bar. */
 function syncRefFieldMode() {
   const ranking = RANK_MODES.includes(groupBy);
-  const topicMode = groupBy === TOPIC_MODE;
-  const jevActive = JEV_MODES.includes(groupBy);
   const meta = ranking ? REF_RANK : REF_ADD;
   refField.setAttribute("placeholder", meta.placeholder);
   refField.setAttribute("aria-label", meta.aria);
   // si-passage-input copies aria-label only on connect; keep the inner input in sync.
   refField.shadowRoot?.querySelector("input")?.setAttribute("aria-label", meta.aria);
-  refField.hidden = topicMode;
-  const topicField = $("#topic-ref");
-  topicField.setAttribute("placeholder", REF_TOPIC.placeholder);
-  topicField.setAttribute("aria-label", REF_TOPIC.aria);
-  topicField.hidden = !topicMode;
+  refField.hidden = false;
   const form = $("#add");
-  form.classList.toggle("rank-scope", jevActive);
-  $("#add-dot").hidden = jevActive;
-  form.querySelector('button[type="submit"]').hidden = jevActive;
+  form.classList.toggle("rank-scope", ranking);
+  $("#add-dot").hidden = ranking;
+  form.querySelector('button[type="submit"]').hidden = ranking;
 }
 
 // Enter: settle suggestions first; else rank (Relevant/Surprising) or add a highlight (Date/Genre).
@@ -361,13 +359,9 @@ refField.addEventListener("keydown", (e) => {
 
 $("#add").addEventListener("submit", async (e) => {
   e.preventDefault();
-  // Ranking modes never add from this form — #ref or #topic-ref is the scope field (Highlight is hidden).
+  // Ranking modes never add from this form — #ref is the scope field (Highlight is hidden).
   if (RANK_MODES.includes(groupBy)) {
     void runRelevance();
-    return;
-  }
-  if (groupBy === TOPIC_MODE) {
-    void runTopic();
     return;
   }
   const form = e.target;
@@ -452,35 +446,34 @@ function render() {
   renderFilters(counts);
 
   const shown = filter.size ? rows.filter((r) => filter.has(topColor(r, ids))) : rows;
-  const jevActive = JEV_MODES.includes(groupBy);
-  // Scope is mode-specific: a leftover Relevant passage must not count as Topic scope (and vice versa).
-  const hasScope = RANK_MODES.includes(groupBy)
-    ? !!relevance?.passage
-    : groupBy === TOPIC_MODE
-      ? !!relevance?.topic
-      : false;
+  // Topic search in #list-bar owns the list while it has a query; modes stay visible underneath.
+  const searching = !!topicQuery();
+  const jevActive = RANK_MODES.includes(groupBy) && !searching;
+  // Scope is path-specific: a leftover Relevant passage must not count as topic search scope (and vice versa).
+  const hasScope = searching ? !!relevance?.topic : jevActive ? !!relevance?.passage : false;
   // A failed call keeps Date order. Pending keeps Jev chrome (loading line) before the scope lands.
-  const ranking = jevActive && !rankFailed && (hasScope || rankPending);
-  // Jev mode with nothing typed yet: empty list + hint (never a stale Date "Today" header).
+  const ranking = (searching || jevActive) && !rankFailed && (hasScope || rankPending);
+  // Relevant/Surprising with nothing typed yet: empty list + hint (never a stale Date "Today" header).
+  // Empty topic search shows no CTA panel — only the quiet field placeholder.
   const jevWaiting = jevActive && !rankFailed && !hasScope && !rankPending;
   const noneRelevant =
-    ranking && !rankPending && !!relevance?.passage && RANK_MODES.includes(groupBy) && rankOrder.length === 0 && shown.length > 0;
+    ranking && !rankPending && !searching && !!relevance?.passage && RANK_MODES.includes(groupBy) && rankOrder.length === 0 && shown.length > 0;
   $("#empty").hidden = rows.length > 0;
   $("#empty").textContent = "No highlights yet.";
   showRelevanceNone(noneRelevant ? { count: shown.length, passage: relevance.passage } : null);
-  showRankPreview(ranking && !rankPending && relevance?.passage && RANK_MODES.includes(groupBy) ? relevance.passage : null);
+  showRankPreview(ranking && !rankPending && !searching && relevance?.passage && RANK_MODES.includes(groupBy) ? relevance.passage : null);
   renderGroupBy(rows.length > 0);
   // A row being edited stays as it is until the edit ends (a sync mid-edit would wipe the field);
   // finishing the edit renders again.
   // Rebuild the list only when what it shows changed. A sync that brings nothing new (every window
   // focus runs one) still emits for its status; rebuilding then would move the open passage and
   // replay its opening animation.
-  const scopeKey = RANK_MODES.includes(groupBy)
-    ? relevance?.passage?.ref || ""
-    : groupBy === TOPIC_MODE
-      ? relevance?.topic || ""
+  const scopeKey = searching
+    ? relevance?.topic || ""
+    : RANK_MODES.includes(groupBy)
+      ? relevance?.passage?.ref || ""
       : "";
-  const sig = JSON.stringify([shown, colors, groupBy, [...filter], verseText.key, editing, ranking && scopeKey, rankOrder, rankFailed, noneRelevant, !!rankPending, jevWaiting, verseText.open, rankPaint]);
+  const sig = JSON.stringify([shown, colors, groupBy, [...filter], verseText.key, editing, ranking && scopeKey, rankOrder, rankFailed, noneRelevant, !!rankPending, jevWaiting, searching, verseText.open, rankPaint]);
   if (!editing && sig !== listSig) {
     if (jevWaiting) {
       // Actionable empty scope CTA in the list area; foot status stays empty.
@@ -498,12 +491,8 @@ function render() {
       cta.className = "quiet rank-cta";
       cta.textContent = jevCtaCopy(groupBy);
       cta.addEventListener("click", () => {
-        if (groupBy === TOPIC_MODE) {
-          $("#topic-ref")?.focus();
-        } else {
-          refField?.focus();
-          refField?.suggest?.();
-        }
+        refField?.focus();
+        refField?.suggest?.();
       });
       row.append(cta);
       box.append(hint, row);
@@ -518,25 +507,24 @@ function render() {
         $("#list-total").textContent = rankingCopy();
         $("#list").replaceChildren();
       } else if (ranked.length) {
-        const heading =
-          groupBy === TOPIC_MODE
-            ? topicCopy(relevance?.topic)
-            : relatedCopy(relevance?.passage?.label, groupBy);
-        $("#list-total").textContent = rankStatusCopy(ranked.length, shown.length, groupBy);
+        const heading = searching
+          ? topicCopy(relevance?.topic)
+          : relatedCopy(relevance?.passage?.label, groupBy);
+        $("#list-total").textContent = rankStatusCopy(ranked.length, shown.length, searching ? "topic" : groupBy);
         // New final paint: expand the new top unless the person toggled a row this query.
         applyRankAutoExpand(ranked[0].ref);
         // Same group()/row() markup as Date and Genre — only the heading text differs.
         $("#list").replaceChildren(group({ id: "ranked", name: heading, runs: ranked }));
       } else {
-        // Zero survivors (passage modes). Topic keeps every highlight, so this is rare.
+        // Zero survivors (passage modes). Topic search keeps every highlight, so this is rare.
         // Never put topicCopy in the foot with an empty list.
-        $("#list-total").textContent = RANK_MODES.includes(groupBy) ? totalCopy(0, shown.length) : "";
+        $("#list-total").textContent = searching ? "" : RANK_MODES.includes(groupBy) ? totalCopy(0, shown.length) : "";
         $("#list").replaceChildren();
       }
       $("#empty").hidden = true; // library has rows; zero relevant uses #relevance-none, not #empty
     } else {
-      // Date/Genre, or a failed Jev call: Date/Genre grouping (failed stays in Date order).
-      const mode = jevActive ? "date" : groupBy;
+      // Date/Genre, or a failed Jev/search call: Date/Genre grouping (failed stays in Date order).
+      const mode = jevActive || searching ? "date" : groupBy;
       const groups = groupList(shown, mode, (r) => topColor(r, ids));
       const total = groups.reduce((n, g) => n + g.runs.length, 0);
       $("#list-total").textContent = `${total} ${total === 1 ? "highlight" : "highlights"}`;
@@ -568,8 +556,19 @@ function applyRankAutoExpand(topRef) {
 }
 
 // ---- grouping / ranking: Date and Genre group; Relevant and Surprising rank against a passage.
+// Topic search is orthogonal chrome in #list-bar (not a mode).
 
-let groupBy = MODES.includes(localStorage.getItem(GROUP_BY) ?? "") ? localStorage.getItem(GROUP_BY) : "date";
+/** Load persisted mode; migrate legacy Topic mode → Date. */
+function readGroupBy() {
+  const stored = localStorage.getItem(GROUP_BY) ?? "";
+  if (stored === LEGACY_TOPIC_MODE) {
+    localStorage.setItem(GROUP_BY, "date");
+    return "date";
+  }
+  return MODES.includes(stored) ? stored : "date";
+}
+
+let groupBy = readGroupBy();
 const groupOpen = new Map();
 let relevance = null;
 const bsbText = createBsbText();
@@ -591,18 +590,24 @@ function selectMode(next) {
   const willJev = JEV_MODES.includes(next);
   const wasPassage = RANK_MODES.includes(groupBy);
   const willPassage = RANK_MODES.includes(next);
+  const searching = !!topicQuery();
   groupBy = next;
   localStorage.setItem(GROUP_BY, groupBy);
   // Leaving Relevant/Surprising: clear ranking scope from #ref so Date/Genre don't inherit it as an add.
+  // Topic search stays — it is orthogonal chrome, not a mode.
   if (wasPassage && !willPassage) clearRankScopeFromRef();
-  if (wasJev && !willJev) clearRelevanceInput({ keepRef: wasPassage });
-  // Entering Relevant/Surprising from Date/Genre/Topic: start with an empty rank field (don't rank a half-typed add).
+  if (wasJev && !willJev && !searching) clearRelevanceInput({ keepRef: wasPassage, keepSearch: true });
+  // Entering Relevant/Surprising from Date/Genre: start with an empty rank field (don't rank a half-typed add).
   if (willPassage && !wasPassage) {
     refField.value = "";
     errorIn($("#add"), "");
   }
-  if (next === TOPIC_MODE) errorIn($("#add"), "");
   renderGroupBy(!!$("#list-bar") && !$("#list-bar").hidden);
+  // Search owns the list until cleared; only persist the mode for when the field empties.
+  if (searching) {
+    render();
+    return;
+  }
   if (willPassage && wasPassage && relevance?.passage && !rankFailed) {
     // Relevant ↔ Surprising: reorder cached verdicts, no network call.
     // New final paint so auto-expand follows the new top (unless the person toggled a row).
@@ -610,12 +615,8 @@ function selectMode(next) {
     void reorderRelevance();
   } else if (willPassage && refText(refField).trim()) {
     void runRelevance();
-  } else if (next === TOPIC_MODE && sanitizeTopic($("#topic-ref").value)) {
-    void runTopic();
   } else {
-    // Crossing passage ↔ topic (or empty scope): drop the other mode's session so hasScope matches the field.
-    if (next === TOPIC_MODE) relevance?.setTopicInput("");
-    else if (willPassage) relevance?.clearPassage();
+    if (willPassage) relevance?.clearPassage();
     rankOrder = [];
     rankFailed = false;
     verseText.open = null;
@@ -636,9 +637,12 @@ function clearRankScopeFromRef() {
   errorIn($("#add"), "");
 }
 
-function clearRelevanceInput({ keepRef = false } = {}) {
+function clearRelevanceInput({ keepRef = false, keepSearch = false } = {}) {
   if (!keepRef) clearRankScopeFromRef();
-  $("#topic-ref").value = "";
+  if (!keepSearch) {
+    const topicField = $("#topic-search");
+    if (topicField) topicField.value = "";
+  }
   errorIn($("#add"), "");
   rankGeneration++; // drop any in-flight response
   relevance?.clearPassage();
@@ -808,7 +812,8 @@ function currentRuns() {
 
 async function runRelevance() {
   const session = await ensureRelevance();
-  if (!session || !RANK_MODES.includes(groupBy)) return;
+  // Topic search owns the list while it has a query; don't race passage ranking underneath.
+  if (!session || !RANK_MODES.includes(groupBy) || topicQuery()) return;
   const form = $("#add");
   const raw = refText(refField);
   const gen = ++rankGeneration;
@@ -863,10 +868,9 @@ async function runRelevance() {
 
 async function runTopic() {
   const session = await ensureRelevance();
-  if (!session || groupBy !== TOPIC_MODE) return;
+  if (!session) return;
   const form = $("#add");
-  const raw = $("#topic-ref").value;
-  const cleaned = sanitizeTopic(raw);
+  const cleaned = topicQuery();
   const gen = ++rankGeneration;
   rankOrder = [];
   rankFailed = false;
@@ -878,7 +882,10 @@ async function runTopic() {
     errorIn(form, "");
     session.clearPassage();
     rankPending = null;
-    if (gen === rankGeneration) render();
+    if (gen !== rankGeneration) return;
+    // Restore the selected mode's list (Relevant/Surprising re-rank from #ref when present).
+    if (RANK_MODES.includes(groupBy) && refText(refField).trim()) void runRelevance();
+    else render();
     return;
   }
   rankPending = true;
@@ -917,7 +924,7 @@ async function reorderRelevance() {
 
 // Ranking input is #ref (hijacked in Relevant/Surprising). Autocomplete stays on that one field.
 refField.addEventListener("input", () => {
-  if (!RANK_MODES.includes(groupBy)) return;
+  if (!RANK_MODES.includes(groupBy) || topicQuery()) return;
   clearTimeout(refRankTimer);
   const form = $("#add");
   const raw = refText(refField);
@@ -942,31 +949,33 @@ refField.addEventListener("input", () => {
 });
 
 {
-  const topicField = $("#topic-ref");
+  const topicField = $("#topic-search");
   let topicTimer = 0;
   topicField.addEventListener("input", () => {
     clearTimeout(topicTimer);
     const form = $("#add");
     const cleaned = sanitizeTopic(topicField.value);
     if (!cleaned) errorIn(form, "");
-    if (groupBy === TOPIC_MODE) {
-      rankGeneration++;
-      rankOrder = [];
-      rankFailed = false;
-      beginRankPaint({ resetUser: true });
-      verseText.open = null;
-      showRelevanceNone(null);
-      showRankPreview(null);
-      if (cleaned) {
-        rankPending = true;
-        relevance?.setTopicInput(cleaned);
-      } else {
-        relevance?.clearPassage();
-        rankPending = null;
-      }
+    // Search owns the list whenever the field has a query — independent of Date/Genre/Relevant/Surprising.
+    rankGeneration++;
+    rankOrder = [];
+    rankFailed = false;
+    beginRankPaint({ resetUser: true });
+    verseText.open = null;
+    showRelevanceNone(null);
+    showRankPreview(null);
+    if (cleaned) {
+      rankPending = true;
+      relevance?.setTopicInput(cleaned);
       render();
+      topicTimer = setTimeout(() => void runTopic(), 400);
+    } else {
+      relevance?.clearPassage();
+      rankPending = null;
+      // Restore the selected mode immediately; debounce is unnecessary for clear.
+      if (RANK_MODES.includes(groupBy) && refText(refField).trim()) void runRelevance();
+      else render();
     }
-    topicTimer = setTimeout(() => void runTopic(), 400);
   });
   topicField.addEventListener("keydown", (e) => {
     if (e.key !== "Enter" || e.isComposing) return;
@@ -1264,7 +1273,7 @@ function wireTextToggle(toggle, li, runRef) {
   toggle.addEventListener("focus", warm);
   toggle.addEventListener("click", () => {
     // Manual open/close during this query — don't let the next mode-switch paint override it.
-    if (JEV_MODES.includes(groupBy)) rankUserTouched = true;
+    if (JEV_MODES.includes(groupBy) || topicQuery()) rankUserTouched = true;
     const wasOpen = verseText.open === runRef;
     for (const other of document.querySelectorAll("#list .verse-text")) other.remove();
     for (const other of document.querySelectorAll("#list .row-link[aria-expanded]")) other.setAttribute("aria-expanded", "false");

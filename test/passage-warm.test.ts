@@ -77,7 +77,7 @@ test("the keep-loaded patch is applied before <si-passage> is defined (callbacks
 
 test("a refocus sync with nothing new doesn't rebuild the list (which would move and re-animate the open passage)", () => {
   const app = readFileSync(new URL("../public/app.js", import.meta.url), "utf8");
-  expect(app).toContain("const sig = JSON.stringify([shown, colors, groupBy, [...filter], verseText.key, editing, ranking && scopeKey, rankOrder, rankFailed, noneRelevant, !!rankPending, jevWaiting, verseText.open, rankPaint]);");
+  expect(app).toContain("const sig = JSON.stringify([shown, colors, groupBy, [...filter], verseText.key, editing, ranking && scopeKey, rankOrder, rankFailed, noneRelevant, !!rankPending, jevWaiting, searching, verseText.open, rankPaint]);");
   expect(app).toMatch(/if \(!editing && sig !== listSig\) \{[\s\S]*?\$\("#list"\)\.replaceChildren/);
   expect(app).toContain("listSig = null; // the edit changes the row by hand");
 });

@@ -138,16 +138,14 @@ export function rankStatusCopy(shown, total, mode) {
   return `${shown} of ${total} · ${order}`;
 }
 
-/** Hint when Relevant/Surprising/Topic is on but the person hasn't typed a scope yet. */
+/** Hint when Relevant/Surprising is on but the person hasn't typed a passage yet. */
 export function jevHintCopy(mode) {
-  if (mode === "topic") return "Search your highlights by topic, theme, or question.";
   if (mode === "surprising") return "Find highlights in your library that connect to a passage in unexpected ways.";
   return "Find the highlights in your library most closely connected to a passage.";
 }
 
-/** Primary CTA button label in the empty scope state. */
+/** Primary CTA button label in the empty passage-scope state. */
 export function jevCtaCopy(mode) {
-  if (mode === "topic") return "Search highlights";
   return "Choose a passage";
 }
 
