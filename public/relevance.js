@@ -125,10 +125,10 @@ export function relatedCopy(label, mode = "relevant") {
   return named ? `Related to ${named}` : "Related";
 }
 
-/** Topic-mode group header, e.g. 'Sorted by closeness to “grace”'. Requires a real topic. */
+/** Topic-mode group header, e.g. 'Results for “grace”'. Requires a real topic. */
 export function topicCopy(topic) {
   const named = sanitizeTopic(topic);
-  return named ? `Sorted by closeness to “${named}”` : "Sorted by closeness";
+  return named ? `Results for “${named}”` : "Results";
 }
 
 /** Sort-bar microcopy: short enough for one line beside the segmented control at ~390px. */
@@ -140,14 +140,14 @@ export function rankStatusCopy(shown, total, mode) {
 
 /** Hint when Relevant/Surprising/Topic is on but the person hasn't typed a scope yet. */
 export function jevHintCopy(mode) {
-  if (mode === "topic") return "Sort all your highlights by how closely they speak to a theme.";
+  if (mode === "topic") return "Search your highlights by topic, theme, or question.";
   if (mode === "surprising") return "Find highlights in your library that connect to a passage in unexpected ways.";
   return "Find the highlights in your library most closely connected to a passage.";
 }
 
 /** Primary CTA button label in the empty scope state. */
 export function jevCtaCopy(mode) {
-  if (mode === "topic") return "Enter a topic";
+  if (mode === "topic") return "Search highlights";
   return "Choose a passage";
 }
 

@@ -51,8 +51,12 @@ describe("UI copy and list toolbar toggle", () => {
     expect(html).toContain('id="ref"');
     expect(html).toContain("<si-passage-input id=\"ref\"");
     expect(html).toContain('id="topic-ref"');
+    expect(html).toContain('placeholder="Search by topic — grace, prayer…"');
+    expect(html).toContain('aria-label="Search highlights by topic"');
     expect(html).not.toContain('id="scope-prefix"');
     expect(app).toContain('placeholder: "Rom 8:18–25"');
+    expect(app).toContain('placeholder: "Search by topic — grace, prayer…"');
+    expect(app).toContain('aria: "Search highlights by topic"');
     expect(app).toContain("syncRefFieldMode");
     expect(app).toContain("rank-scope");
     expect(app).toContain("clearRankScopeFromRef");
@@ -105,8 +109,8 @@ describe("UI copy and list toolbar toggle", () => {
     expect(rankStatusCopy(3, 10, "relevant")).toBe("3 of 10 · closest");
     expect(rankStatusCopy(3, 10, "surprising")).toBe("3 of 10 · least obvious");
     expect(rankStatusCopy(10, 10, "topic")).toBe("10 · closest");
-    expect(topicCopy("grace")).toBe("Sorted by closeness to “grace”");
-    expect(topicCopy("")).toBe("Sorted by closeness");
+    expect(topicCopy("grace")).toBe("Results for “grace”");
+    expect(topicCopy("")).toBe("Results");
     expect(jevHintCopy("relevant")).toBe(
       "Find the highlights in your library most closely connected to a passage.",
     );
@@ -115,11 +119,11 @@ describe("UI copy and list toolbar toggle", () => {
     );
     expect(jevHintCopy("surprising")).not.toBe(jevHintCopy("relevant"));
     expect(jevHintCopy("topic")).toBe(
-      "Sort all your highlights by how closely they speak to a theme.",
+      "Search your highlights by topic, theme, or question.",
     );
     expect(jevCtaCopy("relevant")).toBe("Choose a passage");
     expect(jevCtaCopy("surprising")).toBe("Choose a passage");
-    expect(jevCtaCopy("topic")).toBe("Enter a topic");
+    expect(jevCtaCopy("topic")).toBe("Search highlights");
     expect(sanitizeTopic("  grace  ")).toBe("grace");
     expect(emptyRelevanceCopy(17, "Hab 2:2")).toBe("None of your 17 highlights connect to Hab 2:2");
     expect(emptyRelevanceCopy(1, "Romans 8:28")).toBe("None of your 1 highlight connect to Romans 8:28");
@@ -194,7 +198,7 @@ describe("UI copy and list toolbar toggle", () => {
     expect(app).toContain('relevance?.setTopicInput("")');
     expect(css).toContain(".rank-empty");
     expect(css).toContain(".rank-hint");
-    // Foot never shows topicCopy / “Sorted by closeness” while the list is empty.
+    // Foot never shows topicCopy while the list is empty.
     expect(app).not.toMatch(/list-total"\)\.textContent =\s*\n\s*groupBy === TOPIC_MODE \? topicCopy/);
     // Expanded reader forces Lexend inside the shadow (si-passage .root uses all:initial).
     expect(app).toContain('font-family: "Lexend"');

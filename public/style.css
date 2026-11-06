@@ -403,12 +403,13 @@ button.dot[aria-pressed="true"] { border-color: var(--fg); }
   background: var(--hover);
   border-color: var(--hover-line);
 }
-/* Topic mode: plain text field (no verse autocomplete) in the same top #add slot as #ref. */
+/* Topic mode: plain search field (no verse autocomplete) in the same top #add slot as #ref. */
 .topic-input {
   display: block; width: 100%; height: 2.75rem; padding: 0 .875rem;
   font: 450 1rem/1.5 var(--font-sans); color: var(--fg);
   background: var(--raised); border: 1px solid var(--line); border-radius: 0;
 }
+.topic-input:hover { border-color: var(--hover-line); }
 .topic-input:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
 /* Hybrid Relevant/Surprising passage preview:
    - Short passages (≤ 2 verses, ≤ 200 chars): .rank-epigraph left-ruled under #add, no repeated title or box.

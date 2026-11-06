@@ -313,6 +313,7 @@ definePassageInput();
 const refField = $("#ref");
 const REF_ADD = { placeholder: "John 3:16", aria: "Verse or passage" };
 const REF_RANK = { placeholder: "Rom 8:18–25", aria: "Passage to rank highlights against" };
+const REF_TOPIC = { placeholder: "Search by topic — grace, prayer…", aria: "Search highlights by topic" };
 /** Debounce timer for ranking-from-#ref (Relevant/Surprising). */
 let refRankTimer = 0;
 /** What's in a passage field: its passage id when it read one, else the typed text, which readPassage reads
@@ -324,7 +325,7 @@ function refText(field = refField) {
 /** Whether the field's suggestion list is showing (Enter and Escape act on it first). */
 const suggesting = (field) => field.shadowRoot?.querySelector("[role=listbox]")?.hidden === false;
 
-/** Swap #add between add-highlight, passage-ranking (#ref), and topic-ranking (#topic-ref) chrome. */
+/** Swap #add between add-highlight, passage-ranking (#ref), and topic-search (#topic-ref) chrome. */
 function syncRefFieldMode() {
   const ranking = RANK_MODES.includes(groupBy);
   const topicMode = groupBy === TOPIC_MODE;
@@ -335,7 +336,10 @@ function syncRefFieldMode() {
   // si-passage-input copies aria-label only on connect; keep the inner input in sync.
   refField.shadowRoot?.querySelector("input")?.setAttribute("aria-label", meta.aria);
   refField.hidden = topicMode;
-  $("#topic-ref").hidden = !topicMode;
+  const topicField = $("#topic-ref");
+  topicField.setAttribute("placeholder", REF_TOPIC.placeholder);
+  topicField.setAttribute("aria-label", REF_TOPIC.aria);
+  topicField.hidden = !topicMode;
   const form = $("#add");
   form.classList.toggle("rank-scope", jevActive);
   $("#add-dot").hidden = jevActive;
@@ -525,7 +529,7 @@ function render() {
         $("#list").replaceChildren(group({ id: "ranked", name: heading, runs: ranked }));
       } else {
         // Zero survivors (passage modes). Topic keeps every highlight, so this is rare.
-        // Never put topicCopy / “Sorted by closeness” in the foot with an empty list.
+        // Never put topicCopy in the foot with an empty list.
         $("#list-total").textContent = RANK_MODES.includes(groupBy) ? totalCopy(0, shown.length) : "";
         $("#list").replaceChildren();
       }
