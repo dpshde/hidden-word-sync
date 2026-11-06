@@ -65,6 +65,8 @@ describe("UI copy and list toolbar toggle", () => {
     expect(app).toContain("topicQuery");
     expect(app).toContain("openTopicSearch");
     expect(app).toContain("closeTopicSearch");
+    expect(app).toContain("syncAddHiddenForTopicSearch");
+    expect(app).toContain("form.hidden = searchOpen");
     expect(app).toContain("LEGACY_TOPIC_MODE");
     expect(app).toContain("syncRefFieldMode");
     expect(app).toContain("rank-scope");
@@ -116,6 +118,9 @@ describe("UI copy and list toolbar toggle", () => {
     expect(css).toContain(".topic-search-wrap");
     expect(css).toContain(".topic-search-toggle");
     expect(css).toContain(".topic-search-wrap.is-open");
+    expect(css).toContain("min-width: 100%");
+    expect(css).toContain("order: -1");
+    expect(css).toContain(".list-bar-top:has(.topic-search-wrap.is-open) .segmented");
     expect(css).toContain(".topic-search-wrap:not(.is-open) .topic-search { display: none; }");
     expect(css).toContain(".topic-search-wrap.is-open .topic-search-toggle { display: none; }");
     expect(css).toContain(".list-bar .topic-search");
@@ -123,8 +128,10 @@ describe("UI copy and list toolbar toggle", () => {
     expect(css).toContain(".rank-epigraph");
     expect(css).toContain(".rank-preview");
     expect(css).toContain("-webkit-line-clamp");
-    // Expand/collapse: icon → field; empty blur/Escape collapses; active query stays expanded.
+    // Expand/collapse: icon → field; hide #add while open; empty blur/Escape collapses; query stays expanded.
     expect(app).toContain('topicToggle.addEventListener("click", () => openTopicSearch())');
+    expect(app).toContain("syncAddHiddenForTopicSearch(true)");
+    expect(app).toContain("syncAddHiddenForTopicSearch(false)");
     expect(app).toContain('if (e.key === "Escape")');
     expect(app).toContain("closeTopicSearch({ force: true })");
     expect(app).toContain('topicField.addEventListener("blur"');

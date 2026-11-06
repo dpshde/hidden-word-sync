@@ -96,6 +96,9 @@ test("desktop uses segmented mode buttons in #list-bar; mobile (≤600px) uses a
   expect(app).toContain('$("#group-by-select").value = groupBy');
   expect(app).toContain("function openTopicSearch");
   expect(app).toContain("function closeTopicSearch");
+  expect(app).toContain("function syncAddHiddenForTopicSearch");
+  expect(css).toContain("order: -1");
+  expect(css).toContain(".list-bar-top:has(.topic-search-wrap.is-open) .segmented");
 });
 
 test("phone Colors/Sync/Backup are top-aligned pages with header close and pinned Done", () => {

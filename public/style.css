@@ -273,7 +273,8 @@ button.dot[aria-pressed="true"] { border-color: var(--fg); }
 #list .group > summary:focus-visible { outline-offset: -2px; }
 /* Top list toolbar: Filter + expandable topic-search icon beside Date/Genre/Relevant/Surprising.
    Search is orthogonal chrome (not a 5th mode). Resting state shows the icon only so #ref is the
-   sole text field; expand reveals the search input. Total/status sits quietly below. */
+   sole text field; expand reveals the search input on its own full-width row so modes are never
+   crushed beside it. Total/status sits quietly below. */
 .list-bar {
   display: flex;
   flex-direction: column;
@@ -298,9 +299,21 @@ button.dot[aria-pressed="true"] { border-color: var(--fg); }
   flex: none;
   min-width: 0;
 }
+/* Open search owns a full list-bar row (above Filter + modes) so DATE/GENRE/… keep full width. */
 .topic-search-wrap.is-open {
-  flex: 1 1 8rem;
-  min-width: 6rem;
+  flex: 1 1 100%;
+  width: 100%;
+  min-width: 100%;
+  order: -1;
+}
+.list-bar-top:has(.topic-search-wrap.is-open) .segmented {
+  flex: 1 1 100%;
+  width: 100%;
+  min-width: 0;
+}
+.list-bar-top:has(.topic-search-wrap.is-open) .mode-select:not([hidden]) {
+  flex: 1 1 100%;
+  width: 100%;
 }
 .topic-search-toggle {
   display: inline-flex;
@@ -984,7 +997,9 @@ body:has(#main:not([hidden])) .shell-meta { flex-shrink: 0; }
     height: 44px;
   }
   .topic-search-wrap.is-open {
-    flex: 1 1 calc(100% - 3rem);
+    flex: 1 1 100%;
+    width: 100%;
+    min-width: 100%;
   }
   .list-bar .topic-search {
     min-height: 40px;

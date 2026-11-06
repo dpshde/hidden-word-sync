@@ -329,6 +329,24 @@ function topicQuery() {
   return sanitizeTopic($("#topic-search")?.value ?? "");
 }
 
+/**
+ * While topic search is open (or has a query), hide #add so only one text field is visible.
+ * Collapse restores the add/rank row; Relevant/Surprising epigraph returns via showRankPreview.
+ */
+function syncAddHiddenForTopicSearch(searchOpen) {
+  const form = $("#add");
+  if (form) form.hidden = searchOpen;
+  if (searchOpen) {
+    const epigraph = $("#rank-epigraph");
+    if (epigraph) {
+      epigraph.hidden = true;
+      epigraph.textContent = "";
+    }
+  } else if (!topicQuery() && RANK_MODES.includes(groupBy) && relevance?.passage) {
+    showRankPreview(relevance.passage);
+  }
+}
+
 /** Expand the list-bar topic search from its resting icon into the text field. */
 function openTopicSearch({ focus = true } = {}) {
   const wrap = $("#topic-search-wrap");
@@ -338,12 +356,13 @@ function openTopicSearch({ focus = true } = {}) {
   wrap.classList.add("is-open");
   toggle.setAttribute("aria-expanded", "true");
   field.tabIndex = 0;
+  syncAddHiddenForTopicSearch(true);
   if (focus) field.focus();
 }
 
 /**
  * Collapse topic search back to the icon. Stays expanded while the query is non-empty;
- * empty + blur/Escape (or an explicit clear) restores the icon.
+ * empty + blur/Escape (or an explicit clear) restores the icon and #add.
  */
 function closeTopicSearch({ force = false } = {}) {
   if (!force && topicQuery()) return;
@@ -354,6 +373,7 @@ function closeTopicSearch({ force = false } = {}) {
   wrap.classList.remove("is-open");
   toggle.setAttribute("aria-expanded", "false");
   field.tabIndex = -1;
+  syncAddHiddenForTopicSearch(false);
 }
 
 /** Swap #add between add-highlight and passage-ranking (#ref) chrome. Topic search is orthogonal in #list-bar. */
@@ -669,7 +689,6 @@ function clearRelevanceInput({ keepRef = false, keepSearch = false } = {}) {
   if (!keepSearch) {
     const topicField = $("#topic-search");
     if (topicField) topicField.value = "";
-    closeTopicSearch({ force: true });
   }
   errorIn($("#add"), "");
   rankGeneration++; // drop any in-flight response
@@ -681,6 +700,8 @@ function clearRelevanceInput({ keepRef = false, keepSearch = false } = {}) {
   verseText.open = null;
   showRelevanceNone(null);
   showRankPreview(null);
+  // Collapse after clearing passage so syncAddHiddenForTopicSearch doesn't revive the epigraph.
+  if (!keepSearch) closeTopicSearch({ force: true });
 }
 
 /**
@@ -722,6 +743,8 @@ function renderPreviewBody(body, passage) {
 
 /** Hybrid preview of the input passage in Relevant/Surprising (Topic uses header copy only). */
 function showRankPreview(passage) {
+  // Topic search chrome hides #add; don't leave the epigraph floating without the scope field.
+  if ($("#topic-search-wrap")?.classList.contains("is-open")) passage = null;
   const epigraph = $("#rank-epigraph");
   const panel = $("#rank-preview");
   if (!passage?.text) {
