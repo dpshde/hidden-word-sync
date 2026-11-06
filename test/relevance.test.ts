@@ -128,11 +128,16 @@ describe("UI copy and list toolbar toggle", () => {
     expect(css).toContain(".topic-search-wrap");
     expect(css).toContain(".topic-search-toggle");
     expect(css).toContain(".topic-search-wrap.is-open");
-    expect(css).toContain("min-width: 100%");
-    expect(css).toContain("order: -1");
+    expect(css).toContain(".list-bar-top:has(.topic-search-wrap.is-open) .filter-menu");
     expect(css).toContain(".list-bar-top:has(.topic-search-wrap.is-open) .segmented");
-    expect(css).toContain(".topic-search-wrap:not(.is-open) .topic-search { display: none; }");
-    expect(css).toContain(".topic-search-wrap.is-open .topic-search-toggle { display: none; }");
+    // Open search shares a row with Filter; modes wrap full-width (not order:-1 / 100% search orphaning Filter).
+    expect(css).toMatch(/\.topic-search-wrap\.is-open\s*\{[^}]*flex:\s*1 1 0/);
+    expect(css).not.toMatch(/\.topic-search-wrap\.is-open\s*\{[^}]*order:\s*-1/);
+    // Expand/collapse animates width/opacity (no display:none flash).
+    expect(css).toContain(".topic-search-wrap:not(.is-open) .topic-search");
+    expect(css).toMatch(/\.topic-search-wrap:not\(\.is-open\) \.topic-search\s*\{[^}]*max-width:\s*0/);
+    expect(css).toMatch(/\.topic-search-wrap\.is-open \.topic-search-toggle\s*\{[^}]*max-width:\s*0/);
+    expect(css).toContain("transition: opacity .2s ease, max-width .2s ease");
     expect(css).toContain(".list-bar .topic-search");
     expect(css).toContain(".filter-menu");
     expect(css).toContain(".rank-epigraph");

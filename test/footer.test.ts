@@ -107,13 +107,17 @@ test("desktop uses segmented mode buttons in #list-bar; mobile (≤600px) uses a
   expect(app).toContain("function openTopicSearch");
   expect(app).toContain("function closeTopicSearch");
   expect(app).toContain("function syncAddHiddenForTopicSearch");
-  expect(css).toContain("order: -1");
   expect(css).toContain(".list-bar-top:has(.topic-search-wrap.is-open) .segmented");
+  expect(css).toContain(".list-bar-top:has(.topic-search-wrap.is-open) .filter-menu");
   expect(css).toContain(".rank-skeleton");
   expect(css).toContain("prefers-reduced-motion: reduce");
-  // Phone resting: icon + mode select share a row; full-width select only while search is open.
+  // Phone resting: icon + mode select share a row; open search keeps Filter beside the field.
   expect(css).toMatch(/@media \(max-width: 600px\)[\s\S]*?\.mode-select:not\(\[hidden\]\) \{[\s\S]*?flex:\s*1 1 0/);
   expect(css).toContain(".list-bar-top:has(.topic-search-wrap.is-open) .mode-select:not([hidden])");
+  expect(css).toMatch(/\.topic-search-wrap\.is-open\s*\{[^}]*flex:\s*1 1 0/);
+  expect(css).not.toMatch(/\.topic-search-wrap\.is-open\s*\{[^}]*order:\s*-1/);
+  expect(css).toMatch(/\.topic-search-wrap:not\(\.is-open\) \.topic-search\s*\{[^}]*max-width:\s*0/);
+  expect(css).toContain("transition: opacity .2s ease, max-width .2s ease");
 });
 
 test("phone Colors/Sync/Backup are top-aligned pages with header close and pinned Done", () => {
