@@ -233,15 +233,40 @@ si-passage-input {
 si-passage-input::part(input) { height: 2.75rem; padding: 0 .875rem; font-size: 1rem; font-weight: 450; line-height: 1.5; border-radius: 0; box-shadow: none; background: var(--raised); transition: border-color .15s, background-color .15s; }
 si-passage-input::part(input):hover { border-color: var(--hover-line); }
 si-passage-input::part(input):focus-visible { box-shadow: none; outline: 2px solid var(--focus); outline-offset: -2px; }
-/* The field is narrow on a phone, beside the colors; its suggestions get room to read on one line. They
-   hang from the field's bottom edge, square, like route.bible's. */
-si-passage-input::part(listbox) { top: calc(100% - 1px); right: auto; padding: 0; width: max-content; min-width: 100%; max-width: min(20rem, calc(100vw - 2.5rem)); border-radius: 0; box-shadow: var(--shadow); }
+/* Suggestions hang from the field's bottom edge. Book rows are name-only (no "N CHAPTERS" stamp —
+   that label + nowrap forced horizontal scroll and clipped leading letters in the narrow #add field). */
+si-passage-input::part(listbox) {
+  top: calc(100% - 1px);
+  left: 0;
+  right: auto;
+  padding: 0;
+  width: max-content;
+  min-width: 100%;
+  max-width: min(20rem, calc(100vw - 2.5rem));
+  overflow-x: hidden;
+  overflow-y: auto;
+  border-radius: 0;
+  box-shadow: var(--shadow);
+}
 si-passage-input::part(header) { padding: .4375rem .625rem; font-family: var(--font-label); font-size: .6875rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; background: var(--surface); color: var(--muted); }
-si-passage-input::part(option) { white-space: nowrap; padding: .625rem .875rem; border-radius: 0; border-bottom: 1px solid var(--line-subtle); font-size: .9375rem; font-weight: 600; letter-spacing: -.01em; transition: background-color .15s; }
+si-passage-input::part(option) {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: .625rem .875rem;
+  border-radius: 0;
+  border-bottom: 1px solid var(--line-subtle);
+  font-size: .9375rem;
+  font-weight: 600;
+  letter-spacing: -.01em;
+  transition: background-color .15s;
+}
 si-passage-input::part(option):last-child { border-bottom: 0; }
-si-passage-input::part(cell) { padding: .25rem; min-height: 2.5rem; border-bottom: 0; justify-content: center; text-align: center; font-variant-numeric: tabular-nums; cursor: pointer; }
+si-passage-input::part(cell) { padding: .25rem; min-height: 2.5rem; border-bottom: 0; justify-content: center; text-align: center; font-variant-numeric: tabular-nums; cursor: pointer; overflow: visible; text-overflow: clip; }
 @media (max-width: 600px) { si-passage-input::part(cell) { min-height: 2.75rem; } }
-si-passage-input::part(count) { font-family: var(--font-label); font-size: .75rem; font-weight: 500; letter-spacing: .04em; text-transform: uppercase; }
+/* Book suggestion chrome: hide the per-row chapter/verse count ("66 CHAPTERS"). Grid headers keep theirs. */
+si-passage-input::part(count) { display: none; }
 /* The add form's color: a dot like a row's, in a square cell joined to the field, centered over the
    row dots below (rows pad var(--gutter) on the left). */
 #add-dot { display: grid; place-items: center; width: 2.75rem; height: 2.75rem; padding: 0; background: var(--raised); border: 1px solid var(--line); border-right: 0; border-radius: 0; }
@@ -664,12 +689,14 @@ button.dot[aria-pressed="true"] { border-color: var(--fg); }
   color: var(--muted);
 }
 /* Add-field suggestions stay under that field and don't sprawl over the list foot. */
-#add si-passage-input { position: relative; z-index: 6; }
+#add si-passage-input { position: relative; z-index: 6; min-width: 0; }
 #add si-passage-input::part(listbox) {
   left: 0;
-  width: 100%;
-  min-width: 100%;
-  max-width: 100%;
+  right: 0;
+  width: auto;
+  min-width: 0;
+  max-width: none;
+  overflow-x: hidden;
   z-index: 30;
 }
 /* Valid ref, zero relevant: calm offer panel, distinct from the error line and from "No highlights yet". */
