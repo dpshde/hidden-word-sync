@@ -1186,23 +1186,38 @@ body:has(#main:not([hidden])) main { flex: 1 1 auto; min-height: 0; display: fle
   overflow-x: hidden;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
-  /* Soft scroll-edge fades while content overflows; data-fade is set in syncListScrollFade. */
+  /* Soft scroll-edge fades while content overflows; data-fade / --list-fade-top from syncListScrollFade.
+     Overlays use surface tokens (--bg / --accent) — not mask-image, which washed dark group headers to gray. */
   --list-fade-size: 1.5rem;
-  -webkit-mask-image: none;
-  mask-image: none;
+  --list-fade-top: var(--bg);
 }
-#main:not([hidden]) > #list[data-fade="bottom"] {
-  -webkit-mask-image: linear-gradient(#000 0%, #000 calc(100% - var(--list-fade-size)), transparent);
-  mask-image: linear-gradient(#000 0%, #000 calc(100% - var(--list-fade-size)), transparent);
+/* Sticky edge overlays: paint with the same tokens as the shell (--bg) or group header (--accent). */
+#main:not([hidden]) > #list::before,
+#main:not([hidden]) > #list::after {
+  content: "";
+  display: block;
+  height: var(--list-fade-size);
+  pointer-events: none;
+  z-index: 4;
+  opacity: 0;
 }
-#main:not([hidden]) > #list[data-fade="top"] {
-  -webkit-mask-image: linear-gradient(transparent, #000 var(--list-fade-size), #000);
-  mask-image: linear-gradient(transparent, #000 var(--list-fade-size), #000);
+#main:not([hidden]) > #list::before {
+  position: sticky;
+  top: 0;
+  margin-bottom: calc(-1 * var(--list-fade-size));
+  background: linear-gradient(to bottom, var(--list-fade-top), transparent);
 }
-#main:not([hidden]) > #list[data-fade="both"] {
-  -webkit-mask-image: linear-gradient(transparent, #000 var(--list-fade-size), #000 calc(100% - var(--list-fade-size)), transparent);
-  mask-image: linear-gradient(transparent, #000 var(--list-fade-size), #000 calc(100% - var(--list-fade-size)), transparent);
+#main:not([hidden]) > #list::after {
+  position: sticky;
+  bottom: 0;
+  margin-top: calc(-1 * var(--list-fade-size));
+  background: linear-gradient(to top, var(--bg), transparent);
 }
+#main:not([hidden]) > #list[data-fade="top"]::before,
+#main:not([hidden]) > #list[data-fade="both"]::before { opacity: 1; }
+#main:not([hidden]) > #list[data-fade="bottom"]::after,
+#main:not([hidden]) > #list[data-fade="both"]::after { opacity: 1; }
+#main:not([hidden]) > #list[data-fade-top="accent"] { --list-fade-top: var(--accent); }
 #list .group, #list .group > summary, #list .rows, #list .rows > li { width: 100%; }
 body:has(#main:not([hidden])) .shell-meta { flex-shrink: 0; }
 /* Short screens: pull the offset toward the safe-area floor so the list keeps a usable height. */

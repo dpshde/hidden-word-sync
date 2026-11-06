@@ -18,12 +18,16 @@ test("the footer holds the theme, the contract and the auth status, and #list-to
   const mobile = css.slice(css.indexOf("/* —— Mobile library (≤600px)"));
   expect(mobile).toContain("#main:not([hidden]) > #list { flex: 1 1 auto; }");
   // Soft scroll-edge fades while the highlights list overflows; list-total stays beneath #list.
+  // Overlays use --bg / --accent (not mask-image) so dark group headers aren't washed gray.
   expect(app).toContain("function syncListScrollFade");
   expect(app).toContain("scheduleListScrollFade()");
+  expect(app).toContain('list.dataset.fadeTop = "accent"');
   expect(css).toContain("--list-fade-size");
-  expect(css).toMatch(/#main:not\(\[hidden\]\) > #list\[data-fade="bottom"\]\s*\{[^}]*mask-image:\s*linear-gradient/);
-  expect(css).toMatch(/#main:not\(\[hidden\]\) > #list\[data-fade="top"\]\s*\{[^}]*mask-image:\s*linear-gradient/);
-  expect(css).toMatch(/#main:not\(\[hidden\]\) > #list\[data-fade="both"\]\s*\{[^}]*mask-image:\s*linear-gradient/);
+  expect(css).toContain("--list-fade-top: var(--bg)");
+  expect(css).toContain("#main:not([hidden]) > #list[data-fade-top=\"accent\"] { --list-fade-top: var(--accent); }");
+  expect(css).toMatch(/#main:not\(\[hidden\]\) > #list::before\s*\{[^}]*linear-gradient\(to bottom, var\(--list-fade-top\)/);
+  expect(css).toMatch(/#main:not\(\[hidden\]\) > #list::after\s*\{[^}]*linear-gradient\(to top, var\(--bg\)/);
+  expect(css).not.toMatch(/#main:not\(\[hidden\]\) > #list\[data-fade=[^\]]+\]\s*\{[^}]*mask-image/);
 });
 
 test("the contract link goes where For developers' spec link does", () => {

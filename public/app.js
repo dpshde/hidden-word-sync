@@ -659,6 +659,8 @@ function render() {
 /**
  * Soft top/bottom fade on the highlights list while content overflows the scrollport.
  * `data-fade` is top | bottom | both — only the edges that still have more content beyond them.
+ * Top overlay tint matches the surface under it: group header → --accent; else shell --bg
+ * (avoids a cream smear over dark "Last 7 days" bars).
  */
 function syncListScrollFade() {
   const list = $("#list");
@@ -673,6 +675,17 @@ function syncListScrollFade() {
   }
   if (fade) list.dataset.fade = fade;
   else delete list.dataset.fade;
+
+  if (fade === "top" || fade === "both") {
+    const rect = list.getBoundingClientRect();
+    const sampleY = rect.top + 4;
+    const sampleX = rect.left + Math.min(24, Math.max(8, rect.width / 2));
+    const hit = document.elementFromPoint(sampleX, sampleY);
+    if (hit?.closest?.("#list .group > summary")) list.dataset.fadeTop = "accent";
+    else delete list.dataset.fadeTop;
+  } else {
+    delete list.dataset.fadeTop;
+  }
 }
 
 function scheduleListScrollFade() {
