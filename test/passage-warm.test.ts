@@ -76,9 +76,11 @@ test("expand waits for scripture-load: skeleton then fade-in; reduced-motion ski
   expect(app).toContain('el.addEventListener("scripture-error"');
   expect(app).toContain('matchMedia("(prefers-reduced-motion: reduce)")');
   expect(css).toContain(".verse-text-skel");
+  expect(css).toMatch(/\.verse-text-skel\s*\{[^}]*min-height:\s*6rem/);
   expect(css).toContain(".verse-text.verse-text-enter");
   expect(css).toContain("verse-text-in");
   expect(css).toMatch(/prefers-reduced-motion: reduce[\s\S]*?\.verse-text\.verse-text-enter/);
+  expect(app).toContain("const widths = [92, 88, 84, 78, 70, 38]");
 });
 
 test("the keep-loaded patch is applied before <si-passage> is defined (callbacks are read at define time)", () => {
@@ -95,7 +97,10 @@ test("the keep-loaded patch is applied before <si-passage> is defined (callbacks
 
 test("a refocus sync with nothing new doesn't rebuild the list (which would move and re-animate the open passage)", () => {
   const app = readFileSync(new URL("../public/app.js", import.meta.url), "utf8");
-  expect(app).toContain("const sig = JSON.stringify([shown, colors, groupBy, relatedSort, [...filter], verseText.key, editing, ranking && scopeKey, rankOrder, rankFailed, noneRelevant, !!rankPending, jevWaiting, relatedDrafting, topicDrafting, searching, verseText.open, rankPaint]);");
+  // Expand/collapse must not remount the list — verseText.open stays out of listSig.
+  expect(app).toContain("const sig = JSON.stringify([shown, colors, groupBy, relatedSort, [...filter], verseText.key, editing, ranking && scopeKey, rankOrder, rankFailed, noneRelevant, !!rankPending, jevWaiting, relatedDrafting, topicDrafting, searching, rankPaint]);");
+  expect(app).not.toMatch(/JSON\.stringify\(\[[^\]]*verseText\.open/);
   expect(app).toMatch(/if \(!editing && sig !== listSig\) \{[\s\S]*?\$\("#list"\)\.replaceChildren/);
   expect(app).toContain("listSig = null; // the edit changes the row by hand");
+  expect(app).toContain("if (passageReady(el) && el.parentElement === li && !li.querySelector(\".verse-text-skel\")) return;");
 });

@@ -998,24 +998,25 @@ input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 50%; }
 .verse-text.verse-text-enter {
   animation: verse-text-in .18s ease both;
 }
-/* Skeleton under the row while waiting for <si-passage> — same margins/rule as .verse-text. */
+/* Skeleton under the row while waiting for <si-passage> — same margins/rule as .verse-text;
+   sized near real scripture (~5–6 lines at 1rem/1.75 + BSB cite), last line shorter. */
 .verse-text-skel {
   display: block;
   margin: .125rem .75rem 1.125rem calc(var(--gutter) + .5rem);
-  padding: .35rem 0 .35rem 1rem;
+  padding: .35rem 0 .5rem 1rem;
   border-left: 2px solid color-mix(in oklab, var(--row-color, var(--line)) 70%, transparent);
-  min-height: 3.25rem;
+  min-height: 6rem;
 }
 .verse-text-skel-line {
   display: block;
-  height: .65rem;
+  height: .7rem;
   max-width: 36rem;
-  margin: .4rem 0;
+  margin: .45rem 0;
   background: color-mix(in oklab, var(--muted) 22%, var(--raised));
   animation: rank-skeleton-pulse 1.1s ease-in-out infinite;
 }
-.verse-text-skel-line:first-child { margin-top: .15rem; }
-.verse-text-skel-line:last-child { margin-bottom: .15rem; width: 42%; }
+.verse-text-skel-line:first-child { margin-top: .2rem; }
+.verse-text-skel-line:last-child { margin-bottom: .25rem; width: 38%; max-width: 8rem; }
 /* No copyright line (the BSB is public domain); the citation after the text shows just the version,
    small and tracked at the bottom right. */
 .verse-text::part(attribution) { display: none; }
