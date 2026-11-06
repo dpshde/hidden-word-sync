@@ -22,6 +22,17 @@ test("custom and add rows are shaped like the built-in rows, with the action ins
   expect(css).toMatch(/@media \(max-width: 600px\)[\s\S]*?#color-list \.field-action,[\s\S]*?min-width: 44px;[\s\S]*?height: 44px;/);
 });
 
+test("book suggestions under #ref are name-only, clipped to the field (no CHAPTERS stamp / horizontal scroll)", () => {
+  // Vendor still emits .si-passage-count; app chrome hides it so rows stay "Isaiah", not "Isaiah 66 CHAPTERS".
+  expect(css).toMatch(/si-passage-input::part\(count\)\s*\{\s*display:\s*none/);
+  expect(css).toMatch(/si-passage-input::part\(listbox\)\s*\{[^}]*overflow-x:\s*hidden/);
+  expect(css).toMatch(/#add si-passage-input::part\(listbox\)\s*\{[^}]*left:\s*0[^}]*right:\s*0/);
+  expect(css).toMatch(/#add si-passage-input::part\(listbox\)\s*\{[^}]*overflow-x:\s*hidden/);
+  expect(css).toMatch(/si-passage-input::part\(option\)\s*\{[^}]*text-overflow:\s*ellipsis/);
+  // Chapter/verse grid cells keep readable numbers (not ellipsized away).
+  expect(css).toMatch(/si-passage-input::part\(cell\)\s*\{[^}]*overflow:\s*visible/);
+});
+
 test("one way to sync: the Sync screen offers this site's server and no folder", () => {
   const sync = /<section id="sync"[\s\S]*?<\/section>/.exec(read("index.html"))?.[0] ?? "";
   expect(sync).toContain('id="use-server"');

@@ -5,7 +5,7 @@ import {
 import { labelRef, compareRefs } from "./refs.js";
 import { editRun, highlightRecord, tombstone, groupRuns } from "./ranges.js";
 import { readPassage } from "./passage.js";
-import { MODES, RANK_MODES, TOPIC_MODE, JEV_MODES, groupList, startsOpen } from "./groups.js";
+import { MODES, RANK_MODES, LEGACY_TOPIC_MODE, LEGACY_RELATED_MODES, JEV_MODES, groupList, startsOpen } from "./groups.js";
 import { definePassageInput, defineScripturePassage } from "./vendor/scripture-inline.js";
 import { createPasskeyPrf, getPasskeyPrf, passkeysAvailable, cancelled } from "./passkey.js";
 import { setupThemeToggle } from "./theme-toggle.js";
@@ -32,9 +32,10 @@ const $ = (sel) => document.querySelector(sel);
 const SESSION = "hidden-word:session";
 const CREATED = "hidden-word:created";
 const SAVE_LINK = "hidden-word:save-link";
-// How this device sorts the list (date / genre / relevant / surprising / topic): a display choice, not synced.
-// The Relevant/Surprising passage and Topic phrase are never stored — only the mode button is.
+// How this device sorts the list (date / genre / related): a display choice, not synced.
+// The Related passage, Closest|Surprising order, and topic-search phrase are never synced — only the mode button is.
 const GROUP_BY = "hidden-word:group-by";
+const RELATED_SORT = "hidden-word:related-sort";
 // A library's name as this device last saw it, for the unlock form and before the library has synced.
 // The name itself syncs as a `library` record (SPEC.md 1.5): library.name is the one to show.
 const nameKey = (lib) => `hidden-word:name:${lib}`;
@@ -308,13 +309,13 @@ async function highlight(verses, color) {
 
 // The reference field is scripture-inline's <si-passage-input>: book, chapter and verse suggestions
 // as people type. Its value is a USFM id like ROM.5.3-5 once it reads a passage.
-// Relevant/Surprising hijack the same field as the ranking scope (no second passage box).
+// Related hijacks the same field as the ranking scope (no second passage box).
 definePassageInput();
 const refField = $("#ref");
 const REF_ADD = { placeholder: "John 3:16", aria: "Verse or passage" };
 const REF_RANK = { placeholder: "Rom 8:18–25", aria: "Passage to rank highlights against" };
-/** Debounce timer for ranking-from-#ref (Relevant/Surprising). */
-let refRankTimer = 0;
+/** Last #ref string that started a Related commit (dedupes change+blur). Cleared while typing. */
+let lastRelatedCommitKey = "";
 /** What's in a passage field: its passage id when it read one, else the typed text, which readPassage reads
  * more loosely (the field won't take passages across chapters, like Genesis 1–2, but Selah Vault does). */
 function refText(field = refField) {
@@ -324,32 +325,127 @@ function refText(field = refField) {
 /** Whether the field's suggestion list is showing (Enter and Escape act on it first). */
 const suggesting = (field) => field.shadowRoot?.querySelector("[role=listbox]")?.hidden === false;
 
-/** Swap #add between add-highlight, passage-ranking (#ref), and topic-ranking (#topic-ref) chrome. */
+/** Sanitized text in the list-bar topic search, or "" when empty. */
+function topicQuery() {
+  return sanitizeTopic($("#topic-search")?.value ?? "");
+}
+
+/**
+ * While topic search is open (or has a query), hide #add so only one text field is visible.
+ * Collapse restores the add/rank row; Relevant/Surprising epigraph returns via showRankPreview.
+ */
+function syncAddHiddenForTopicSearch(searchOpen) {
+  const form = $("#add");
+  if (form) form.hidden = searchOpen;
+  if (searchOpen) {
+    const epigraph = $("#rank-epigraph");
+    if (epigraph) {
+      epigraph.hidden = true;
+      epigraph.textContent = "";
+    }
+  } else if (!topicQuery() && RANK_MODES.includes(groupBy) && relevance?.passage) {
+    showRankPreview(relevance.passage);
+  }
+}
+
+/** Expand the list-bar topic search from its resting icon into the text field. */
+function openTopicSearch({ focus = true } = {}) {
+  const wrap = $("#topic-search-wrap");
+  const toggle = $("#topic-search-toggle");
+  const field = $("#topic-search");
+  const close = $("#topic-search-close");
+  if (!wrap || !toggle || !field) return;
+  wrap.classList.add("is-open");
+  toggle.setAttribute("aria-expanded", "true");
+  field.tabIndex = 0;
+  if (close) close.tabIndex = 0;
+  syncAddHiddenForTopicSearch(true);
+  if (focus) field.focus();
+}
+
+/**
+ * Collapse topic search back to the icon. Stays expanded while the query is non-empty
+ * unless `force` (close ×, Escape, or empty outside tap). Restores #add.
+ */
+function closeTopicSearch({ force = false } = {}) {
+  if (!force && topicQuery()) return;
+  const wrap = $("#topic-search-wrap");
+  const toggle = $("#topic-search-toggle");
+  const field = $("#topic-search");
+  const close = $("#topic-search-close");
+  if (!wrap || !toggle || !field) return;
+  wrap.classList.remove("is-open");
+  toggle.setAttribute("aria-expanded", "false");
+  field.tabIndex = -1;
+  if (close) close.tabIndex = -1;
+  syncAddHiddenForTopicSearch(false);
+}
+
+/**
+ * Fully exit topic search: clear any query (same path as typing empty), collapse chrome, restore #add.
+ * One Escape / close × always lands back on highlight chrome — never stuck with #add hidden.
+ */
+function exitTopicSearch({ focusToggle = true } = {}) {
+  const field = $("#topic-search");
+  const toggle = $("#topic-search-toggle");
+  if (field && topicQuery()) {
+    field.value = "";
+    field.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+  closeTopicSearch({ force: true });
+  if (focusToggle) toggle?.focus();
+}
+
+/** Map Closest|Surprising chrome to the rankVerdicts mode key (relevant = closest-first). */
+function relatedRankMode() {
+  return relatedSort === "surprising" ? "surprising" : "relevant";
+}
+
+/** Show Closest|Surprising only once Related has a non-empty ranked list (hide while empty/loading/search). */
+function syncRelatedSortChrome(show) {
+  const bar = $("#related-sort");
+  if (!bar) return;
+  bar.hidden = !show;
+  for (const b of bar.querySelectorAll("[data-related-sort]")) {
+    b.setAttribute("aria-pressed", String(b.dataset.relatedSort === relatedSort));
+  }
+}
+
+/** Swap #add between add-highlight and passage-ranking (#ref) chrome. Topic search is orthogonal in #list-bar. */
 function syncRefFieldMode() {
   const ranking = RANK_MODES.includes(groupBy);
-  const topicMode = groupBy === TOPIC_MODE;
-  const jevActive = JEV_MODES.includes(groupBy);
   const meta = ranking ? REF_RANK : REF_ADD;
   refField.setAttribute("placeholder", meta.placeholder);
   refField.setAttribute("aria-label", meta.aria);
   // si-passage-input copies aria-label only on connect; keep the inner input in sync.
   refField.shadowRoot?.querySelector("input")?.setAttribute("aria-label", meta.aria);
-  refField.hidden = topicMode;
-  $("#topic-ref").hidden = !topicMode;
+  refField.hidden = false;
   const form = $("#add");
-  form.classList.toggle("rank-scope", jevActive);
-  $("#add-dot").hidden = jevActive;
-  form.querySelector('button[type="submit"]').hidden = jevActive;
+  form.classList.toggle("rank-scope", ranking);
+  $("#add-dot").hidden = ranking;
+  form.querySelector('button[type="submit"]').hidden = ranking;
 }
 
-// Enter: settle suggestions first; else rank (Relevant/Surprising) or add a highlight (Date/Genre).
+/**
+ * Related ranks on commit only (Enter / autocomplete change / blur with a passage) — never while typing.
+ * Dedupes change+blur for the same ref so one pick does not double-fetch.
+ */
+function commitRelatedRank() {
+  if (!RANK_MODES.includes(groupBy) || topicQuery()) return;
+  const key = String(refText(refField)).trim();
+  // Dedupe change+blur; allow retry after a failed commit for the same ref.
+  if (key && key === lastRelatedCommitKey && !rankFailed) return;
+  lastRelatedCommitKey = key;
+  void runRelevance();
+}
+
+// Enter: settle suggestions first; else rank (Related) or add a highlight (Date/Genre).
 refField.addEventListener("keydown", (e) => {
   if (e.key !== "Enter" || e.isComposing) return;
   if (suggesting(refField)) return;
   if (RANK_MODES.includes(groupBy)) {
     e.preventDefault();
-    clearTimeout(refRankTimer);
-    void runRelevance();
+    commitRelatedRank();
     return;
   }
   $("#add").requestSubmit();
@@ -357,13 +453,9 @@ refField.addEventListener("keydown", (e) => {
 
 $("#add").addEventListener("submit", async (e) => {
   e.preventDefault();
-  // Ranking modes never add from this form — #ref or #topic-ref is the scope field (Highlight is hidden).
+  // Ranking modes never add from this form — #ref is the scope field (Highlight is hidden).
   if (RANK_MODES.includes(groupBy)) {
-    void runRelevance();
-    return;
-  }
-  if (groupBy === TOPIC_MODE) {
-    void runTopic();
+    commitRelatedRank();
     return;
   }
   const form = e.target;
@@ -448,35 +540,40 @@ function render() {
   renderFilters(counts);
 
   const shown = filter.size ? rows.filter((r) => filter.has(topColor(r, ids))) : rows;
-  const jevActive = JEV_MODES.includes(groupBy);
-  // Scope is mode-specific: a leftover Relevant passage must not count as Topic scope (and vice versa).
-  const hasScope = RANK_MODES.includes(groupBy)
-    ? !!relevance?.passage
-    : groupBy === TOPIC_MODE
-      ? !!relevance?.topic
-      : false;
-  // A failed call keeps Date order. Pending keeps Jev chrome (loading line) before the scope lands.
-  const ranking = jevActive && !rankFailed && (hasScope || rankPending);
-  // Jev mode with nothing typed yet: empty list + hint (never a stale Date "Today" header).
-  const jevWaiting = jevActive && !rankFailed && !hasScope && !rankPending;
+  // Topic search in #list-bar owns the list while it has a query; modes stay visible underneath.
+  const searching = !!topicQuery();
+  const jevActive = RANK_MODES.includes(groupBy) && !searching;
+  // Scope is path-specific: a leftover Related passage must not count as topic search scope (and vice versa).
+  const hasScope = searching ? !!relevance?.topic : jevActive ? !!relevance?.passage : false;
+  // A failed call keeps Date order. Pending keeps Jev chrome (skeleton) after commit before results land.
+  const ranking = (searching || jevActive) && !rankFailed && (hasScope || rankPending);
+  // Mid-type (commit-only ranking): typed text, no committed scope yet — clear list without the empty CTA.
+  const relatedDrafting = jevActive && !hasScope && !rankPending && !!String(refText(refField)).trim();
+  const topicDrafting = searching && !rankPending && !hasScope;
+  // Related with nothing committed yet: empty list + hint (never a stale Date "Today" header).
+  // Empty topic search shows no CTA panel — only the quiet field placeholder.
+  const jevWaiting = jevActive && !rankFailed && !hasScope && !rankPending && !relatedDrafting;
   const noneRelevant =
-    ranking && !rankPending && !!relevance?.passage && RANK_MODES.includes(groupBy) && rankOrder.length === 0 && shown.length > 0;
+    ranking && !rankPending && !searching && !!relevance?.passage && RANK_MODES.includes(groupBy) && rankOrder.length === 0 && shown.length > 0;
   $("#empty").hidden = rows.length > 0;
   $("#empty").textContent = "No highlights yet.";
   showRelevanceNone(noneRelevant ? { count: shown.length, passage: relevance.passage } : null);
-  showRankPreview(ranking && !rankPending && relevance?.passage && RANK_MODES.includes(groupBy) ? relevance.passage : null);
+  showRankPreview(ranking && !rankPending && !searching && relevance?.passage && RANK_MODES.includes(groupBy) ? relevance.passage : null);
   renderGroupBy(rows.length > 0);
   // A row being edited stays as it is until the edit ends (a sync mid-edit would wipe the field);
   // finishing the edit renders again.
   // Rebuild the list only when what it shows changed. A sync that brings nothing new (every window
   // focus runs one) still emits for its status; rebuilding then would move the open passage and
   // replay its opening animation.
-  const scopeKey = RANK_MODES.includes(groupBy)
-    ? relevance?.passage?.ref || ""
-    : groupBy === TOPIC_MODE
-      ? relevance?.topic || ""
+  const scopeKey = searching
+    ? relevance?.topic || ""
+    : RANK_MODES.includes(groupBy)
+      ? relevance?.passage?.ref || ""
       : "";
-  const sig = JSON.stringify([shown, colors, groupBy, [...filter], verseText.key, editing, ranking && scopeKey, rankOrder, rankFailed, noneRelevant, !!rankPending, jevWaiting, verseText.open, rankPaint]);
+  // verseText.open is omitted: expand/collapse is local (wireTextToggle/showText). Including it
+  // remounted the whole list on every open/close whenever another render ran.
+  const sig = JSON.stringify([shown, colors, groupBy, relatedSort, [...filter], verseText.key, editing, ranking && scopeKey, rankOrder, rankFailed, noneRelevant, !!rankPending, jevWaiting, relatedDrafting, topicDrafting, searching, rankPaint]);
+  let showRelatedSort = false;
   if (!editing && sig !== listSig) {
     if (jevWaiting) {
       // Actionable empty scope CTA in the list area; foot status stays empty.
@@ -494,16 +591,18 @@ function render() {
       cta.className = "quiet rank-cta";
       cta.textContent = jevCtaCopy(groupBy);
       cta.addEventListener("click", () => {
-        if (groupBy === TOPIC_MODE) {
-          $("#topic-ref")?.focus();
-        } else {
-          refField?.focus();
-          refField?.suggest?.();
-        }
+        refField?.focus();
+        refField?.suggest?.();
       });
       row.append(cta);
       box.append(hint, row);
       $("#list").replaceChildren(box);
+      showRankPreview(null);
+      $("#empty").hidden = true;
+    } else if (relatedDrafting || topicDrafting) {
+      // Typing before commit: clear stale ranked UI without Ranking… or the empty CTA.
+      $("#list-total").textContent = "";
+      $("#list").replaceChildren();
       showRankPreview(null);
       $("#empty").hidden = true;
     } else if (ranking) {
@@ -512,39 +611,99 @@ function render() {
       const ranked = rankOrder.map((id) => byRef.get(id)).filter(Boolean);
       if (rankPending) {
         $("#list-total").textContent = rankingCopy();
-        $("#list").replaceChildren();
+        $("#list").replaceChildren(rankSkeleton(Math.min(Math.max(shown.length, 3), 5)));
       } else if (ranked.length) {
-        const heading =
-          groupBy === TOPIC_MODE
-            ? topicCopy(relevance?.topic)
-            : relatedCopy(relevance?.passage?.label, groupBy);
-        $("#list-total").textContent = rankStatusCopy(ranked.length, shown.length, groupBy);
+        const heading = searching
+          ? topicCopy(relevance?.topic)
+          : relatedCopy(relevance?.passage?.label);
+        $("#list-total").textContent = rankStatusCopy(
+          ranked.length,
+          shown.length,
+          searching ? "topic" : relatedRankMode(),
+        );
         // New final paint: expand the new top unless the person toggled a row this query.
         applyRankAutoExpand(ranked[0].ref);
         // Same group()/row() markup as Date and Genre — only the heading text differs.
-        $("#list").replaceChildren(group({ id: "ranked", name: heading, runs: ranked }));
+        const rankedGroup = group({ id: "ranked", name: heading, runs: ranked });
+        rankedGroup.classList.add("rank-enter");
+        $("#list").replaceChildren(rankedGroup);
+        // Closest|Surprising is results chrome for Related — not for topic search.
+        showRelatedSort = !searching && RANK_MODES.includes(groupBy);
       } else {
-        // Zero survivors (passage modes). Topic keeps every highlight, so this is rare.
-        // Never put topicCopy / “Sorted by closeness” in the foot with an empty list.
-        $("#list-total").textContent = RANK_MODES.includes(groupBy) ? totalCopy(0, shown.length) : "";
+        // Zero survivors (passage modes). Topic search keeps every highlight, so this is rare.
+        // Never put topicCopy in the foot with an empty list.
+        $("#list-total").textContent = searching ? "" : RANK_MODES.includes(groupBy) ? totalCopy(0, shown.length) : "";
         $("#list").replaceChildren();
       }
       $("#empty").hidden = true; // library has rows; zero relevant uses #relevance-none, not #empty
     } else {
-      // Date/Genre, or a failed Jev call: Date/Genre grouping (failed stays in Date order).
-      const mode = jevActive ? "date" : groupBy;
+      // Date/Genre, or a failed Jev/search call: Date/Genre grouping (failed stays in Date order).
+      const mode = jevActive || searching ? "date" : groupBy;
       const groups = groupList(shown, mode, (r) => topColor(r, ids));
       const total = groups.reduce((n, g) => n + g.runs.length, 0);
       $("#list-total").textContent = `${total} ${total === 1 ? "highlight" : "highlights"}`;
       $("#list").replaceChildren(...groups.map(group));
       showRankPreview(null);
     }
+    syncRelatedSortChrome(showRelatedSort);
+  } else if (!editing) {
+    // Sig unchanged: still refresh Closest|Surprising pressed state if results are showing.
+    const rankedVisible = ranking && !rankPending && rankOrder.length > 0 && !searching && RANK_MODES.includes(groupBy);
+    syncRelatedSortChrome(!!rankedVisible);
   }
   listSig = editing ? null : sig;
   if (!$("#colors").hidden) renderColors();
+  scheduleListScrollFade();
 }
 
-/** Start a new auto-expand paint (new query results, or Relevant ↔ Surprising reorder). */
+/**
+ * Soft top/bottom fade on the highlights list while content overflows the scrollport.
+ * `data-fade` is top | bottom | both — only the edges that still have more content beyond them.
+ * Top overlay tint matches the surface under it: group header → --accent; else shell --bg
+ * (avoids a cream smear over dark "Last 7 days" bars).
+ */
+function syncListScrollFade() {
+  const list = $("#list");
+  if (!list) return;
+  const { scrollTop, scrollHeight, clientHeight } = list;
+  const overflow = scrollHeight > clientHeight + 1;
+  let fade = "";
+  if (overflow) {
+    const showTop = scrollTop > 1;
+    const showBottom = scrollTop + clientHeight < scrollHeight - 1;
+    fade = showTop && showBottom ? "both" : showTop ? "top" : showBottom ? "bottom" : "";
+  }
+  if (fade) list.dataset.fade = fade;
+  else delete list.dataset.fade;
+
+  if (fade === "top" || fade === "both") {
+    const rect = list.getBoundingClientRect();
+    const sampleY = rect.top + 4;
+    const sampleX = rect.left + Math.min(24, Math.max(8, rect.width / 2));
+    const hit = document.elementFromPoint(sampleX, sampleY);
+    if (hit?.closest?.("#list .group > summary")) list.dataset.fadeTop = "accent";
+    else delete list.dataset.fadeTop;
+  } else {
+    delete list.dataset.fadeTop;
+  }
+}
+
+function scheduleListScrollFade() {
+  requestAnimationFrame(syncListScrollFade);
+}
+
+{
+  const list = $("#list");
+  if (list) {
+    list.addEventListener("scroll", syncListScrollFade, { passive: true });
+    // Group open/close and verse expand change scrollHeight without resizing #list's box.
+    list.addEventListener("toggle", scheduleListScrollFade, true);
+    new ResizeObserver(scheduleListScrollFade).observe(list);
+  }
+  addEventListener("resize", scheduleListScrollFade, { passive: true });
+}
+
+/** Start a new auto-expand paint (new query results, or Closest ↔ Surprising reorder). */
 function beginRankPaint({ resetUser = false } = {}) {
   rankPaint++;
   rankExpandPaint = -1;
@@ -563,9 +722,32 @@ function applyRankAutoExpand(topRef) {
   verseText.open = topRef;
 }
 
-// ---- grouping / ranking: Date and Genre group; Relevant and Surprising rank against a passage.
+// ---- grouping / ranking: Date and Genre group; Related ranks against a passage (Closest|Surprising order).
+// Topic search is orthogonal chrome in #list-bar (not a mode).
 
-let groupBy = MODES.includes(localStorage.getItem(GROUP_BY) ?? "") ? localStorage.getItem(GROUP_BY) : "date";
+/** Load persisted mode; migrate legacy Topic → Date and Relevant/Surprising → Related. */
+function readGroupBy() {
+  const stored = localStorage.getItem(GROUP_BY) ?? "";
+  if (stored === LEGACY_TOPIC_MODE) {
+    localStorage.setItem(GROUP_BY, "date");
+    return "date";
+  }
+  if (LEGACY_RELATED_MODES.includes(stored)) {
+    // Keep Surprising preference as the Closest|Surprising order after the mode merge.
+    if (stored === "surprising") localStorage.setItem(RELATED_SORT, "surprising");
+    localStorage.setItem(GROUP_BY, "related");
+    return "related";
+  }
+  return MODES.includes(stored) ? stored : "date";
+}
+
+function readRelatedSort() {
+  return localStorage.getItem(RELATED_SORT) === "surprising" ? "surprising" : "closest";
+}
+
+let groupBy = readGroupBy();
+/** Related results order: closest (default) or surprising — not a list mode. */
+let relatedSort = readRelatedSort();
 const groupOpen = new Map();
 let relevance = null;
 const bsbText = createBsbText();
@@ -582,36 +764,33 @@ function renderGroupBy(any) {
 }
 
 function selectMode(next) {
-  if (!MODES.includes(next)) return;
+  if (!MODES.includes(next) || next === groupBy) return;
   const wasJev = JEV_MODES.includes(groupBy);
   const willJev = JEV_MODES.includes(next);
   const wasPassage = RANK_MODES.includes(groupBy);
   const willPassage = RANK_MODES.includes(next);
+  const searching = !!topicQuery();
   groupBy = next;
   localStorage.setItem(GROUP_BY, groupBy);
-  // Leaving Relevant/Surprising: clear ranking scope from #ref so Date/Genre don't inherit it as an add.
+  // Leaving Related: clear ranking scope from #ref so Date/Genre don't inherit it as an add.
+  // Topic search stays — it is orthogonal chrome, not a mode.
   if (wasPassage && !willPassage) clearRankScopeFromRef();
-  if (wasJev && !willJev) clearRelevanceInput({ keepRef: wasPassage });
-  // Entering Relevant/Surprising from Date/Genre/Topic: start with an empty rank field (don't rank a half-typed add).
+  if (wasJev && !willJev && !searching) clearRelevanceInput({ keepRef: wasPassage, keepSearch: true });
+  // Entering Related from Date/Genre: start with an empty rank field (don't rank a half-typed add).
   if (willPassage && !wasPassage) {
     refField.value = "";
     errorIn($("#add"), "");
   }
-  if (next === TOPIC_MODE) errorIn($("#add"), "");
   renderGroupBy(!!$("#list-bar") && !$("#list-bar").hidden);
-  if (willPassage && wasPassage && relevance?.passage && !rankFailed) {
-    // Relevant ↔ Surprising: reorder cached verdicts, no network call.
-    // New final paint so auto-expand follows the new top (unless the person toggled a row).
-    beginRankPaint();
-    void reorderRelevance();
-  } else if (willPassage && refText(refField).trim()) {
+  // Search owns the list until cleared; only persist the mode for when the field empties.
+  if (searching) {
+    render();
+    return;
+  }
+  if (willPassage && refText(refField).trim()) {
     void runRelevance();
-  } else if (next === TOPIC_MODE && sanitizeTopic($("#topic-ref").value)) {
-    void runTopic();
   } else {
-    // Crossing passage ↔ topic (or empty scope): drop the other mode's session so hasScope matches the field.
-    if (next === TOPIC_MODE) relevance?.setTopicInput("");
-    else if (willPassage) relevance?.clearPassage();
+    if (willPassage) relevance?.clearPassage();
     rankOrder = [];
     rankFailed = false;
     verseText.open = null;
@@ -620,21 +799,42 @@ function selectMode(next) {
   }
 }
 
+/** Closest | Surprising results order for Related (reorders cached verdicts; no new network call). */
+function selectRelatedSort(next) {
+  if (next !== "closest" && next !== "surprising") return;
+  if (relatedSort === next) return;
+  relatedSort = next;
+  localStorage.setItem(RELATED_SORT, relatedSort);
+  syncRelatedSortChrome(true);
+  if (!RANK_MODES.includes(groupBy) || topicQuery() || !relevance?.passage || rankFailed) {
+    render();
+    return;
+  }
+  beginRankPaint();
+  void reorderRelevance();
+}
+
 for (const b of document.querySelectorAll("#group-by button")) {
   b.addEventListener("click", () => selectMode(b.dataset.mode));
 }
 $("#group-by-select").addEventListener("change", (e) => selectMode(e.target.value));
+for (const b of document.querySelectorAll("#related-sort [data-related-sort]")) {
+  b.addEventListener("click", () => selectRelatedSort(b.dataset.relatedSort));
+}
 
 /** Clear #ref ranking text and restore add-mode placeholder/aria (Highlight stays until renderGroupBy). */
 function clearRankScopeFromRef() {
-  clearTimeout(refRankTimer);
+  lastRelatedCommitKey = "";
   refField.value = "";
   errorIn($("#add"), "");
 }
 
-function clearRelevanceInput({ keepRef = false } = {}) {
+function clearRelevanceInput({ keepRef = false, keepSearch = false } = {}) {
   if (!keepRef) clearRankScopeFromRef();
-  $("#topic-ref").value = "";
+  if (!keepSearch) {
+    const topicField = $("#topic-search");
+    if (topicField) topicField.value = "";
+  }
   errorIn($("#add"), "");
   rankGeneration++; // drop any in-flight response
   relevance?.clearPassage();
@@ -645,6 +845,8 @@ function clearRelevanceInput({ keepRef = false } = {}) {
   verseText.open = null;
   showRelevanceNone(null);
   showRankPreview(null);
+  // Collapse after clearing passage so syncAddHiddenForTopicSearch doesn't revive the epigraph.
+  if (!keepSearch) closeTopicSearch({ force: true });
 }
 
 /**
@@ -686,6 +888,8 @@ function renderPreviewBody(body, passage) {
 
 /** Hybrid preview of the input passage in Relevant/Surprising (Topic uses header copy only). */
 function showRankPreview(passage) {
+  // Topic search chrome hides #add; don't leave the epigraph floating without the scope field.
+  if ($("#topic-search-wrap")?.classList.contains("is-open")) passage = null;
   const epigraph = $("#rank-epigraph");
   const panel = $("#rank-preview");
   if (!passage?.text) {
@@ -804,7 +1008,8 @@ function currentRuns() {
 
 async function runRelevance() {
   const session = await ensureRelevance();
-  if (!session || !RANK_MODES.includes(groupBy)) return;
+  // Topic search owns the list while it has a query; don't race passage ranking underneath.
+  if (!session || !RANK_MODES.includes(groupBy) || topicQuery()) return;
   const form = $("#add");
   const raw = refText(refField);
   const gen = ++rankGeneration;
@@ -839,7 +1044,7 @@ async function runRelevance() {
   const runs = currentRuns();
   const items = runs.map((r) => ({ id: r.ref, ref: r.ref }));
   try {
-    const { ranked } = await session.judge(items, groupBy);
+    const { ranked } = await session.judge(items, relatedRankMode());
     if (gen !== rankGeneration) return; // newer input or a later run owns the UI
     rankOrder = ranked.map((v) => v.id);
     rankFailed = false;
@@ -859,10 +1064,9 @@ async function runRelevance() {
 
 async function runTopic() {
   const session = await ensureRelevance();
-  if (!session || groupBy !== TOPIC_MODE) return;
+  if (!session) return;
   const form = $("#add");
-  const raw = $("#topic-ref").value;
-  const cleaned = sanitizeTopic(raw);
+  const cleaned = topicQuery();
   const gen = ++rankGeneration;
   rankOrder = [];
   rankFailed = false;
@@ -874,7 +1078,10 @@ async function runTopic() {
     errorIn(form, "");
     session.clearPassage();
     rankPending = null;
-    if (gen === rankGeneration) render();
+    if (gen !== rankGeneration) return;
+    // Restore the selected mode's list (Related re-ranks from #ref when present).
+    if (RANK_MODES.includes(groupBy) && refText(refField).trim()) void runRelevance();
+    else render();
     return;
   }
   rankPending = true;
@@ -906,19 +1113,20 @@ async function reorderRelevance() {
   const session = await ensureRelevance();
   if (!session?.passage || rankFailed) return render();
   const runs = currentRuns();
-  const { ranked } = session.reorder(runs.map((r) => ({ id: r.ref, ref: r.ref })), groupBy);
+  const { ranked } = session.reorder(runs.map((r) => ({ id: r.ref, ref: r.ref })), relatedRankMode());
   rankOrder = ranked.map((v) => v.id);
   render();
 }
 
-// Ranking input is #ref (hijacked in Relevant/Surprising). Autocomplete stays on that one field.
+// Ranking input is #ref (hijacked in Related). Autocomplete stays on that one field.
+// Typing clears stale results only — Jev runs on commit (Enter / change / blur), not on a debounce.
 refField.addEventListener("input", () => {
-  if (!RANK_MODES.includes(groupBy)) return;
-  clearTimeout(refRankTimer);
+  if (!RANK_MODES.includes(groupBy) || topicQuery()) return;
+  lastRelatedCommitKey = "";
   const form = $("#add");
   const raw = refText(refField);
   if (!String(raw).trim()) errorIn(form, "");
-  // Leave the old ranked list immediately when the passage changes; debounce the network call.
+  // Leave the old ranked list immediately when the passage changes; no network until commit.
   rankGeneration++;
   rankOrder = [];
   rankFailed = false;
@@ -927,49 +1135,131 @@ refField.addEventListener("input", () => {
   showRelevanceNone(null);
   showRankPreview(null);
   if (String(raw).trim()) {
-    rankPending = true;
+    // Keep list chrome in the ranking path without implying a fetch yet (no Ranking… copy).
+    rankPending = null;
+    relevance?.clearPassage();
   } else {
     relevance?.clearPassage();
     rankPending = null;
   }
   render();
-  // Invalid refs show inline and make no call; wait for a pause so typing doesn't flash errors.
-  refRankTimer = setTimeout(() => void runRelevance(), 400);
+});
+
+// Autocomplete / passage pick that finalizes a ref (si-passage-input bubbles change).
+refField.addEventListener("change", () => {
+  commitRelatedRank();
+});
+
+// Blur commit when the field holds a passage (invalid → inline error, no Jev). Deferred so an
+// accept's change event wins and lastRelatedCommitKey dedupes the pair.
+refField.addEventListener("focusout", () => {
+  setTimeout(() => {
+    if (!RANK_MODES.includes(groupBy) || topicQuery()) return;
+    if (refField.contains(document.activeElement) || refField.shadowRoot?.activeElement) return;
+    if (!String(refText(refField)).trim()) return;
+    commitRelatedRank();
+  }, 0);
 });
 
 {
-  const topicField = $("#topic-ref");
-  let topicTimer = 0;
+  const topicField = $("#topic-search");
+  const topicToggle = $("#topic-search-toggle");
+  const topicClose = $("#topic-search-close");
+  /** Last topic string that started a commit (dedupes Enter+blur). Cleared while typing. */
+  let lastTopicCommitKey = "";
+  topicToggle.addEventListener("click", () => openTopicSearch());
+  // Close ×: clear + collapse in one step (mousedown so the field doesn't blur first).
+  topicClose?.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    exitTopicSearch();
+  });
+  topicClose?.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    e.preventDefault();
+    exitTopicSearch();
+  });
   topicField.addEventListener("input", () => {
-    clearTimeout(topicTimer);
+    lastTopicCommitKey = "";
     const form = $("#add");
     const cleaned = sanitizeTopic(topicField.value);
     if (!cleaned) errorIn(form, "");
-    if (groupBy === TOPIC_MODE) {
-      rankGeneration++;
-      rankOrder = [];
-      rankFailed = false;
-      beginRankPaint({ resetUser: true });
-      verseText.open = null;
-      showRelevanceNone(null);
-      showRankPreview(null);
-      if (cleaned) {
-        rankPending = true;
-        relevance?.setTopicInput(cleaned);
-      } else {
-        relevance?.clearPassage();
-        rankPending = null;
-      }
+    // Stay expanded while typing a query; empty alone does not collapse (blur/Escape/× does).
+    if (cleaned) openTopicSearch({ focus: false });
+    // Search owns the list whenever the field has a query — independent of Date/Genre/Related.
+    // Clear stale results while typing; Jev runs on Enter/blur only (same commit rule as Related).
+    rankGeneration++;
+    rankOrder = [];
+    rankFailed = false;
+    beginRankPaint({ resetUser: true });
+    verseText.open = null;
+    showRelevanceNone(null);
+    showRankPreview(null);
+    if (cleaned) {
+      rankPending = null;
+      relevance?.setTopicInput(cleaned);
       render();
+    } else {
+      relevance?.clearPassage();
+      rankPending = null;
+      // Restore Related from #ref on clear (commit-style restore, not a mid-type fire).
+      if (RANK_MODES.includes(groupBy) && refText(refField).trim()) {
+        lastRelatedCommitKey = "";
+        commitRelatedRank();
+      } else render();
     }
-    topicTimer = setTimeout(() => void runTopic(), 400);
   });
+  function commitTopicSearch() {
+    const cleaned = topicQuery();
+    if (!cleaned) return;
+    if (cleaned === lastTopicCommitKey) return;
+    lastTopicCommitKey = cleaned;
+    void runTopic();
+  }
   topicField.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      // One Escape fully exits — clear query if any, collapse, restore #add.
+      exitTopicSearch();
+      return;
+    }
     if (e.key !== "Enter" || e.isComposing) return;
     e.preventDefault();
-    clearTimeout(topicTimer);
-    void runTopic();
+    commitTopicSearch();
   });
+  topicField.addEventListener("blur", () => {
+    // Commit a non-empty query on blur; collapse only when empty.
+    if (topicQuery()) commitTopicSearch();
+    closeTopicSearch();
+  });
+  // Empty open search: tap outside collapses and restores #add. Non-empty keeps results (use × / Escape).
+  document.addEventListener("pointerdown", (e) => {
+    const wrap = $("#topic-search-wrap");
+    if (!wrap?.classList.contains("is-open")) return;
+    if (e.target instanceof Node && wrap.contains(e.target)) return;
+    if (topicQuery()) return;
+    closeTopicSearch({ force: true });
+  }, true);
+}
+
+/** Skeleton rows while Related/topic waits on Jev after commit — matches list row rhythm. */
+function rankSkeleton(count = 4) {
+  const wrap = document.createElement("div");
+  wrap.className = "rank-skeleton";
+  wrap.setAttribute("role", "status");
+  wrap.setAttribute("aria-busy", "true");
+  wrap.setAttribute("aria-label", rankingCopy());
+  for (let i = 0; i < count; i++) {
+    const row = document.createElement("div");
+    row.className = "rank-skeleton-row";
+    const dot = document.createElement("span");
+    dot.className = "rank-skeleton-dot";
+    const line = document.createElement("span");
+    line.className = "rank-skeleton-line";
+    line.style.width = `${58 + ((i * 13) % 28)}%`;
+    row.append(dot, line);
+    wrap.append(row);
+  }
+  return wrap;
 }
 
 /** One group: its name as the summary (the whole header toggles it), then its rows. */
@@ -1260,13 +1550,19 @@ function wireTextToggle(toggle, li, runRef) {
   toggle.addEventListener("focus", warm);
   toggle.addEventListener("click", () => {
     // Manual open/close during this query — don't let the next mode-switch paint override it.
-    if (JEV_MODES.includes(groupBy)) rankUserTouched = true;
+    if (JEV_MODES.includes(groupBy) || topicQuery()) rankUserTouched = true;
     const wasOpen = verseText.open === runRef;
-    for (const other of document.querySelectorAll("#list .verse-text")) other.remove();
+    clearOpenVerseText();
     for (const other of document.querySelectorAll("#list .row-link[aria-expanded]")) other.setAttribute("aria-expanded", "false");
     verseText.open = wasOpen ? null : runRef;
     if (!wasOpen) (showText(li, runRef), toggle.setAttribute("aria-expanded", "true"));
   });
+}
+
+/** Remove any open passage or its loading skeleton from the list. */
+function clearOpenVerseText() {
+  for (const other of document.querySelectorAll("#list .verse-text, #list .verse-text-skel")) other.remove();
+  scheduleListScrollFade();
 }
 
 /** The run's <si-passage>, made once and kept, so a re-render doesn't refetch. */
@@ -1347,15 +1643,89 @@ const SCRIPTURE_CSS = `
 .wj { color: var(--vault-wj, inherit) !important; }
 `;
 
-/** Puts the run's passage under its row, with a rule in the row's color. */
+/** Placeholder under a row while <si-passage> loads — sized near real scripture (≈5–6 lines + cite). */
+function verseTextSkeleton(dot) {
+  const skel = document.createElement("div");
+  skel.className = "verse-text-skel";
+  skel.setAttribute("aria-hidden", "true");
+  if (dot) skel.style.setProperty("--row-color", getComputedStyle(dot).backgroundColor);
+  const widths = [92, 88, 84, 78, 70, 38];
+  for (const w of widths) {
+    const line = document.createElement("span");
+    line.className = "verse-text-skel-line";
+    line.style.width = `${w}%`;
+    skel.append(line);
+  }
+  return skel;
+}
+
+/** True when the passage has finished loading (or failed) and is safe to show without mid-layout jump. */
+function passageReady(el) {
+  return !!(el?.loaded || el?.dataset?.verseError);
+}
+
+/**
+ * Puts the run's passage under its row, with a rule in the row's color.
+ * If not yet loaded: show a skeleton and only reveal <si-passage> after scripture-load/error
+ * (opacity fade unless prefers-reduced-motion). Already-warm passages open immediately.
+ * If already ready and mounted under this row, no-op (avoids re-fade on list rebuild).
+ */
 function showText(li, runRef) {
   const el = passageFor(runRef);
+  li.querySelector(".row-link")?.setAttribute("aria-controls", el.id);
+  // Already showing under this row — don't remount or re-trigger verse-text-enter.
+  if (passageReady(el) && el.parentElement === li && !li.querySelector(".verse-text-skel")) return;
+
   el.className = "verse-text";
   styleScripture(el); // re-apply after reconnect; same path in Date/Genre/Jev
   const dot = li.querySelector(".dot");
   if (dot) el.style.setProperty("--row-color", getComputedStyle(dot).backgroundColor);
-  li.querySelector(".row-link")?.setAttribute("aria-controls", el.id);
-  li.append(el);
+
+  const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const reveal = () => {
+    if (verseText.open !== runRef) return;
+    li.querySelector(".verse-text-skel")?.remove();
+    const firstReveal = el.parentElement !== li;
+    if (firstReveal && !reduceMotion) el.classList.add("verse-text-enter");
+    else el.classList.remove("verse-text-enter");
+    if (firstReveal) li.append(el);
+    scheduleListScrollFade();
+  };
+
+  if (passageReady(el)) {
+    reveal();
+    return;
+  }
+
+  // Not ready: reserve height with a skeleton; keep <si-passage> off the open row until load settles.
+  if (!li.querySelector(".verse-text-skel")) {
+    li.append(verseTextSkeleton(dot));
+    scheduleListScrollFade();
+  }
+  prefetchText(runRef);
+  if (!el.isConnected) {
+    let holder = $("#text-prefetch");
+    if (!holder) {
+      holder = document.createElement("div");
+      holder.id = "text-prefetch";
+      holder.hidden = true;
+      document.body.append(holder);
+    }
+    holder.append(el);
+  }
+
+  let settled = false;
+  const onReady = () => {
+    if (settled || verseText.open !== runRef) return;
+    settled = true;
+    reveal();
+  };
+  el.addEventListener("scripture-load", onReady, { once: true });
+  el.addEventListener("scripture-error", () => {
+    el.dataset.verseError = "1";
+    onReady();
+  }, { once: true });
+  setTimeout(onReady, 8000);
 }
 
 /** Shows a popover under its anchor (above it when there's no room below), kept on screen. */

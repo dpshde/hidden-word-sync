@@ -95,9 +95,8 @@
 
     <form id="add" autocomplete="off" novalidate>
       <button type="button" id="add-dot" class="pick" aria-haspopup="true" aria-label="Highlight color: Yellow"><span class="dot" data-color="yellow"></span></button>
-      <!-- Relevant/Surprising hijack #ref as the ranking scope; Topic swaps in #topic-ref in this same top slot. -->
+      <!-- Related hijacks #ref as the ranking scope. Topic search is a list-bar icon that expands. -->
       <si-passage-input id="ref" placeholder="John 3:16" aria-label="Verse or passage"></si-passage-input>
-      <input id="topic-ref" class="topic-input" type="text" maxlength="200" placeholder="grace, fear of the Lord…" aria-label="Topic to sort highlights by" autocomplete="off" hidden>
       <input type="hidden" name="color" value="yellow">
       <button type="submit">Highlight</button>
       <p class="error" role="alert"></p>
@@ -110,19 +109,20 @@
           <summary id="filter-summary" aria-label="Filter by color" title="Filter by color"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg><span id="filter-badge" class="filter-badge" hidden></span></summary>
           <div id="filter-options" role="group" aria-label="Filter by color"></div>
         </details>
+        <div id="topic-search-wrap" class="topic-search-wrap">
+          <button type="button" id="topic-search-toggle" class="topic-search-toggle" aria-label="Search by topic" title="Search by topic" aria-expanded="false" aria-controls="topic-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3-3"/></svg></button>
+          <input id="topic-search" class="topic-search" type="search" enterkeyhint="search" maxlength="200" placeholder="Search by topic…" aria-label="Search highlights by topic" autocomplete="off" tabindex="-1">
+          <button type="button" id="topic-search-close" class="topic-search-close" aria-label="Close topic search" title="Close search" tabindex="-1"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+        </div>
         <div id="group-by" class="segmented" role="group" aria-label="Sort highlights" hidden>
           <button type="button" data-mode="date" aria-pressed="true">Date</button>
           <button type="button" data-mode="genre" aria-pressed="false">Genre</button>
-          <button type="button" data-mode="relevant" aria-pressed="false">Relevant</button>
-          <button type="button" data-mode="surprising" aria-pressed="false">Surprising</button>
-          <button type="button" data-mode="topic" aria-pressed="false">Topic</button>
+          <button type="button" data-mode="related" aria-pressed="false">Related</button>
         </div>
         <select id="group-by-select" class="mode-select" aria-label="Sort highlights" hidden>
           <option value="date">Date</option>
           <option value="genre">Genre</option>
-          <option value="relevant">Relevant</option>
-          <option value="surprising">Surprising</option>
-          <option value="topic">Topic</option>
+          <option value="related">Related</option>
         </select>
       </div>
     </div>
@@ -141,6 +141,11 @@
       </summary>
       <div id="rank-preview-body" class="rank-preview-body"></div>
     </details>
+    <!-- Closest | Surprising: Related results order only (not a 4th mode). Hidden until ranked results exist. -->
+    <div id="related-sort" class="related-sort segmented" hidden role="group" aria-label="Order related highlights">
+      <button type="button" data-related-sort="closest" aria-pressed="true">Closest</button>
+      <button type="button" data-related-sort="surprising" aria-pressed="false">Surprising</button>
+    </div>
     <div id="list"></div>
     <p id="list-total" class="list-total" role="status"></p>
     <div id="color-pop" popover role="group" aria-label="Highlight color"></div>

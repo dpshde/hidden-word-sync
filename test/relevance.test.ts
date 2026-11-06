@@ -35,42 +35,73 @@ function verseText(map: Record<string, string>) {
 }
 
 describe("UI copy and list toolbar toggle", () => {
-  test("the list bar offers Date · Genre · Relevant · Surprising · Topic above the list", () => {
+  test("the list bar offers Date · Genre · Related; topic search sits beside Filter", () => {
     const bar = /<div id="group-by"[\s\S]*?<\/div>/.exec(html)?.[0] ?? "";
     expect([...bar.matchAll(/data-mode="([^"]+)"/g)].map((m) => m[1])).toEqual([
       "date",
       "genre",
-      "relevant",
-      "surprising",
-      "topic",
+      "related",
     ]);
-    // Relevant/Surprising hijack #ref; Topic swaps in #topic-ref inside #add.
+    expect(html).not.toContain('data-mode="topic"');
+    expect(html).not.toContain('data-mode="relevant"');
+    expect(html).not.toContain('data-mode="surprising"');
+    expect(html).not.toContain('<option value="topic">');
+    expect(html).toContain('id="related-sort"');
+    expect(html).toContain('data-related-sort="closest"');
+    expect(html).toContain('data-related-sort="surprising"');
+    // Related hijacks #ref; Closest|Surprising is results chrome; topic search is list-bar icon chrome.
     expect(html).not.toContain('id="relevance-ref"');
     expect(html).not.toContain('id="relevance-bar"');
     expect(html).not.toContain('id="list-foot"');
+    expect(html).not.toContain('id="topic-ref"');
     expect(html).toContain('id="ref"');
     expect(html).toContain("<si-passage-input id=\"ref\"");
-    expect(html).toContain('id="topic-ref"');
+    expect(html).toContain('id="topic-search-wrap"');
+    expect(html).toContain('id="topic-search-toggle"');
+    expect(html).toContain('id="topic-search"');
+    expect(html).toContain('aria-label="Search by topic"');
+    expect(html).toContain('aria-controls="topic-search"');
+    expect(html).toContain('aria-expanded="false"');
+    expect(html).toContain('placeholder="Search by topic…"');
+    expect(html).toContain('aria-label="Search highlights by topic"');
     expect(html).not.toContain('id="scope-prefix"');
     expect(app).toContain('placeholder: "Rom 8:18–25"');
+    expect(app).toContain("topicQuery");
+    expect(app).toContain("openTopicSearch");
+    expect(app).toContain("closeTopicSearch");
+    expect(app).toContain("syncAddHiddenForTopicSearch");
+    expect(app).toContain("form.hidden = searchOpen");
+    expect(app).toContain("LEGACY_TOPIC_MODE");
+    expect(app).toContain("LEGACY_RELATED_MODES");
+    expect(app).toContain("relatedSort");
+    expect(app).toContain("selectRelatedSort");
+    expect(app).toContain("relatedRankMode");
+    expect(app).toContain("syncRelatedSortChrome");
     expect(app).toContain("syncRefFieldMode");
     expect(app).toContain("rank-scope");
     expect(app).toContain("clearRankScopeFromRef");
+    expect(css).toContain(".related-sort");
     expect(css).toContain("#add.rank-scope { grid-template-columns: 1fr; }");
     expect(css).toContain(":focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }");
-    // Topic field lives inside #add beside #ref; #list-bar sits directly below #add and above #list,
-    // and hosts the multi-select #filters popover beside #group-by.
+    // #list-bar sits directly below #add and above #list; Filter + search icon + modes share the bar.
     const addStart = html.indexOf('id="add"');
     const barStart = html.indexOf('id="list-bar"');
     const filtersStart = html.indexOf('id="filters"');
+    const topicToggleStart = html.indexOf('id="topic-search-toggle"');
+    const topicSearchStart = html.indexOf('id="topic-search"');
     const listStart = html.indexOf('id="list"');
     expect(addStart).toBeGreaterThan(html.indexOf("<header>"));
-    expect(html.slice(addStart, barStart)).toContain('id="topic-ref"');
+    expect(html.slice(addStart, barStart)).not.toContain('id="topic-search"');
     expect(barStart).toBeGreaterThan(addStart);
     expect(filtersStart).toBeGreaterThan(barStart);
-    expect(listStart).toBeGreaterThan(filtersStart);
+    expect(topicToggleStart).toBeGreaterThan(filtersStart);
+    expect(topicSearchStart).toBeGreaterThan(topicToggleStart);
+    expect(listStart).toBeGreaterThan(topicSearchStart);
     const listBar = html.slice(barStart, listStart);
     expect(listBar).toContain('id="filters"');
+    expect(listBar).toContain('id="topic-search-wrap"');
+    expect(listBar).toContain('id="topic-search-toggle"');
+    expect(listBar).toContain('id="topic-search"');
     expect(listBar).toContain('id="filter-summary"');
     expect(listBar).toContain('id="filter-badge"');
     expect(listBar).toContain("<svg viewBox=\"0 0 24 24\"");
@@ -94,10 +125,40 @@ describe("UI copy and list toolbar toggle", () => {
     expect(app).toContain("SHORT_PREVIEW_MAX_VERSES");
     expect(app).toContain("SHORT_PREVIEW_MAX_CHARS");
     expect(css).toContain(".list-bar");
+    expect(css).toContain(".topic-search-wrap");
+    expect(css).toContain(".topic-search-toggle");
+    expect(css).toContain(".topic-search-wrap.is-open");
+    expect(css).toContain(".list-bar-top:has(.topic-search-wrap.is-open) .filter-menu");
+    expect(css).toContain(".list-bar-top:has(.topic-search-wrap.is-open) .segmented");
+    // Open search shares a row with Filter; modes wrap full-width (not order:-1 / 100% search orphaning Filter).
+    expect(css).toMatch(/\.topic-search-wrap\.is-open\s*\{[^}]*flex:\s*1 1 0/);
+    expect(css).not.toMatch(/\.topic-search-wrap\.is-open\s*\{[^}]*order:\s*-1/);
+    // Expand/collapse animates width/opacity (no display:none flash).
+    expect(css).toContain(".topic-search-wrap:not(.is-open) .topic-search");
+    expect(css).toMatch(/\.topic-search-wrap:not\(\.is-open\) \.topic-search\s*\{[^}]*max-width:\s*0/);
+    expect(css).toMatch(/\.topic-search-wrap\.is-open \.topic-search-toggle\s*\{[^}]*max-width:\s*0/);
+    expect(css).toContain("transition: opacity .2s ease, max-width .2s ease");
+    expect(css).toContain(".list-bar .topic-search");
     expect(css).toContain(".filter-menu");
     expect(css).toContain(".rank-epigraph");
     expect(css).toContain(".rank-preview");
     expect(css).toContain("-webkit-line-clamp");
+    // Expand/collapse: icon → field; hide #add while open; × / one Escape / empty outside fully exits.
+    expect(html).toContain('id="topic-search-close"');
+    expect(html).toContain('aria-label="Close topic search"');
+    expect(css).toContain(".topic-search-close");
+    expect(css).toContain(".topic-search-wrap.is-open .topic-search-close");
+    expect(app).toContain('topicToggle.addEventListener("click", () => openTopicSearch())');
+    expect(app).toContain("function exitTopicSearch");
+    expect(app).toContain("syncAddHiddenForTopicSearch(true)");
+    expect(app).toContain("syncAddHiddenForTopicSearch(false)");
+    expect(app).toContain('if (e.key === "Escape")');
+    expect(app).toContain("exitTopicSearch()");
+    expect(app).toContain('topicField.addEventListener("blur"');
+    expect(app).toContain("if (!force && topicQuery()) return");
+    expect(app).toContain("closeTopicSearch({ force: true })");
+    // Empty open search: outside tap collapses; non-empty keeps results (× / Escape clears).
+    expect(app).toMatch(/document\.addEventListener\("pointerdown"[\s\S]*?topicQuery\(\)\) return[\s\S]*?closeTopicSearch\(\{ force: true \}\)/);
   });
 
   test("count and empty-state copy", () => {
@@ -105,21 +166,16 @@ describe("UI copy and list toolbar toggle", () => {
     expect(rankStatusCopy(3, 10, "relevant")).toBe("3 of 10 · closest");
     expect(rankStatusCopy(3, 10, "surprising")).toBe("3 of 10 · least obvious");
     expect(rankStatusCopy(10, 10, "topic")).toBe("10 · closest");
-    expect(topicCopy("grace")).toBe("Sorted by closeness to “grace”");
-    expect(topicCopy("")).toBe("Sorted by closeness");
-    expect(jevHintCopy("relevant")).toBe(
+    expect(topicCopy("grace")).toBe("Results for “grace”");
+    expect(topicCopy("")).toBe("Results");
+    expect(jevHintCopy("related")).toBe(
       "Find the highlights in your library most closely connected to a passage.",
     );
-    expect(jevHintCopy("surprising")).toBe(
-      "Find highlights in your library that connect to a passage in unexpected ways.",
-    );
-    expect(jevHintCopy("surprising")).not.toBe(jevHintCopy("relevant"));
-    expect(jevHintCopy("topic")).toBe(
-      "Sort all your highlights by how closely they speak to a theme.",
-    );
-    expect(jevCtaCopy("relevant")).toBe("Choose a passage");
+    // One Related coach path — Surprising-specific empty copy is gone.
+    expect(jevHintCopy("surprising")).toBe(jevHintCopy("related"));
+    expect(jevHintCopy("topic")).toBe(jevHintCopy("related"));
+    expect(jevCtaCopy("related")).toBe("Choose a passage");
     expect(jevCtaCopy("surprising")).toBe("Choose a passage");
-    expect(jevCtaCopy("topic")).toBe("Enter a topic");
     expect(sanitizeTopic("  grace  ")).toBe("grace");
     expect(emptyRelevanceCopy(17, "Hab 2:2")).toBe("None of your 17 highlights connect to Hab 2:2");
     expect(emptyRelevanceCopy(1, "Romans 8:28")).toBe("None of your 1 highlight connect to Romans 8:28");
@@ -145,16 +201,20 @@ describe("UI copy and list toolbar toggle", () => {
 
   test("rank-mode header and loading copy; stale generations are ignored; identical list markup", () => {
     expect(relatedCopy("Habakkuk 2:2")).toBe("Related to Habakkuk 2:2");
-    expect(relatedCopy("Habakkuk 2:2", "relevant")).toBe("Related to Habakkuk 2:2");
     expect(relatedCopy("")).toBe("Related");
-    expect(relatedCopy("Habakkuk 2:2", "surprising")).toBe("Unexpected links to Habakkuk 2:2");
-    expect(relatedCopy("", "surprising")).toBe("Unexpected");
-    expect(relatedCopy("Habakkuk 2:2", "surprising")).not.toBe(relatedCopy("Habakkuk 2:2", "relevant"));
+    // Closest|Surprising changes order, not the group title.
+    expect(relatedCopy("Habakkuk 2:2")).not.toContain("Unexpected");
     expect(rankingCopy()).toBe("Ranking…");
-    expect(app).toContain("relatedCopy(relevance?.passage?.label, groupBy)");
+    expect(app).toContain("relatedCopy(relevance?.passage?.label)");
     expect(app).toContain("topicCopy(relevance?.topic)");
     expect(app).toContain("rankingCopy()");
-    expect(app).toMatch(/if \(rankPending\) \{[\s\S]*?rankingCopy\(\)/);
+    expect(app).toMatch(/if \(rankPending\) \{[\s\S]*?rankSkeleton\(/);
+    expect(app).toContain("function rankSkeleton");
+    expect(app).toContain('rankedGroup.classList.add("rank-enter")');
+    expect(css).toContain(".rank-skeleton");
+    expect(css).toContain(".rank-skeleton-row");
+    expect(css).toContain("rank-chrome-in");
+    expect(css).toContain("prefers-reduced-motion: reduce");
     // Same group()/row() path as Date and Genre — no dedicated rankGroup or reason lines.
     expect(app).toContain('group({ id: "ranked"');
     expect(app).not.toContain("function rankGroup");
@@ -170,42 +230,54 @@ describe("UI copy and list toolbar toggle", () => {
     expect(app).toContain("const gen = ++rankGeneration");
     expect(app).toContain("if (gen !== rankGeneration) return");
     expect(app).toContain("if (gen === rankGeneration)");
-    // Auto-expand top result once per final paint (new query or mode switch); respect manual toggles.
+    // Auto-expand top result once per final paint (new query or Closest|Surprising); respect manual toggles.
     expect(app).toContain("beginRankPaint");
     expect(app).toContain("applyRankAutoExpand");
     expect(app).toContain("rankUserTouched");
     expect(app).toContain("applyRankAutoExpand(ranked[0].ref)");
-    // Mode switch Relevant ↔ Surprising starts a new paint so the new top expands.
+    // Closest ↔ Surprising starts a new paint so the new top expands.
     expect(app).toMatch(/beginRankPaint\(\);\s*void reorderRelevance\(\)/);
-    // Empty Jev scope: hint in the list area (not foot status), no stale Date groups.
-    // Topic must not treat a leftover Relevant passage as scope (mode-specific hasScope).
+    expect(app).toContain("function selectRelatedSort");
+    expect(app).toContain("showRelatedSort");
+    expect(app).toContain("syncRelatedSortChrome");
+    // Empty Related scope: hint in the list area (not foot status), no stale Date groups.
+    // Topic search must not treat a leftover Related passage as scope (path-specific hasScope).
     expect(app).toContain("jevWaiting");
+    expect(app).toContain("relatedDrafting");
     expect(app).toContain("jevHintCopy(groupBy)");
     expect(app).toContain("jevCtaCopy(groupBy)");
     expect(app).toContain('box.className = "offer rank-empty"');
     expect(app).toContain('hint.className = "rank-hint"');
     expect(app).toContain('cta.className = "quiet rank-cta"');
+    expect(app).toContain("const searching = !!topicQuery()");
     expect(css).toMatch(/\.rank-empty\s*\{[\s\S]*?background:\s*var\(--surface\)[\s\S]*?box-shadow:\s*none/);
     expect(css).toMatch(/\.rank-empty \.rank-cta\s*\{[\s\S]*?background:\s*var\(--raised\)/);
     expect(css).toContain("#list .rows .row:hover");
     expect(css).not.toContain("#list .row:hover");
     expect(app).toContain('$("#list-total").textContent = ""');
-    expect(app).toMatch(/RANK_MODES\.includes\(groupBy\)\s*\?\s*!!relevance\?\.passage/);
-    expect(app).toContain('relevance?.setTopicInput("")');
+    expect(app).toContain("searching ? !!relevance?.topic");
+    expect(app).toContain("keepSearch");
     expect(css).toContain(".rank-empty");
     expect(css).toContain(".rank-hint");
-    // Foot never shows topicCopy / “Sorted by closeness” while the list is empty.
+    // Foot never shows topicCopy while the list is empty.
     expect(app).not.toMatch(/list-total"\)\.textContent =\s*\n\s*groupBy === TOPIC_MODE \? topicCopy/);
     // Expanded reader forces Lexend inside the shadow (si-passage .root uses all:initial).
     expect(app).toContain('font-family: "Lexend"');
     expect(app).toContain("styleScripture(el); // re-apply after reconnect");
-    // Typing a new ref clears the old list and shows loading before the debounced request.
-    expect(app).toMatch(/addEventListener\("input"[\s\S]*?rankGeneration\+\+[\s\S]*?rankPending = true/);
+    // Related ranks on commit only — typing clears stale UI, no debounced Jev.
+    expect(app).toContain("function commitRelatedRank");
+    expect(app).toContain('refField.addEventListener("change"');
+    expect(app).toContain('refField.addEventListener("focusout"');
+    expect(app).toContain("commitTopicSearch");
+    expect(app).not.toContain("refRankTimer");
+    expect(app).not.toContain("setTimeout(() => void runRelevance(), 400)");
+    expect(app).not.toContain("setTimeout(() => void runTopic(), 400)");
+    expect(app).toMatch(/addEventListener\("input"[\s\S]*?rankGeneration\+\+[\s\S]*?no network until commit/);
     expect(app).toContain('rankPending = true;\n  render(); // loading before any network / verse fetch');
     // List bar stretches full-width across the column with integrated status cell.
     expect(css).toContain("white-space: nowrap");
     expect(css).toMatch(/\.list-bar\s*\{[^}]*width:\s*100%/);
-    expect(css).toMatch(/\.list-bar \.segmented\s*\{[^}]*flex:\s*1 1 0/);
+    expect(css).toMatch(/\.list-bar \.segmented\s*\{[^}]*flex:\s*1 1 12rem/);
     expect(css).toContain(".list-total:empty");
   });
 
