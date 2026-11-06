@@ -14,9 +14,16 @@ test("the footer holds the theme, the contract and the auth status, and #list-to
   expect(items[2]).toContain('id="auth-status"');
   expect(html.indexOf('id="list-total"')).toBeGreaterThan(html.indexOf('id="list"'));
   expect(html.indexOf('id="list-total"')).toBeLessThan(html.indexOf('<footer class="shell-meta">'));
-  expect(css).toContain("#main:not([hidden]) > #list { width: 100%; flex: 0 1 auto;");
+  expect(css).toMatch(/#main:not\(\[hidden\]\) > #list\s*\{[^}]*flex:\s*0 1 auto/);
   const mobile = css.slice(css.indexOf("/* —— Mobile library (≤600px)"));
   expect(mobile).toContain("#main:not([hidden]) > #list { flex: 1 1 auto; }");
+  // Soft scroll-edge fades while the highlights list overflows; list-total stays beneath #list.
+  expect(app).toContain("function syncListScrollFade");
+  expect(app).toContain("scheduleListScrollFade()");
+  expect(css).toContain("--list-fade-size");
+  expect(css).toMatch(/#main:not\(\[hidden\]\) > #list\[data-fade="bottom"\]\s*\{[^}]*mask-image:\s*linear-gradient/);
+  expect(css).toMatch(/#main:not\(\[hidden\]\) > #list\[data-fade="top"\]\s*\{[^}]*mask-image:\s*linear-gradient/);
+  expect(css).toMatch(/#main:not\(\[hidden\]\) > #list\[data-fade="both"\]\s*\{[^}]*mask-image:\s*linear-gradient/);
 });
 
 test("the contract link goes where For developers' spec link does", () => {

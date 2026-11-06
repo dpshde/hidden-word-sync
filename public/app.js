@@ -653,6 +653,41 @@ function render() {
   }
   listSig = editing ? null : sig;
   if (!$("#colors").hidden) renderColors();
+  scheduleListScrollFade();
+}
+
+/**
+ * Soft top/bottom fade on the highlights list while content overflows the scrollport.
+ * `data-fade` is top | bottom | both — only the edges that still have more content beyond them.
+ */
+function syncListScrollFade() {
+  const list = $("#list");
+  if (!list) return;
+  const { scrollTop, scrollHeight, clientHeight } = list;
+  const overflow = scrollHeight > clientHeight + 1;
+  let fade = "";
+  if (overflow) {
+    const showTop = scrollTop > 1;
+    const showBottom = scrollTop + clientHeight < scrollHeight - 1;
+    fade = showTop && showBottom ? "both" : showTop ? "top" : showBottom ? "bottom" : "";
+  }
+  if (fade) list.dataset.fade = fade;
+  else delete list.dataset.fade;
+}
+
+function scheduleListScrollFade() {
+  requestAnimationFrame(syncListScrollFade);
+}
+
+{
+  const list = $("#list");
+  if (list) {
+    list.addEventListener("scroll", syncListScrollFade, { passive: true });
+    // Group open/close and verse expand change scrollHeight without resizing #list's box.
+    list.addEventListener("toggle", scheduleListScrollFade, true);
+    new ResizeObserver(scheduleListScrollFade).observe(list);
+  }
+  addEventListener("resize", scheduleListScrollFade, { passive: true });
 }
 
 /** Start a new auto-expand paint (new query results, or Closest ↔ Surprising reorder). */
@@ -1514,6 +1549,7 @@ function wireTextToggle(toggle, li, runRef) {
 /** Remove any open passage or its loading skeleton from the list. */
 function clearOpenVerseText() {
   for (const other of document.querySelectorAll("#list .verse-text, #list .verse-text-skel")) other.remove();
+  scheduleListScrollFade();
 }
 
 /** The run's <si-passage>, made once and kept, so a re-render doesn't refetch. */
@@ -1640,6 +1676,7 @@ function showText(li, runRef) {
     if (firstReveal && !reduceMotion) el.classList.add("verse-text-enter");
     else el.classList.remove("verse-text-enter");
     if (firstReveal) li.append(el);
+    scheduleListScrollFade();
   };
 
   if (passageReady(el)) {
@@ -1648,7 +1685,10 @@ function showText(li, runRef) {
   }
 
   // Not ready: reserve height with a skeleton; keep <si-passage> off the open row until load settles.
-  if (!li.querySelector(".verse-text-skel")) li.append(verseTextSkeleton(dot));
+  if (!li.querySelector(".verse-text-skel")) {
+    li.append(verseTextSkeleton(dot));
+    scheduleListScrollFade();
+  }
   prefetchText(runRef);
   if (!el.isConnected) {
     let holder = $("#text-prefetch");

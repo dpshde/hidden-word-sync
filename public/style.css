@@ -1177,7 +1177,32 @@ body:has(#main:not([hidden])) main { flex: 1 1 auto; min-height: 0; display: fle
   flex-direction: column;
   width: 100%;
 }
-#main:not([hidden]) > #list { width: 100%; flex: 0 1 auto; min-height: 0; min-width: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+#main:not([hidden]) > #list {
+  width: 100%;
+  flex: 0 1 auto;
+  min-height: 0;
+  min-width: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  /* Soft scroll-edge fades while content overflows; data-fade is set in syncListScrollFade. */
+  --list-fade-size: 1.5rem;
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+#main:not([hidden]) > #list[data-fade="bottom"] {
+  -webkit-mask-image: linear-gradient(#000 0%, #000 calc(100% - var(--list-fade-size)), transparent);
+  mask-image: linear-gradient(#000 0%, #000 calc(100% - var(--list-fade-size)), transparent);
+}
+#main:not([hidden]) > #list[data-fade="top"] {
+  -webkit-mask-image: linear-gradient(transparent, #000 var(--list-fade-size), #000);
+  mask-image: linear-gradient(transparent, #000 var(--list-fade-size), #000);
+}
+#main:not([hidden]) > #list[data-fade="both"] {
+  -webkit-mask-image: linear-gradient(transparent, #000 var(--list-fade-size), #000 calc(100% - var(--list-fade-size)), transparent);
+  mask-image: linear-gradient(transparent, #000 var(--list-fade-size), #000 calc(100% - var(--list-fade-size)), transparent);
+}
 #list .group, #list .group > summary, #list .rows, #list .rows > li { width: 100%; }
 body:has(#main:not([hidden])) .shell-meta { flex-shrink: 0; }
 /* Short screens: pull the offset toward the safe-area floor so the list keeps a usable height. */
